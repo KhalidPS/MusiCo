@@ -1,0 +1,65 @@
+package com.k.sekiro.musico.playmusic.player.notification
+
+import android.content.Context
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaSessionService
+import androidx.media3.ui.PlayerNotificationManager
+import com.k.sekiro.musico.MusicoApp
+import com.k.sekiro.musico.R
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+
+class MusiCoNotificationManager(
+    private val context: Context,
+    private val player: ExoPlayer
+): KoinComponent {
+
+    val notificationManager: NotificationManagerCompat by inject()
+
+
+
+    @UnstableApi
+    fun startNotificationService(
+        mediaSessionService: MediaSessionService,
+        mediaSession: MediaSession
+    ){
+
+        buildNotification(mediaSession)
+        startForegroundNotificationService(mediaSessionService)
+    }
+
+    private fun startForegroundNotificationService(mediaSessionService: MediaSessionService){
+        val notification = NotificationCompat.Builder(context, MusicoApp.NOTIFICATION_CHANNEL_ID)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .build()
+        mediaSessionService.startForeground(MusicoApp.NOTIFICATION_ID,notification)
+    }
+
+    @UnstableApi
+    private fun buildNotification(mediaSession: MediaSession){
+        PlayerNotificationManager.Builder(
+            context,
+            MusicoApp.NOTIFICATION_ID,
+            MusicoApp.NOTIFICATION_CHANNEL_ID
+        )
+            .setMediaDescriptionAdapter(
+                MusiCoNotificationAdapter(context = context, pendingIntent = mediaSession.sessionActivity)
+            )
+            .setSmallIconResourceId(R.drawable.logo_2)
+            .build()
+            .also {
+                it.setMediaSessionToken(mediaSession.platformToken)
+                it.setUseFastForwardActionInCompactView(true)
+                it.setUseNextActionInCompactView(true)
+                it.setUseRewindActionInCompactView(true)
+                it.setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                it.setPlayer(player)
+            }
+    }
+
+
+}

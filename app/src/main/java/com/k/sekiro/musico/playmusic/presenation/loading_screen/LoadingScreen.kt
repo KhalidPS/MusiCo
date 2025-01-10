@@ -72,6 +72,9 @@ fun CustomAudioLoader(
         val halfBarHeight = size.height / 2f
 
         // Calculate bar height changes based on animation progress
+        /**abs(animationProgress - 0.57f): Calculates the absolute difference between the animationProgress
+        and 0.57. This ensures that the height change is symmetrical around the point where
+        animationProgress is 0.57.**/
         val middleBarHeightChange = halfBarHeight * (1 - 2 * abs(animationProgress - 0.57f))
         val sideBarHeightChange = halfBarHeight * abs(animationProgress - 0.5f)
 

@@ -76,6 +76,7 @@ import com.k.sekiro.musico.core.presentaion.util.icons.TrackNext
 import com.k.sekiro.musico.core.presentaion.util.icons.TrackPrevious
 import com.k.sekiro.musico.core.presentaion.util.toPx
 import com.k.sekiro.musico.playmusic.domain.model.Song
+import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.convertUriToBitmap
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
@@ -576,5 +577,8 @@ fun PlayedSongScreen(
 @Preview
 @Composable
 private fun PlayedSongScreenPrev() {
-    //  PlayedSongScreen()
+      PlayedSongScreen(
+          lurCache = LruCache(4),
+          songs = mockSongs,
+      )
 }
