@@ -1,6 +1,7 @@
 package com.k.sekiro.musico
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -20,6 +21,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -30,6 +34,7 @@ import com.k.sekiro.musico.playmusic.domain.SongsRepository
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
+import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongState
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.RequestPermissionScreenViewModel
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
@@ -69,7 +74,8 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
                     val playedSongViewModel: PlayedSongViewModel = koinViewModel()
-                    val songs = playedSongViewModel.songList.collectAsState(emptyList())
+                    val state = playedSongViewModel.state.collectAsState(PlayedSongState())
+                    val songs = state.value.songs
 
                     Log.e("ks","$playedSongViewModel.")
 
@@ -85,8 +91,13 @@ class MainActivity : ComponentActivity() {
                         updateShowDialog = requestPermissionScreenViewModel::updateShowDialog
                     ){*/
                         Column(modifier = Modifier.padding(innerPadding)) {
-                            if (!songs.value.isEmpty()){
-                                PlayedSongScreen(lurCache = lruCache, songs = songs.value)
+                            if (!songs.isEmpty()){
+                                PlayedSongScreen(
+                                    lurCache = lruCache,
+                                    songs = { songs },
+                                    sliderValue = {state.value.sliderProgress},
+                                    onAction = playedSongViewModel::onAction
+                                )
                                 //SongsList(repositoryImpl = repo)
                             }else{
                                 LoadingScreen()

@@ -79,6 +79,7 @@ import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.convertUriToBitmap
+import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -89,13 +90,15 @@ import kotlin.math.absoluteValue
 fun PlayedSongScreen(
     modifier: Modifier = Modifier,
     lurCache: LruCache<String, Palette>,
-    songs: List<Song>,
+    songs:()-> List<SongUi>,
+    sliderValue:()-> Float = {0f},
+    onAction:(PlayedSongAction) -> Unit = {}
 ) {
 
 
     val context = LocalContext.current
     val density = LocalDensity.current.density
-    val pagerState = rememberPagerState(pageCount = { songs.size })
+    val pagerState = rememberPagerState(pageCount = { songs().size })
     val scope = rememberCoroutineScope()
 
 
@@ -125,7 +128,7 @@ fun PlayedSongScreen(
     val outerLineStroke =
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) 30f else 20f
 
-    val coilPainter = rememberAsyncImagePainter(songs[pagerState.currentPage].cover)
+    val coilPainter = rememberAsyncImagePainter(songs()[pagerState.currentPage].cover)
     val state = coilPainter.state.collectAsState()
 
     val painter = when(state.value){
@@ -181,8 +184,8 @@ fun PlayedSongScreen(
 
             launch(Dispatchers.Default) {
 
-                val song = songs[it]
-                val songCover = convertUriToBitmap(Uri.parse(song.cover),context.contentResolver,context.resources)
+                val song = songs()[it]
+                val songCover = convertUriToBitmap(song.cover,context.contentResolver,context.resources)
 
                 val palette = if (lurCache[song.path] != null) {
                     Log.e("ks", "$it :${lurCache[song.path]}")
@@ -364,7 +367,7 @@ fun PlayedSongScreen(
 
                   //  val songCover = songs[it].cover?:convertResToBitmap(context,R.drawable.logo_2)
 
-                    val painter = rememberAsyncImagePainter(songs[it].cover)
+                    val painter = rememberAsyncImagePainter(songs()[it].cover)
                     val state = painter.state.collectAsState()
 
 
@@ -439,7 +442,7 @@ fun PlayedSongScreen(
                 Spacer(Modifier.weight(1f))
 
                 Text(
-                    songs[pagerState.currentPage].title,
+                    songs()[pagerState.currentPage].title,
                     fontSize = 30.sp,
                     fontWeight = FontWeight.Black,
                     textAlign = TextAlign.Start,
@@ -456,7 +459,7 @@ fun PlayedSongScreen(
                 )
 
                 Text(
-                    songs[pagerState.currentPage].artist,
+                    songs()[pagerState.currentPage].artist,
                     fontSize = 20.sp,
                     textAlign = TextAlign.Start,
                     modifier = Modifier
@@ -471,12 +474,11 @@ fun PlayedSongScreen(
                 )
 
 
-                var sliderValue by remember { mutableFloatStateOf(.5f) }
 
                 Slider(
-                    value = sliderValue,
+                    value = sliderValue(),
                     onValueChange = {
-                        sliderValue = it
+                        onAction(PlayedSongAction.SeekTo(it))
                     },
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
@@ -489,7 +491,10 @@ fun PlayedSongScreen(
                 ) {
                     Text(text = "0:00", color = Color.White.copy(alpha = .7f))
 
-                    Text(text = "3:30", color = Color.White.copy(alpha = .7f))
+                    Text(
+                        text = songs()[pagerState.currentPage].displayableDuration.formatted,
+                        color = Color.White.copy(alpha = .7f)
+                    )
                 }
 
                 Row(
@@ -579,6 +584,6 @@ fun PlayedSongScreen(
 private fun PlayedSongScreenPrev() {
       PlayedSongScreen(
           lurCache = LruCache(4),
-          songs = mockSongs,
+          songs = {mockSongs.map { it.toSongUi() }},
       )
 }

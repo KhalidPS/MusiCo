@@ -3,6 +3,7 @@ package com.k.sekiro.musico.playmusic.presenation.songs_list
 import androidx.compose.runtime.Immutable
 import com.k.sekiro.musico.playmusic.domain.model.Song
 
+
 @Immutable
 data class SongsListState(
     val songs: List<Song> = emptyList(),

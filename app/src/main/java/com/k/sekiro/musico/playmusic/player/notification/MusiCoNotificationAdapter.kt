@@ -44,10 +44,12 @@ class MusiCoNotificationAdapter(
             //.allowHardware(false)
             .target(
                 onSuccess = {
-                   bitmap =  it.toBitmap()
+                    val bitmapResult = it.toBitmap()
+                    callback.onBitmap(bitmapResult)
+                   bitmap =  bitmapResult
                 },
                 onError = {
-
+                   bitmap = null
                 },
             )
             .diskCachePolicy(CachePolicy.ENABLED)

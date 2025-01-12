@@ -3,9 +3,12 @@ package com.k.sekiro.musico.playmusic.player.service
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import kotlinx.coroutines.CloseableCoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,9 +18,11 @@ import kotlinx.coroutines.launch
 class MusiCoServiceHandler(
     private val exoPlayer: ExoPlayer,
 ) : Player.Listener {
-    private val _audioState: MutableStateFlow<JetAudioState> =
-        MutableStateFlow(JetAudioState.Initial)
-    val audioState: StateFlow<JetAudioState> = _audioState.asStateFlow()
+    private val _audioState: MutableStateFlow<PlayerState> =
+        MutableStateFlow(PlayerState.Initial)
+    val audioState: StateFlow<PlayerState> = _audioState.asStateFlow()
+
+    private val scope =  CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private var job: Job? = null
 
@@ -44,6 +49,7 @@ class MusiCoServiceHandler(
             PlayerEvent.Backward -> exoPlayer.seekBack()
             PlayerEvent.Forward -> exoPlayer.seekForward()
             PlayerEvent.SeekToNext -> exoPlayer.seekToNext()
+            PlayerEvent.SeekToPrevious -> exoPlayer.seekToPrevious()
             PlayerEvent.PlayPause -> playOrPause()
             PlayerEvent.SeekTo -> exoPlayer.seekTo(seekPosition)
             PlayerEvent.SelectedAudioChange -> {
@@ -54,7 +60,7 @@ class MusiCoServiceHandler(
 
                     else -> {
                         exoPlayer.seekToDefaultPosition(selectedAudioIndex)
-                        _audioState.value = JetAudioState.Playing(
+                        _audioState.value = PlayerState.Playing(
                             isPlaying = true
                         )
                         exoPlayer.playWhenReady = true
@@ -75,18 +81,18 @@ class MusiCoServiceHandler(
     override fun onPlaybackStateChanged(playbackState: Int) {
         when (playbackState) {
             ExoPlayer.STATE_BUFFERING -> _audioState.value =
-                JetAudioState.Buffering(exoPlayer.currentPosition)
+                PlayerState.Buffering(exoPlayer.currentPosition)
 
             ExoPlayer.STATE_READY -> _audioState.value =
-                JetAudioState.Ready(exoPlayer.duration)
+                PlayerState.Ready(exoPlayer.duration)
         }
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-        _audioState.value = JetAudioState.Playing(isPlaying = isPlaying)
-        _audioState.value = JetAudioState.CurrentPlaying(exoPlayer.currentMediaItemIndex)
+        _audioState.value = PlayerState.Playing(isPlaying = isPlaying)
+        _audioState.value = PlayerState.CurrentPlaying(exoPlayer.currentMediaItemIndex)
         if (isPlaying) {
-            GlobalScope.launch(Dispatchers.Main) {
+            scope.launch {
                 startProgressUpdate()
             }
         } else {
@@ -100,7 +106,7 @@ class MusiCoServiceHandler(
             stopProgressUpdate()
         } else {
             exoPlayer.play()
-            _audioState.value = JetAudioState.Playing(
+            _audioState.value = PlayerState.Playing(
                 isPlaying = true
             )
             startProgressUpdate()
@@ -110,13 +116,13 @@ class MusiCoServiceHandler(
     private suspend fun startProgressUpdate() = job.run {
         while (true) {
             delay(500)
-            _audioState.value = JetAudioState.Progress(exoPlayer.currentPosition)
+            _audioState.value = PlayerState.Progress(exoPlayer.currentPosition)
         }
     }
 
     private fun stopProgressUpdate() {
         job?.cancel()
-        _audioState.value = JetAudioState.Playing(isPlaying = false)
+        _audioState.value = PlayerState.Playing(isPlaying = false)
     }
 
 
@@ -127,19 +133,20 @@ sealed interface PlayerEvent {
     object SelectedAudioChange : PlayerEvent
     object Backward : PlayerEvent
     object SeekToNext : PlayerEvent
+    object SeekToPrevious: PlayerEvent
     object Forward : PlayerEvent
     object SeekTo : PlayerEvent
     object Stop : PlayerEvent
     data class UpdateProgress(val newProgress: Float) : PlayerEvent
 }
 
-sealed interface JetAudioState {
-    object Initial : JetAudioState
-    data class Ready(val duration: Long) : JetAudioState
-    data class Progress(val progress: Long) : JetAudioState
-    data class Buffering(val progress: Long) : JetAudioState
-    data class Playing(val isPlaying: Boolean) : JetAudioState
-    data class CurrentPlaying(val mediaItemIndex: Int) : JetAudioState
+sealed interface PlayerState {
+    object Initial : PlayerState
+    data class Ready(val duration: Long) : PlayerState
+    data class Progress(val progress: Long) : PlayerState
+    data class Buffering(val progress: Long) : PlayerState
+    data class Playing(val isPlaying: Boolean) : PlayerState
+    data class CurrentPlaying(val mediaItemIndex: Int) : PlayerState
 }
 
 

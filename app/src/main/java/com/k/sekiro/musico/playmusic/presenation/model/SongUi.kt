@@ -8,10 +8,12 @@ import android.graphics.ImageDecoder
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
+import android.os.Parcelable
 import android.util.Log
 import androidx.compose.runtime.Stable
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.domain.model.Song
+import kotlinx.parcelize.Parcelize
 import okio.FileNotFoundException
 import okio.IOException
 import java.util.Locale
@@ -22,7 +24,7 @@ data class SongUi(
     val name: String,
     val title: String = "",
     val artist: String = "",
-    val cover: Bitmap,
+    val cover: Uri,
     val album: String = "",
     val path: String = "",
     val displayableDuration: DisplayableDuration
@@ -33,7 +35,7 @@ data class DisplayableDuration(
     val formatted: String,
 )
 
-fun Song.toSongUi(resolver: ContentResolver,resources: Resources): SongUi {
+fun Song.toSongUi(): SongUi {
     return SongUi(
         name = name,
         title = title,
@@ -41,7 +43,7 @@ fun Song.toSongUi(resolver: ContentResolver,resources: Resources): SongUi {
         album = album,
         path = path,
         displayableDuration = duration.toDisplayableDuration(),
-        cover = convertUriToBitmap(Uri.parse(cover),resolver,resources)
+        cover = Uri.parse(cover)
     )
 }
 
@@ -56,7 +58,12 @@ fun fromMillis(millis: Long): String {
     val hours = TimeUnit.MILLISECONDS.toHours(millis)
     val minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60
     val seconds = TimeUnit.MILLISECONDS.toSeconds(millis) % 60
-    return String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
+
+    return if (hours > 0){
+        String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
+    }else{
+        String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+    }
 }
 
 fun String.toBitmap(resources: Resources): Bitmap {
