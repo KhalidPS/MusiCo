@@ -25,6 +25,7 @@ data class SongUi(
     val title: String = "",
     val artist: String = "",
     val cover: Uri,
+    val dataUri: Uri,
     val album: String = "",
     val path: String = "",
     val displayableDuration: DisplayableDuration
@@ -43,7 +44,8 @@ fun Song.toSongUi(): SongUi {
         album = album,
         path = path,
         displayableDuration = duration.toDisplayableDuration(),
-        cover = Uri.parse(cover)
+        cover = Uri.parse(cover),
+        dataUri = Uri.parse(dataUri)
     )
 }
 

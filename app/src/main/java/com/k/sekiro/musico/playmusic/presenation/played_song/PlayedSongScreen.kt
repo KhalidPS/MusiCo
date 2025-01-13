@@ -8,6 +8,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -92,7 +93,8 @@ fun PlayedSongScreen(
     lurCache: LruCache<String, Palette>,
     songs:()-> List<SongUi>,
     sliderValue:()-> Float = {0f},
-    onAction:(PlayedSongAction) -> Unit = {}
+    onAction:(PlayedSongAction) -> Unit = {},
+    onStart:()-> Unit = {}
 ) {
 
 
@@ -145,7 +147,13 @@ fun PlayedSongScreen(
 
     LaunchedEffect(pagerState) {
 
+
         snapshotFlow { pagerState.settledPage }.collect {
+
+            onAction(PlayedSongAction.ChangeToOtherSong(it))
+            onStart()
+            onAction(PlayedSongAction.PlayPause)
+
             val job1 = launch { line1X.snapTo(0f) }
             val job2 = launch { line2Y.snapTo(0f) }
             val job3 = launch { line3X.snapTo(imgWidthPx) }
@@ -329,6 +337,8 @@ fun PlayedSongScreen(
                     pageSize = PageSize.Fixed(300.dp),
                     contentPadding = PaddingValues(horizontal = 60.dp),
                 ) {
+
+
                     val pageOffset = pagerState.getOffsetDistanceInPages(it).absoluteValue
                     // or you can use pagerState.currentPageOffsetFraction instead of getOffsetDis.....
 
@@ -480,6 +490,7 @@ fun PlayedSongScreen(
                     onValueChange = {
                         onAction(PlayedSongAction.SeekTo(it))
                     },
+                    valueRange = 0f..100f,
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
 
@@ -542,7 +553,14 @@ fun PlayedSongScreen(
                         Icon(
                             imageVector = MusicIcons.Pause,
                             contentDescription = null,
-                            modifier = Modifier.size(70.dp),
+                            modifier = Modifier
+                                .size(70.dp)
+                                .clickable(
+                                    enabled = true,
+                                    onClick = {
+                                        onAction(PlayedSongAction.PlayPause)
+                                    }
+                                ),
 
 
                             )

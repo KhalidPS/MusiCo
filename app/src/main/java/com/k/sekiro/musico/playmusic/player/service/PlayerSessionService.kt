@@ -1,6 +1,7 @@
 package com.k.sekiro.musico.playmusic.player.service
 
 import android.content.Intent
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -18,6 +19,8 @@ class PlayerSessionService: MediaSessionService() {
     @OptIn(UnstableApi::class)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         return super.onStartCommand(intent, flags, startId)
+
+        Log.e("ks","enter service")
 
         musiCoNotificationManager.startNotificationService(
             mediaSession = mediaSession,

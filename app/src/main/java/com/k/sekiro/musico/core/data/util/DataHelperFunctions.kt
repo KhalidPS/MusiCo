@@ -65,6 +65,8 @@ fun getSongsByUri(resolver: ContentResolver,uri: Uri,songList: MutableList<Song>
             val displayName = cursor.getString(displayNameColumn)
             val duration = cursor.getLong(durationColumn)
             val dateAdded = cursor.getLong(dateAddedColumn)
+            val dataUri = ContentUris.withAppendedId(uri,id)
+            //val dataUri = ContentUris.withAppendedId(Uri.parse("content://media/external/audio/media"),id)
 
             val albumArtUri = ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"),idAlbum)
 
@@ -80,7 +82,8 @@ fun getSongsByUri(resolver: ContentResolver,uri: Uri,songList: MutableList<Song>
                 path = path,
                 name = displayName,
                 addedDate = dateAdded,
-                duration = duration
+                duration = duration,
+                dataUri = dataUri.toString()
             )
 
      /*       if (path.endsWith(".mp3")){

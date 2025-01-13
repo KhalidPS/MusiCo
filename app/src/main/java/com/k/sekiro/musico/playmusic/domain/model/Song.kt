@@ -9,6 +9,7 @@ data class Song(
     val title: String = "",
     val artist: String = "",
     val cover: String? = "",
+    val dataUri: String = "",
     val album: String = "",
     val path: String = "",
     val addedDate: Long = 0L,

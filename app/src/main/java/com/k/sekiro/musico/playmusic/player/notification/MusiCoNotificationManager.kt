@@ -1,6 +1,7 @@
 package com.k.sekiro.musico.playmusic.player.notification
 
 import android.content.Context
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.media3.common.util.UnstableApi
@@ -33,6 +34,7 @@ class MusiCoNotificationManager(
     }
 
     private fun startForegroundNotificationService(mediaSessionService: MediaSessionService){
+        Log.e("ks","Enter startForeground fun in MusiCoNotificationManager class ")
         val notification = NotificationCompat.Builder(context, MusicoApp.NOTIFICATION_CHANNEL_ID)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()

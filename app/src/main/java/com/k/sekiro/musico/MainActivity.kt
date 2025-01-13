@@ -2,6 +2,7 @@ package com.k.sekiro.musico
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -31,6 +32,7 @@ import androidx.core.app.ActivityCompat
 import androidx.palette.graphics.Palette
 import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
+import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
@@ -50,6 +52,23 @@ import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
+    private var isServiceRunning: Boolean = false
+
+
+    private fun startService(){
+        if (!isServiceRunning){
+            var intent = Intent(this, PlayerSessionService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+                startForegroundService(intent)
+            }else{
+                startService(intent)
+            }
+
+            isServiceRunning = true
+        }
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
 
 
@@ -62,8 +81,14 @@ class MainActivity : ComponentActivity() {
             requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),0)
 
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE){
+            requestPermissions(arrayOf(Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK),1)
+
+        }
 
 
+
+        startService()
 
 
 
@@ -96,7 +121,8 @@ class MainActivity : ComponentActivity() {
                                     lurCache = lruCache,
                                     songs = { songs },
                                     sliderValue = {state.value.sliderProgress},
-                                    onAction = playedSongViewModel::onAction
+                                    onAction = playedSongViewModel::onAction,
+                                    onStart = { startService() }
                                 )
                                 //SongsList(repositoryImpl = repo)
                             }else{
@@ -112,6 +138,13 @@ class MainActivity : ComponentActivity() {
 
                 }
             }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Intent(this, PlayerSessionService::class.java).apply {
+            stopService(this)
         }
     }
 }

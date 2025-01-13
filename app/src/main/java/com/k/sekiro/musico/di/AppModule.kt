@@ -73,7 +73,7 @@ val appModule = module{
     }
 
     single{
-        MediaSession.Builder(androidContext(), get()).build()
+        MediaSession.Builder(androidContext(), get<ExoPlayer>()).build()
     }
 
     single{
@@ -93,6 +93,5 @@ val appModule = module{
     single{ MusiCoNotificationManager(androidContext(),get()) }
 
     single { MusiCoServiceHandler(get()) }
-
 
 }
