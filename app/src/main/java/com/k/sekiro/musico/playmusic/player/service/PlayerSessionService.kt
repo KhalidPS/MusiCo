@@ -17,6 +17,16 @@ class PlayerSessionService: MediaSessionService() {
 
 
     @OptIn(UnstableApi::class)
+    override fun onCreate() {
+        super.onCreate()
+        musiCoNotificationManager.startNotificationService(
+            mediaSession = mediaSession,
+            mediaSessionService = this
+        )
+    }
+
+
+    @OptIn(UnstableApi::class)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         return super.onStartCommand(intent, flags, startId)
 

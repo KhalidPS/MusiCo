@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
     private var isServiceRunning: Boolean = false
 
 
-    private fun startService(){
+    private fun startingService(){
         if (!isServiceRunning){
             var intent = Intent(this, PlayerSessionService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
+            startingService()
 
         val lruCache: LruCache<String, Palette> by inject()
         val repo: SongsRepository by inject()
@@ -86,12 +87,6 @@ class MainActivity : ComponentActivity() {
 
         }
 
-
-
-        startService()
-
-
-
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -99,8 +94,8 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
                     val playedSongViewModel: PlayedSongViewModel = koinViewModel()
-                    val state = playedSongViewModel.state.collectAsState(PlayedSongState())
-                    val songs = state.value.songs
+                    val state = playedSongViewModel.state.collectAsState(PlayedSongState()).value
+                    val songs = state.songs
 
                     Log.e("ks","$playedSongViewModel.")
 
@@ -119,10 +114,8 @@ class MainActivity : ComponentActivity() {
                             if (!songs.isEmpty()){
                                 PlayedSongScreen(
                                     lurCache = lruCache,
-                                    songs = { songs },
-                                    sliderValue = {state.value.sliderProgress},
-                                    onAction = playedSongViewModel::onAction,
-                                    onStart = { startService() }
+                                    state = state,
+                                    onAction = playedSongViewModel::onAction
                                 )
                                 //SongsList(repositoryImpl = repo)
                             }else{

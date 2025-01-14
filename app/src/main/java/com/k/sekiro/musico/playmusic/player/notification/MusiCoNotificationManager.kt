@@ -19,10 +19,6 @@ class MusiCoNotificationManager(
     private val player: ExoPlayer
 ): KoinComponent {
 
-    val notificationManager: NotificationManagerCompat by inject()
-
-
-
     @UnstableApi
     fun startNotificationService(
         mediaSessionService: MediaSessionService,
@@ -36,6 +32,7 @@ class MusiCoNotificationManager(
     private fun startForegroundNotificationService(mediaSessionService: MediaSessionService){
         Log.e("ks","Enter startForeground fun in MusiCoNotificationManager class ")
         val notification = NotificationCompat.Builder(context, MusicoApp.NOTIFICATION_CHANNEL_ID)
+            .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
         mediaSessionService.startForeground(MusicoApp.NOTIFICATION_ID,notification)
@@ -51,13 +48,14 @@ class MusiCoNotificationManager(
             .setMediaDescriptionAdapter(
                 MusiCoNotificationAdapter(context = context, pendingIntent = mediaSession.sessionActivity)
             )
-            .setSmallIconResourceId(R.drawable.logo_2)
+            .setSmallIconResourceId(R.drawable.logo_1)
             .build()
             .also {
                 it.setMediaSessionToken(mediaSession.platformToken)
                 it.setUseFastForwardActionInCompactView(true)
                 it.setUseNextActionInCompactView(true)
                 it.setUseRewindActionInCompactView(true)
+                it.setUsePreviousActionInCompactView(true)
                 it.setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 it.setPlayer(player)
             }

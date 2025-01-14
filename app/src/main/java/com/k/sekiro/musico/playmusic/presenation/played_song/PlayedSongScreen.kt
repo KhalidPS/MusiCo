@@ -1,5 +1,6 @@
 package com.k.sekiro.musico.playmusic.presenation.played_song
 
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.util.Log
@@ -30,6 +31,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.twotone.PauseCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -91,17 +96,16 @@ import kotlin.math.absoluteValue
 fun PlayedSongScreen(
     modifier: Modifier = Modifier,
     lurCache: LruCache<String, Palette>,
-    songs:()-> List<SongUi>,
-    sliderValue:()-> Float = {0f},
-    onAction:(PlayedSongAction) -> Unit = {},
-    onStart:()-> Unit = {}
+    state: PlayedSongState,
+    onAction:(PlayedSongAction) -> Unit
 ) {
 
 
     val context = LocalContext.current
     val density = LocalDensity.current.density
-    val pagerState = rememberPagerState(pageCount = { songs().size })
+    val pagerState = rememberPagerState(pageCount = { state.songs.size })
     val scope = rememberCoroutineScope()
+
 
 
 
@@ -130,10 +134,10 @@ fun PlayedSongScreen(
     val outerLineStroke =
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) 30f else 20f
 
-    val coilPainter = rememberAsyncImagePainter(songs()[pagerState.currentPage].cover)
-    val state = coilPainter.state.collectAsState()
+    val coilPainter = rememberAsyncImagePainter(state.songs[pagerState.currentPage].cover)
+    val painterState = coilPainter.state.collectAsState()
 
-    val painter = when(state.value){
+    val painter = when(painterState.value){
         is  AsyncImagePainter.State.Empty -> {
             painterResource(R.drawable.logo_2)
         }
@@ -144,6 +148,12 @@ fun PlayedSongScreen(
     }
 
 
+    LaunchedEffect(state.playedSong) {
+        if (state.playedSong != null && state.playedSong != state.songs[pagerState.settledPage]){
+            pagerState.animateScrollToPage(state.songs.indexOf(state.playedSong))
+        }
+    }
+
 
     LaunchedEffect(pagerState) {
 
@@ -151,7 +161,7 @@ fun PlayedSongScreen(
         snapshotFlow { pagerState.settledPage }.collect {
 
             onAction(PlayedSongAction.ChangeToOtherSong(it))
-            onStart()
+            //onStart()
             onAction(PlayedSongAction.PlayPause)
 
             val job1 = launch { line1X.snapTo(0f) }
@@ -192,7 +202,7 @@ fun PlayedSongScreen(
 
             launch(Dispatchers.Default) {
 
-                val song = songs()[it]
+                val song = state.songs[it]
                 val songCover = convertUriToBitmap(song.cover,context.contentResolver,context.resources)
 
                 val palette = if (lurCache[song.path] != null) {
@@ -203,7 +213,6 @@ fun PlayedSongScreen(
                         lurCache.put(song.path, this)
                     }
                 }
-
 
 
                 withContext(Dispatchers.Main.immediate) {
@@ -377,12 +386,12 @@ fun PlayedSongScreen(
 
                   //  val songCover = songs[it].cover?:convertResToBitmap(context,R.drawable.logo_2)
 
-                    val painter = rememberAsyncImagePainter(songs()[it].cover)
-                    val state = painter.state.collectAsState()
+                    val painter = rememberAsyncImagePainter(state.songs[it].cover)
+                    val painterState = painter.state.collectAsState()
 
 
                     Image(
-                        painter = when(state.value){
+                        painter = when(painterState.value){
                             is  AsyncImagePainter.State.Empty -> {
                                 painterResource(R.drawable.logo_2)
                             }
@@ -452,7 +461,7 @@ fun PlayedSongScreen(
                 Spacer(Modifier.weight(1f))
 
                 Text(
-                    songs()[pagerState.currentPage].title,
+                    state.songs[pagerState.currentPage].title,
                     fontSize = 30.sp,
                     fontWeight = FontWeight.Black,
                     textAlign = TextAlign.Start,
@@ -469,7 +478,7 @@ fun PlayedSongScreen(
                 )
 
                 Text(
-                    songs()[pagerState.currentPage].artist,
+                    state.songs[pagerState.currentPage].artist,
                     fontSize = 20.sp,
                     textAlign = TextAlign.Start,
                     modifier = Modifier
@@ -486,7 +495,7 @@ fun PlayedSongScreen(
 
 
                 Slider(
-                    value = sliderValue(),
+                    value = state.sliderProgress,
                     onValueChange = {
                         onAction(PlayedSongAction.SeekTo(it))
                     },
@@ -500,10 +509,10 @@ fun PlayedSongScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
                 ) {
-                    Text(text = "0:00", color = Color.White.copy(alpha = .7f))
+                    Text(text = state.passedTimeDuration, color = Color.White.copy(alpha = .7f))
 
                     Text(
-                        text = songs()[pagerState.currentPage].displayableDuration.formatted,
+                        text = state.songs[pagerState.currentPage].displayableDuration.formatted,
                         color = Color.White.copy(alpha = .7f)
                     )
                 }
@@ -551,7 +560,7 @@ fun PlayedSongScreen(
 
                     ) {
                         Icon(
-                            imageVector = MusicIcons.Pause,
+                            imageVector = if (state.isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
                             contentDescription = null,
                             modifier = Modifier
                                 .size(70.dp)
@@ -561,7 +570,6 @@ fun PlayedSongScreen(
                                         onAction(PlayedSongAction.PlayPause)
                                     }
                                 ),
-
 
                             )
                     }
@@ -602,6 +610,7 @@ fun PlayedSongScreen(
 private fun PlayedSongScreenPrev() {
       PlayedSongScreen(
           lurCache = LruCache(4),
-          songs = {mockSongs.map { it.toSongUi() }},
+          state = PlayedSongState(),
+          onAction = {},
       )
 }

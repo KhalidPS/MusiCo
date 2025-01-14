@@ -1,6 +1,7 @@
 package com.k.sekiro.musico.playmusic.player.service
 
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.CloseableCoroutineDispatcher
@@ -9,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +32,7 @@ class MusiCoServiceHandler(
         exoPlayer.addListener(this)
     }
 
+
     fun addMediaItem(mediaItem: MediaItem) {
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
@@ -39,6 +42,8 @@ class MusiCoServiceHandler(
         exoPlayer.setMediaItems(mediaItems)
         exoPlayer.prepare()
     }
+
+
 
     suspend fun onPlayerEvents(
         playerEvent: PlayerEvent,
@@ -100,6 +105,11 @@ class MusiCoServiceHandler(
         }
     }
 
+    override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+        super.onMediaMetadataChanged(mediaMetadata)
+
+    }
+
     private suspend fun playOrPause() {
         if (exoPlayer.isPlaying) {
             exoPlayer.pause()
@@ -126,6 +136,9 @@ class MusiCoServiceHandler(
     }
 
 
+    fun cancelServiceScope(){
+        scope.cancel()
+    }
 }
 
 sealed interface PlayerEvent {

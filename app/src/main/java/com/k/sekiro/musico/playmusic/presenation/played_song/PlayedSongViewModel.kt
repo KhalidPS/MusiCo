@@ -67,7 +67,13 @@ class PlayedSongViewModel(
                             }
                     }
                     PlayerState.Initial -> {}
-                    is PlayerState.Playing -> playerState.isPlaying
+                    is PlayerState.Playing -> {
+                        _state.update {
+                            it.copy(
+                                isPlaying = playerState.isPlaying
+                            )
+                        }
+                    }
                     is PlayerState.Progress -> calculateProgressValue(playerState.progress)
                     is PlayerState.Ready -> {
 
@@ -148,9 +154,10 @@ class PlayedSongViewModel(
             _state.update {
                 //delay(1000)
 
-               val songs =  songsRepository.getAllStorageSongs().map {
+               val songs =  songsRepository.getAllStorageSongs()
+                   .filter { it.path.endsWith(".mp3") }.map {
                     it.toSongUi()
-                }
+                }.apply { setMediaItems(this) }
 
 
                 it.copy(
@@ -173,7 +180,7 @@ class PlayedSongViewModel(
     }
 
     @OptIn(UnstableApi::class)
-    private fun addMediaItem(songs: List<SongUi>){
+    private fun setMediaItems(songs: List<SongUi>){
         try {
             songs.map {song ->
                 MediaItem.Builder()
@@ -181,7 +188,7 @@ class PlayedSongViewModel(
                     .setMediaMetadata(
                         MediaMetadata.Builder()
                             .setArtworkUri(song.cover)
-                            .setTitle(song.title)
+                            .setTitle(song.artist)
                             .setDisplayTitle(song.name)
                             .setAlbumTitle(song.album)
                             .setArtist(song.artist)
@@ -197,6 +204,35 @@ class PlayedSongViewModel(
 
         }
     }
+
+
+        @OptIn(UnstableApi::class)
+    private fun addMediaItem(song: SongUi){
+        try {
+                MediaItem.Builder()
+                    .setUri(song.dataUri)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setArtworkUri(song.cover)
+                            .setTitle(song.title)
+                            .setDisplayTitle(song.name)
+                            .setAlbumTitle(song.album)
+                            .setArtist(song.artist)
+                            .build()
+                    ).build()
+            .also { musiCoServiceHandler.addMediaItem(it) }
+        }catch (ex: DataSourceException){
+            Log.e("ks","converting song to MediaItem problem :${ex}")
+        }catch (ex: FileDataSource.FileDataSourceException){
+            Log.e("ks","converting song to MediaItem problem :${ex}")
+        }catch (ex: Exception){
+            Log.e("ks","converting song to MediaItem problem :${ex}")
+
+        }
+    }
+
+
+
 
     private fun calculateProgressValue(currentProgress: Long){
 
@@ -222,8 +258,11 @@ class PlayedSongViewModel(
                 PlayerEvent.Stop
             )
         }
+        musiCoServiceHandler.cancelServiceScope()
         super.onCleared()
     }
+
+
 
 }
 

@@ -57,7 +57,7 @@ val appModule = module{
 
     single{
         AudioAttributes.Builder()
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
             .setUsage(C.USAGE_MEDIA)
             .build()
     }
@@ -90,8 +90,8 @@ val appModule = module{
     }
 
 
-    single{ MusiCoNotificationManager(androidContext(),get()) }
+    single{ MusiCoNotificationManager(androidContext(),get<ExoPlayer>()) }
 
-    single { MusiCoServiceHandler(get()) }
+    single { MusiCoServiceHandler(get<ExoPlayer>()) }
 
 }

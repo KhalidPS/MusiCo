@@ -37,7 +37,7 @@
 
         <service
             android:name=".playmusic.player.service.PlayerSessionService"
-            android:exported="true"
+            android:exported="false"
             android:foregroundServiceType="mediaPlayback">
 
             <intent-filter>
