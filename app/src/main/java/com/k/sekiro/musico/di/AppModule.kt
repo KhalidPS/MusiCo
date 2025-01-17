@@ -2,25 +2,37 @@ package com.k.sekiro.musico.di
 
 import android.annotation.SuppressLint
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.os.Build
+import android.os.Looper
 import androidx.collection.LruCache
 import androidx.core.app.NotificationManagerCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionToken
 import androidx.palette.graphics.Palette
 import androidx.room.Room
+import com.google.common.util.concurrent.MoreExecutors
+import com.k.sekiro.musico.MainActivity
+import com.k.sekiro.musico.MusicoApp
 import com.k.sekiro.musico.playmusic.data.local.AppDatabase
 import com.k.sekiro.musico.playmusic.data.local.PaletteCache
 import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
 import com.k.sekiro.musico.playmusic.player.notification.MusiCoNotificationManager
 import com.k.sekiro.musico.playmusic.player.service.MusiCoServiceHandler
+import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.RequestPermissionScreenViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
@@ -57,7 +69,7 @@ val appModule = module{
 
     single{
         AudioAttributes.Builder()
-            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .setUsage(C.USAGE_MEDIA)
             .build()
     }
@@ -73,7 +85,16 @@ val appModule = module{
     }
 
     single{
-        MediaSession.Builder(androidContext(), get<ExoPlayer>()).build()
+
+        val pendingIntent = PendingIntent.getActivity(
+            androidContext(),
+            MusicoApp.NOTIFICATION_ID,
+            Intent(androidContext(), MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        MediaSession.Builder(androidContext(), get<ExoPlayer>())
+            .setSessionActivity(pendingIntent).build()
     }
 
     single{
@@ -92,6 +113,22 @@ val appModule = module{
 
     single{ MusiCoNotificationManager(androidContext(),get<ExoPlayer>()) }
 
-    single { MusiCoServiceHandler(get<ExoPlayer>()) }
+    single { MusiCoServiceHandler(get()) }
+
+/*    single{
+        var controller: MediaController? = null
+        val sessionToken = SessionToken(androidContext(), ComponentName(androidContext(),
+            PlayerSessionService::class.java))
+
+        val controllerFuture = MediaController.Builder(androidContext(),sessionToken).buildAsync()
+        controllerFuture.addListener({
+            if (controllerFuture.isDone){
+                controller = controllerFuture.get()
+            }
+        }, MoreExecutors.directExecutor()
+        )
+        controller?:controllerFuture.get()
+
+    }*/
 
 }

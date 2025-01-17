@@ -1,63 +1,49 @@
 package com.k.sekiro.musico
 
 import android.Manifest
-import android.annotation.SuppressLint
+import android.content.ComponentName
 import android.content.Intent
+import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.collection.LruCache
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.app.ActivityCompat
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
 import androidx.palette.graphics.Palette
-import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
+import com.google.common.util.concurrent.MoreExecutors
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
-import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongState
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
-import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.RequestPermissionScreenViewModel
-import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
-import com.k.sekiro.taskmanagementapp.task_management_feature.presentation.request_permission_screen.RequestPermissionScreen
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
+import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
     private var isServiceRunning: Boolean = false
+    private lateinit var controller: MediaController
+
 
 
     private fun startingService(){
+        var intent = Intent(this, PlayerSessionService::class.java).apply {
+        }
+
         if (!isServiceRunning){
-            var intent = Intent(this, PlayerSessionService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
                 startForegroundService(intent)
             }else{
@@ -69,9 +55,25 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onStart() {
+        super.onStart()
+        val sessionToken = SessionToken(this, ComponentName(this,
+            PlayerSessionService::class.java))
 
-            startingService()
+        val controllerFuture = MediaController.Builder(this,sessionToken).buildAsync()
+        controllerFuture.addListener({
+            if (controllerFuture.isDone){
+                controller = controllerFuture.get()
+            }
+        }, MoreExecutors.directExecutor()
+        )
+
+        startingService()
+
+    }
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
 
         val lruCache: LruCache<String, Palette> by inject()
         val repo: SongsRepository by inject()
@@ -136,9 +138,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Intent(this, PlayerSessionService::class.java).apply {
+       /* Intent(this, PlayerSessionService::class.java).apply {
             stopService(this)
-        }
+        }*/
+
+        //unbindService(serviceConnection)
     }
 }
 

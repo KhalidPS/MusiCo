@@ -3,7 +3,9 @@ package com.k.sekiro.musico.playmusic.player.service
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaController
 import kotlinx.coroutines.CloseableCoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,8 +19,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+@UnstableApi
 class MusiCoServiceHandler(
-    private val exoPlayer: ExoPlayer,
+    private val mediaController: ExoPlayer,
 ) : Player.Listener {
     private val _audioState: MutableStateFlow<PlayerState> =
         MutableStateFlow(PlayerState.Initial)
@@ -29,18 +32,18 @@ class MusiCoServiceHandler(
     private var job: Job? = null
 
     init {
-        exoPlayer.addListener(this)
+        mediaController.addListener(this)
     }
 
 
     fun addMediaItem(mediaItem: MediaItem) {
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
+        mediaController.setMediaItem(mediaItem)
+        mediaController.prepare()
     }
 
     fun setMediaItemList(mediaItems: List<MediaItem>) {
-        exoPlayer.setMediaItems(mediaItems)
-        exoPlayer.prepare()
+        mediaController.setMediaItems(mediaItems)
+        mediaController.prepare()
     }
 
 
@@ -51,24 +54,24 @@ class MusiCoServiceHandler(
         seekPosition: Long = 0,
     ) {
         when (playerEvent) {
-            PlayerEvent.Backward -> exoPlayer.seekBack()
-            PlayerEvent.Forward -> exoPlayer.seekForward()
-            PlayerEvent.SeekToNext -> exoPlayer.seekToNext()
-            PlayerEvent.SeekToPrevious -> exoPlayer.seekToPrevious()
+            PlayerEvent.Backward -> mediaController.seekBack()
+            PlayerEvent.Forward -> mediaController.seekForward()
+            PlayerEvent.SeekToNext -> mediaController.seekToNext()
+            PlayerEvent.SeekToPrevious -> mediaController.seekToPrevious()
             PlayerEvent.PlayPause -> playOrPause()
-            PlayerEvent.SeekTo -> exoPlayer.seekTo(seekPosition)
+            PlayerEvent.SeekTo -> mediaController.seekTo(seekPosition)
             PlayerEvent.SelectedAudioChange -> {
                 when (selectedAudioIndex) {
-                    exoPlayer.currentMediaItemIndex -> {
+                    mediaController.currentMediaItemIndex -> {
                         playOrPause()
                     }
 
                     else -> {
-                        exoPlayer.seekToDefaultPosition(selectedAudioIndex)
+                        mediaController.seekToDefaultPosition(selectedAudioIndex)
                         _audioState.value = PlayerState.Playing(
                             isPlaying = true
                         )
-                        exoPlayer.playWhenReady = true
+                        mediaController.playWhenReady = true
                         startProgressUpdate()
                     }
                 }
@@ -76,26 +79,31 @@ class MusiCoServiceHandler(
 
             PlayerEvent.Stop -> stopProgressUpdate()
             is PlayerEvent.UpdateProgress -> {
-                exoPlayer.seekTo(
-                    (exoPlayer.duration * playerEvent.newProgress).toLong()
+                mediaController.seekTo(
+                    (mediaController.duration * playerEvent.newProgress).toLong()
                 )
             }
         }
     }
 
+
     override fun onPlaybackStateChanged(playbackState: Int) {
         when (playbackState) {
             ExoPlayer.STATE_BUFFERING -> _audioState.value =
-                PlayerState.Buffering(exoPlayer.currentPosition)
+                PlayerState.Buffering(mediaController.currentPosition)
 
             ExoPlayer.STATE_READY -> _audioState.value =
-                PlayerState.Ready(exoPlayer.duration)
+                PlayerState.Ready(mediaController.duration)
         }
+    }
+
+    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        super.onPlayWhenReadyChanged(playWhenReady, reason)
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         _audioState.value = PlayerState.Playing(isPlaying = isPlaying)
-        _audioState.value = PlayerState.CurrentPlaying(exoPlayer.currentMediaItemIndex)
+        _audioState.value = PlayerState.CurrentPlaying(mediaController.currentMediaItemIndex)
         if (isPlaying) {
             scope.launch {
                 startProgressUpdate()
@@ -111,11 +119,11 @@ class MusiCoServiceHandler(
     }
 
     private suspend fun playOrPause() {
-        if (exoPlayer.isPlaying) {
-            exoPlayer.pause()
+        if (mediaController.isPlaying) {
+            mediaController.pause()
             stopProgressUpdate()
         } else {
-            exoPlayer.play()
+            mediaController.play()
             _audioState.value = PlayerState.Playing(
                 isPlaying = true
             )
@@ -126,7 +134,7 @@ class MusiCoServiceHandler(
     private suspend fun startProgressUpdate() = job.run {
         while (true) {
             delay(500)
-            _audioState.value = PlayerState.Progress(exoPlayer.currentPosition)
+            _audioState.value = PlayerState.Progress(mediaController.currentPosition)
         }
     }
 

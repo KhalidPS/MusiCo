@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 class PlayedSongViewModel(
     private val songsRepository: SongsRepository,
     private val savedStateHandle: SavedStateHandle,
-    private val musiCoServiceHandler: MusiCoServiceHandler
+    @OptIn(UnstableApi::class) private val musiCoServiceHandler: MusiCoServiceHandler
 ) : ViewModel() {
 
     /* @OptIn(SavedStateHandleSaveableApi::class)
@@ -97,6 +97,7 @@ class PlayedSongViewModel(
         )*/
 
 
+    @OptIn(UnstableApi::class)
     fun onAction(action: PlayedSongAction) {
         viewModelScope.launch{
             when (action) {
@@ -252,6 +253,7 @@ class PlayedSongViewModel(
     }
 
 
+    @OptIn(UnstableApi::class)
     override fun onCleared() {
         viewModelScope.launch{
             musiCoServiceHandler.onPlayerEvents(
