@@ -34,6 +34,11 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.twotone.PauseCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,6 +80,7 @@ import coil3.request.placeholder
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.core.presentaion.util.applyIf
 import com.k.sekiro.musico.core.presentaion.util.convertResToBitmap
+import com.k.sekiro.musico.core.presentaion.util.getColorFromCover
 import com.k.sekiro.musico.core.presentaion.util.icons.MusicIcons
 import com.k.sekiro.musico.core.presentaion.util.icons.Pause
 import com.k.sekiro.musico.core.presentaion.util.icons.Repeat
@@ -200,42 +206,52 @@ fun PlayedSongScreen(
                 )
             }
 
-            launch(Dispatchers.Default) {
+            val song = state.songs[it]
 
-                val song = state.songs[it]
-                val songCover = convertUriToBitmap(song.cover,context.contentResolver,context.resources)
+/*            outlineColor = getColorFromCover(
+                lurCache = lurCache,
+                context = context,
+                song = song
+            )
 
-                val palette = if (lurCache[song.path] != null) {
-                    Log.e("ks", "$it :${lurCache[song.path]}")
-                    lurCache[song.path]!!
-                } else {
-                    Palette.from(songCover).generate().apply {
-                        lurCache.put(song.path, this)
-                    }
-                }
+            spotColor = outlineColor*/
 
+                        launch(Dispatchers.Default) {
 
-                withContext(Dispatchers.Main.immediate) {
-                    outlineColor =
-                        if (palette.vibrantSwatch != null) Color(
-                            palette.vibrantSwatch!!.rgb
-                        ) else if(palette.lightVibrantSwatch != null){
-                            Color(palette.lightVibrantSwatch!!.rgb)
-                        }else if (palette.darkVibrantSwatch != null){
-                            Color(palette.darkVibrantSwatch!!.rgb)
-                        }else if (palette.lightMutedSwatch != null){
-                            Color(palette.lightMutedSwatch!!.rgb)
-                        }else if (palette.mutedSwatch != null){
-                           Color(palette.mutedSwatch!!.rgb)
-                        }else if (palette.darkMutedSwatch != null){
-                            Color(palette.darkMutedSwatch!!.rgb)
-                        } else Color.Cyan
-                    spotColor = outlineColor
+                            val song = state.songs[it]
+                            val songCover = convertUriToBitmap(song.cover,context.contentResolver,context.resources)
 
-                }
+                            val palette = if (lurCache[song.path] != null) {
+                                Log.e("ks", "$it :${lurCache[song.path]}")
+                                lurCache[song.path]!!
+                            } else {
+                                Palette.from(songCover).generate().apply {
+                                    lurCache.put(song.path, this)
+                                }
+                            }
 
 
-            }
+                            withContext(Dispatchers.Main.immediate) {
+                                outlineColor =
+                                    if (palette.vibrantSwatch != null) Color(
+                                        palette.vibrantSwatch!!.rgb
+                                    ) else if(palette.lightVibrantSwatch != null){
+                                        Color(palette.lightVibrantSwatch!!.rgb)
+                                    }else if (palette.darkVibrantSwatch != null){
+                                        Color(palette.darkVibrantSwatch!!.rgb)
+                                    }else if (palette.lightMutedSwatch != null){
+                                        Color(palette.lightMutedSwatch!!.rgb)
+                                    }else if (palette.mutedSwatch != null){
+                                       Color(palette.mutedSwatch!!.rgb)
+                                    }else if (palette.darkMutedSwatch != null){
+                                        Color(palette.darkMutedSwatch!!.rgb)
+                                    } else Color.Cyan
+                                spotColor = outlineColor
+
+                            }
+
+
+                        }
             /*.join()
             snapshotFlow { colorAnimation.value }.collect { value ->
                 spotColor = lerp(outlineColor, Color.White, value)
@@ -526,11 +542,21 @@ fun PlayedSongScreen(
                 ) {
 
                     IconButton(
-                        onClick = { /**/ },
+                        onClick = {
+                            when(state.playType){
+                                PlayType.Shuffle -> onAction(PlayedSongAction.ChangePlayType(PlayType.RepeatAll))
+                                PlayType.RepeatOne -> onAction(PlayedSongAction.ChangePlayType(PlayType.Shuffle))
+                                PlayType.RepeatAll -> onAction(PlayedSongAction.ChangePlayType(PlayType.RepeatOne))
+                            }
+                        },
 
                         ) {
                         Icon(
-                            imageVector = MusicIcons.Repeat,
+                            imageVector = when(state.playType){
+                                PlayType.Shuffle -> Icons.Default.Shuffle
+                                PlayType.RepeatOne -> Icons.Default.RepeatOne
+                                PlayType.RepeatAll -> Icons.Default.Repeat
+                            },
                             contentDescription = null,
                             modifier = Modifier.size(30.dp),
                             tint = Color.White
@@ -538,11 +564,11 @@ fun PlayedSongScreen(
                     }
 
                     IconButton(
-                        onClick = { /**/ },
+                        onClick = { onAction(PlayedSongAction.SeekToPrevious) },
 
                         ) {
                         Icon(
-                            imageVector = MusicIcons.TrackPrevious,
+                            imageVector = Icons.Default.SkipPrevious,
                             contentDescription = null,
                             modifier = Modifier.size(30.dp),
                             tint = Color.White
@@ -553,10 +579,10 @@ fun PlayedSongScreen(
                         onClick = { /**/ },
                         modifier = Modifier
                             .size(70.dp)
-                            .background(
-                                color = Color.White,
+                          /*  .background(
+                                color = Color.Black,
                                 shape = CircleShape
-                            )
+                            )*/
 
                     ) {
                         Icon(
@@ -568,18 +594,18 @@ fun PlayedSongScreen(
                                     enabled = true,
                                     onClick = {
                                         onAction(PlayedSongAction.PlayPause)
-                                    }
+                                    },
                                 ),
-
+                            tint = Color.White
                             )
                     }
 
                     IconButton(
-                        onClick = { /**/ },
+                        onClick = { onAction(PlayedSongAction.SeekToNext) },
 
                         ) {
                         Icon(
-                            imageVector = MusicIcons.TrackNext,
+                            imageVector = Icons.Default.SkipNext,
                             contentDescription = null,
                             modifier = Modifier.size(30.dp),
                             tint = Color.White,

@@ -29,7 +29,7 @@ class MusiCoNotificationManager(
         mediaSession: MediaSession
     ){
 
-        buildNotification(mediaSession,mediaSessionService)
+        //buildNotification(mediaSession,mediaSessionService)
         startForegroundNotificationService(mediaSessionService,mediaSession)
     }
 
@@ -37,20 +37,20 @@ class MusiCoNotificationManager(
         Log.e("ks","Enter startForeground fun in MusiCoNotificationManager class ")
 
 
-        val pendingIntent = PendingIntent.getActivity(
+/*        val pendingIntent = PendingIntent.getActivity(
             mediaSessionService,
-            MusicoApp.NOTIFICATION_ID+1,
+            MusicoApp.NOTIFICATION_ID,
             Intent(mediaSessionService, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE
-        )
+        )*/
 
         val notification = NotificationCompat.Builder(context, MusicoApp.NOTIFICATION_CHANNEL_ID)
-            .setOnlyAlertOnce(true)
+            //.setOnlyAlertOnce(true)
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentTitle(mediaSession.player.mediaMetadata.displayTitle)
             .setContentText(mediaSession.player.mediaMetadata.albumArtist)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(mediaSession.sessionActivity)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
         mediaSessionService.startForeground(MusicoApp.NOTIFICATION_ID,notification)
@@ -66,8 +66,8 @@ class MusiCoNotificationManager(
             .setMediaDescriptionAdapter(
                 MusiCoNotificationAdapter(context = context, pendingIntent = mediaSession.sessionActivity)
             )
-            .setNotificationListener(NotificationListener(mediaSessionService))
-            .setSmallIconResourceId(R.drawable.logo_1)
+           // .setNotificationListener(NotificationListener(mediaSessionService))
+            .setSmallIconResourceId(R.drawable.ic_audio)
             .build()
             .also {
                 it.setMediaSessionToken(mediaSession.platformToken)

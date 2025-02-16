@@ -3,10 +3,8 @@ package com.k.sekiro.musico
 import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
-import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
-import android.os.IBinder
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,21 +19,28 @@ import androidx.compose.ui.Modifier
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.palette.graphics.Palette
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
+import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongState
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import org.koin.android.ext.android.inject
-import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.compose.koinViewModel
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
     private var isServiceRunning: Boolean = false
-    private lateinit var controller: MediaController
+    var controller: MediaController? = null
+    lateinit var controllerFuture: ListenableFuture<MediaController>
+
+    private val viewModel: PlayedSongViewModel by viewModel()
+    //private lateinit var viewModel: PlayedSongViewModel
+
 
 
 
@@ -57,23 +62,33 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+
         val sessionToken = SessionToken(this, ComponentName(this,
             PlayerSessionService::class.java))
-
-        val controllerFuture = MediaController.Builder(this,sessionToken).buildAsync()
+        controllerFuture = MediaController.Builder(this,sessionToken).buildAsync()
         controllerFuture.addListener({
             if (controllerFuture.isDone){
                 controller = controllerFuture.get()
+                viewModel.initController(controller!!)
+                Log.e("ks","after post the value")
             }
         }, MoreExecutors.directExecutor()
         )
-
-        startingService()
-
     }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+        if (intent.action != null && intent.action == Intent.ACTION_RUN){
+
+           val index =  intent.getIntExtra("currentPlayingIndex",0)
+           val position =  intent.getLongExtra("currentPlayingPosition",0L)
+           val name =  intent.getStringExtra("name")
+            
+            Log.e("ks","index:$index, name:$name, position:$position")
+            
+            Log.e("ks","geting the intent ")
+        }
 
         val lruCache: LruCache<String, Palette> by inject()
         val repo: SongsRepository by inject()
@@ -95,11 +110,18 @@ class MainActivity : ComponentActivity() {
             MusiCoTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
+
+
                     val playedSongViewModel: PlayedSongViewModel = koinViewModel()
+                    //viewModel = playedSongViewModel
+
+
+
+
+
                     val state = playedSongViewModel.state.collectAsState(PlayedSongState()).value
                     val songs = state.songs
 
-                    Log.e("ks","$playedSongViewModel.")
 
 /*                    val requestPermissionScreenViewModel: RequestPermissionScreenViewModel = koinViewModel()
                     val showDialog = requestPermissionScreenViewModel.showDialog.collectAsState(false).value
@@ -138,11 +160,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        MediaController.releaseFuture(controllerFuture)
        /* Intent(this, PlayerSessionService::class.java).apply {
             stopService(this)
         }*/
 
         //unbindService(serviceConnection)
     }
+
+
 }
+
+
 

@@ -72,7 +72,7 @@ fun PlayListBox(
 
             Text(
                text =  playListName,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         }
     }

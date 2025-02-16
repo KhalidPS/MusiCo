@@ -1,6 +1,5 @@
 package com.k.sekiro.musico.playmusic.presenation.songs_list
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +21,6 @@ import androidx.compose.material.icons.twotone.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -38,18 +35,28 @@ import androidx.compose.ui.unit.dp
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
+import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
+import com.k.sekiro.musico.playmusic.presenation.model.SongUi
+import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayListBox
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
+import com.k.sekiro.musico.ui.theme.Green2
+import com.k.sekiro.musico.ui.theme.Orange
+import com.k.sekiro.musico.ui.theme.Orange1
 import com.k.sekiro.musico.ui.theme.PlayListColor
+import com.k.sekiro.musico.ui.theme.Purple40
+import com.k.sekiro.musico.ui.theme.Purple80
 import com.k.sekiro.musico.ui.theme.RecentPlayListColor
-import kotlinx.coroutines.delay
+import com.k.sekiro.musico.ui.theme.Red2
+import com.k.sekiro.musico.ui.theme.SkyBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongsList(
     modifier: Modifier = Modifier,
-    repositoryImpl: SongsRepository
+    //repositoryImpl: SongsRepository
+    songs: List<SongUi>
 ) {
     Column(
         modifier = modifier.fillMaxSize()
@@ -95,7 +102,7 @@ fun SongsList(
                 .padding(horizontal = 4.dp)
         ) {
             val filteredSongs =
-                mockSongs.filter { it.name.contains(value,true) }
+                mockSongs.filter { it.name.contains(value,true) }.map { it.toSongUi() }
 
             LazyColumn {
                 items(filteredSongs){
@@ -114,7 +121,7 @@ fun SongsList(
         ) {
 
             PlayListBox(
-                boxColor = Color.Cyan,
+                boxColor = SkyBlue,
                 latestSongImagePerPlayList = R.drawable.funk,
                 playListIconTint = Color.Red,
                 playListIcon = Icons.Default.Favorite,
@@ -123,7 +130,7 @@ fun SongsList(
 
 
             PlayListBox(
-                boxColor = PlayListColor,
+                boxColor = Red2,
                 latestSongImagePerPlayList = R.drawable.song_cover,
                 playListIcon = Icons.AutoMirrored.Default.List,
                 playListName = "Playlists"
@@ -131,7 +138,7 @@ fun SongsList(
 
 
             PlayListBox(
-                boxColor = RecentPlayListColor,
+                boxColor = Green2,
                 latestSongImagePerPlayList = R.drawable.logo_1,
                 playListIcon = Icons.TwoTone.Refresh,
                 playListName = "Recent"
@@ -144,7 +151,7 @@ fun SongsList(
             modifier = Modifier.fillMaxSize()
         ){
 
-            items(mockSongs){
+            items(songs){
                 Song(
                     song = it
                 )
@@ -158,9 +165,8 @@ fun SongsList(
 }
 
 
-/*
 @Preview
 @Composable
 private fun SongsListPrev() {
-    SongsList(repositoryImpl = SongsRepositoryImpl())
-}*/
+    SongsList(songs = mockSongs.map { it.toSongUi() })
+}

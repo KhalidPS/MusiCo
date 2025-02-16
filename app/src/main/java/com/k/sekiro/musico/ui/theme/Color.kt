@@ -13,3 +13,8 @@ val Orange = Color(0xFFFF5722)
 val FavoritePlaylistColor = Color(0xFFDC0FC1)
 val PlayListColor = Color(0xFFD1C4E9)
 val RecentPlayListColor = Color(0xFFFFC310)
+val SkyBlue = Color(0xFF30C6FF)
+val Orange1 = Color(0xFFFFBBAD)
+val Red2 = Color(0xFFFF9595)
+val Green2 = Color(0xFFADFFC4)
+

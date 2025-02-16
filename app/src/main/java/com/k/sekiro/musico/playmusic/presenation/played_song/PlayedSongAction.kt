@@ -6,12 +6,13 @@ sealed interface PlayedSongAction {
     object SeekToPrevious: PlayedSongAction
     object SeekForward: PlayedSongAction
     object SeekBackward: PlayedSongAction
-    object ChangePlayType: PlayedSongAction // shuffle , repeat one , repeat
+    data class ChangePlayType(val playType: PlayType): PlayedSongAction // shuffle , repeat one , repeat
     data class SeekTo(val position: Float): PlayedSongAction
     data class ChangeToOtherSong(val index: Int): PlayedSongAction
     data class UpdateProgress(val newProgress: Float): PlayedSongAction
     object OnMoreActionClicked: PlayedSongAction
     object OnDownArrowClicked: PlayedSongAction
+    object ClickNotification: PlayedSongAction
 
 
 }

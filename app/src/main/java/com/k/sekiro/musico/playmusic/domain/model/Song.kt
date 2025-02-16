@@ -20,7 +20,7 @@ data class Song(
 
 
 val mockSongs = listOf(
-    Song("Lalala","","Me & you", ""),
+    Song("LalalaLalalaLalalaLalalaLalalaLalalaLalalaLalala","","Me & you", ""),
     Song("Kingdom track 1","","Bandicom", ""),
     Song("Qadim","","Ajnad Nasheed", ""),
     Song("Funk Virso","","Irokz", "")

@@ -3,6 +3,8 @@ package com.k.sekiro.musico.playmusic.presenation.played_song
 import android.net.Uri
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,6 +13,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.FileDataSource
+import androidx.media3.session.MediaController
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
 import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.player.service.MusiCoServiceHandler
@@ -19,6 +22,7 @@ import com.k.sekiro.musico.playmusic.player.service.PlayerState
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
@@ -30,8 +34,12 @@ import kotlinx.coroutines.launch
 class PlayedSongViewModel(
     private val songsRepository: SongsRepository,
     private val savedStateHandle: SavedStateHandle,
-    @OptIn(UnstableApi::class) private val musiCoServiceHandler: MusiCoServiceHandler
 ) : ViewModel() {
+    private val mediaController: MutableSharedFlow<MediaController> = MutableSharedFlow<MediaController>()
+
+
+    private val musiCoServiceHandler: MusiCoServiceHandler = MusiCoServiceHandler(mediaController)
+
 
     /* @OptIn(SavedStateHandleSaveableApi::class)
     var duration by savedStateHandle.saveable{ mutableLongStateOf(0L) }
@@ -39,6 +47,7 @@ class PlayedSongViewModel(
     var durationString by savedStateHandle.saveable{ mutableStateOf("00:00") }*/
 
     private val stateKey = "playedSongState"
+
 
     private val _state = MutableStateFlow<PlayedSongState>(PlayedSongState())
     val state = _state
@@ -55,6 +64,9 @@ class PlayedSongViewModel(
 
 
     init {
+
+
+
         viewModelScope.launch{
             musiCoServiceHandler.audioState.collectLatest { playerState ->
                 when(playerState) {
@@ -62,7 +74,13 @@ class PlayedSongViewModel(
                     is PlayerState.CurrentPlaying -> {
                             _state.update {
                                 it.copy(
-                                    playedSong = it.songs[playerState.mediaItemIndex]
+                                    playedSong = if (
+                                        it.songs.isNotEmpty()
+                                    ){
+                                        it.songs[playerState.mediaItemIndex]
+                                    }else{
+                                        return@collectLatest
+                                    }
                                 )
                             }
                     }
@@ -77,6 +95,14 @@ class PlayedSongViewModel(
                     is PlayerState.Progress -> calculateProgressValue(playerState.progress)
                     is PlayerState.Ready -> {
 
+                    }
+
+                    is PlayerState.PlayingType -> {
+                        _state.update {
+                            it.copy(
+                                playType = playerState.type
+                            )
+                        }
                     }
                 }
             }
@@ -101,7 +127,9 @@ class PlayedSongViewModel(
     fun onAction(action: PlayedSongAction) {
         viewModelScope.launch{
             when (action) {
-                PlayedSongAction.ChangePlayType -> TODO()
+                is PlayedSongAction.ChangePlayType -> {
+                    musiCoServiceHandler.onPlayerEvents(PlayerEvent.ChangePlayType(action.playType))
+                }
                 is PlayedSongAction.ChangeToOtherSong -> {
                     musiCoServiceHandler.onPlayerEvents(
                         PlayerEvent.SelectedAudioChange,
@@ -121,8 +149,16 @@ class PlayedSongViewModel(
                    )
                 }
 
-                PlayedSongAction.SeekToNext -> TODO()
-                PlayedSongAction.SeekToPrevious -> TODO()
+                PlayedSongAction.SeekToNext -> {
+                    musiCoServiceHandler.onPlayerEvents(
+                        PlayerEvent.SeekToNext
+                    )
+                }
+                PlayedSongAction.SeekToPrevious -> {
+                    musiCoServiceHandler.onPlayerEvents(
+                        PlayerEvent.SeekToPrevious
+                    )
+                }
                 is PlayedSongAction.UpdateProgress -> {
                     musiCoServiceHandler.onPlayerEvents(
                         PlayerEvent.UpdateProgress(action.newProgress)
@@ -133,6 +169,10 @@ class PlayedSongViewModel(
                         )
                     }
                 }
+
+                PlayedSongAction.ClickNotification -> musiCoServiceHandler.onPlayerEvents(
+                    PlayerEvent.ClickNotification
+                )
             }
         }
 
@@ -232,9 +272,6 @@ class PlayedSongViewModel(
         }
     }
 
-
-
-
     private fun calculateProgressValue(currentProgress: Long){
 
 
@@ -253,6 +290,15 @@ class PlayedSongViewModel(
     }
 
 
+    fun initController(controller: MediaController){
+        viewModelScope.launch{
+            mediaController.emit(controller)
+        }
+    }
+
+
+
+
     @OptIn(UnstableApi::class)
     override fun onCleared() {
         viewModelScope.launch{
@@ -260,6 +306,7 @@ class PlayedSongViewModel(
                 PlayerEvent.Stop
             )
         }
+
         musiCoServiceHandler.cancelServiceScope()
         super.onCleared()
     }

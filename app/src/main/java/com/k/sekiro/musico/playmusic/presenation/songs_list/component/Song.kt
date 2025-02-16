@@ -39,12 +39,13 @@ import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.R
+import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 
 @Composable
 fun Song(
     modifier: Modifier = Modifier,
-    song: Song,
-    onClick:(Song) -> Unit = {},
+    song: SongUi,
+    onClick:(SongUi) -> Unit = {},
     onShareClick:() -> Unit = {},
     onMoreActionClick: () -> Unit = {}
 ) {
@@ -119,6 +120,6 @@ fun Song(
 @Composable
 private fun SongPrev() {
     Song(
-        song = mockSongs[1]
+        song = mockSongs[1].toSongUi()
     )
 }

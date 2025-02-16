@@ -89,7 +89,9 @@ val appModule = module{
         val pendingIntent = PendingIntent.getActivity(
             androidContext(),
             MusicoApp.NOTIFICATION_ID,
-            Intent(androidContext(), MainActivity::class.java),
+            Intent(androidContext(), MainActivity::class.java).apply {
+                action = Intent.ACTION_RUN
+            },
             PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -113,7 +115,7 @@ val appModule = module{
 
     single{ MusiCoNotificationManager(androidContext(),get<ExoPlayer>()) }
 
-    single { MusiCoServiceHandler(get()) }
+    //single { MusiCoServiceHandler(get()) }
 
 /*    single{
         var controller: MediaController? = null

@@ -8,7 +8,7 @@ data class PlayedSongState(
     val playedSongIndex: Int = 0,
     val sliderProgress: Float = 0f,
     val passedTimeDuration: String = "",
-    val repeatType: PlayType = PlayType.RepeatAll,
+    val playType: PlayType = PlayType.RepeatAll,
     val isPlaying: Boolean = false
 )
 
