@@ -22,6 +22,7 @@ import com.k.sekiro.musico.playmusic.player.service.PlayerState
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
+import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -228,7 +229,7 @@ class PlayedSongViewModel(
                     .setUri(song.dataUri)
                     .setMediaMetadata(
                         MediaMetadata.Builder()
-                            .setArtworkUri(song.cover)
+                            .setArtworkUri(song.cover.toUri())
                             .setTitle(song.artist)
                             .setDisplayTitle(song.name)
                             .setAlbumTitle(song.album)
@@ -254,7 +255,7 @@ class PlayedSongViewModel(
                     .setUri(song.dataUri)
                     .setMediaMetadata(
                         MediaMetadata.Builder()
-                            .setArtworkUri(song.cover)
+                            .setArtworkUri(song.cover.toUri())
                             .setTitle(song.title)
                             .setDisplayTitle(song.name)
                             .setAlbumTitle(song.album)

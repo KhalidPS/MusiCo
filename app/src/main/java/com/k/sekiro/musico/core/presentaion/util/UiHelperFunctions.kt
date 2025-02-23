@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.palette.graphics.Palette
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.convertUriToBitmap
+import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -34,7 +35,7 @@ suspend fun getColorFromCover(
 ): Color = withContext(Dispatchers.Default) {
 
     val songCover = convertUriToBitmap(
-        song.cover,
+        song.cover.toUri(),
         context.contentResolver,
         context.resources
     )

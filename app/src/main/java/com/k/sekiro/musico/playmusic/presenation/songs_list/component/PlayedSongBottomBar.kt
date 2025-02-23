@@ -2,6 +2,8 @@ package com.k.sekiro.musico.playmusic.presenation.songs_list.component
 
 import android.util.Log
 import androidx.collection.LruCache
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -33,10 +35,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
@@ -56,6 +60,8 @@ import com.k.sekiro.musico.playmusic.presenation.model.convertUriToBitmap
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.geometry.Size
+import com.k.sekiro.musico.playmusic.presenation.model.toUri
 
 @Composable
 fun PlayedSongBottomBar(
@@ -79,10 +85,12 @@ fun PlayedSongBottomBar(
 
     )*/
 
+    val progressAnim  = remember { Animatable(0f) }
+
 
 
     LaunchedEffect(true) {
-        val songCover = withContext(Dispatchers.Default){convertUriToBitmap(song.cover,context.contentResolver,context.resources)}
+        val songCover = withContext(Dispatchers.Default){convertUriToBitmap(song.cover.toUri(),context.contentResolver,context.resources)}
 
         val palette = if (lurCache[song.path] != null) {
             lurCache[song.path]!!
@@ -107,6 +115,14 @@ fun PlayedSongBottomBar(
                 Color(palette.darkMutedSwatch!!.rgb)
             } else Color.Cyan
 
+
+        progressAnim.animateTo(
+            targetValue = 360f,
+            animationSpec = tween(
+                60000,
+                easing = LinearEasing
+            )
+        )
 
 /*        bottomBarColor = getColorFromCover(
             lurCache = lurCache,
@@ -173,13 +189,35 @@ fun PlayedSongBottomBar(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "play icon",
                     modifier = Modifier.weight(.5f)
+                        .drawBehind {
+                            drawCircle(
+                                color = Color.White.copy(alpha = .3f),
+                                style = Stroke(
+                                    width = 2.dp.toPx()
+                                )
+                            )
+                            drawArc(
+                                color = Color.White,
+                                useCenter = false,
+                                style = Stroke(
+                                    width = 2.dp.toPx()
+                                ),
+                                startAngle = 0f,
+                                sweepAngle = progressAnim.value,
+                                size = Size(size.minDimension,size.minDimension),
+                                topLeft = Offset(size.minDimension*1.8f,0f)
+
+                            )
+
+
+                        }
                 )
 
 
 
         }
 
-        SongCD(song.cover)
+        SongCD(song.cover.toUri())
     }
 
 

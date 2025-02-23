@@ -1,7 +1,6 @@
 package com.k.sekiro.musico.playmusic.presenation.played_song
 
 import android.graphics.drawable.Icon
-import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.collection.LruCache
@@ -92,6 +91,7 @@ import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.convertUriToBitmap
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
+import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -219,7 +219,7 @@ fun PlayedSongScreen(
                         launch(Dispatchers.Default) {
 
                             val song = state.songs[it]
-                            val songCover = convertUriToBitmap(song.cover,context.contentResolver,context.resources)
+                            val songCover = convertUriToBitmap(song.cover.toUri(),context.contentResolver,context.resources)
 
                             val palette = if (lurCache[song.path] != null) {
                                 Log.e("ks", "$it :${lurCache[song.path]}")

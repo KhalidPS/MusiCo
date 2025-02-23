@@ -12,6 +12,7 @@ composeBom = "2024.12.01"
 koinVersion = "4.0.0"
 materialIconsExtended = "1.7.6"
 media3 = "1.5.0"
+navigationCompose = "2.8.7"
 palette = "1.0.0"
 roomVersion = "2.6.1"
 kspVersion = "2.0.21-1.0.27"
@@ -29,6 +30,7 @@ androidx-media3-exoplayer-dash = { group = "androidx.media3", name = "media3-exo
 androidx-media3-common-ktx = { group = "androidx.media3", name = "media3-common-ktx", version.ref = "media3" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3"}
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 androidx-palette = { module = "androidx.palette:palette", version.ref = "palette" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomVersion" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomVersion" }

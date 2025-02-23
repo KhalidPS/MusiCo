@@ -8,29 +8,30 @@ import android.graphics.ImageDecoder
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
-import android.os.Parcelable
 import android.util.Log
 import androidx.compose.runtime.Stable
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.domain.model.Song
-import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
 import okio.FileNotFoundException
 import okio.IOException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+@Serializable
 @Stable
 data class SongUi(
     val name: String,
     val title: String = "",
     val artist: String = "",
-    val cover: Uri,
-    val dataUri: Uri,
+    val cover: String,
+    val dataUri: String,
     val album: String = "",
     val path: String = "",
     val displayableDuration: DisplayableDuration
 )
 
+@Serializable
 data class DisplayableDuration(
     val durationMillis: Long,
     val formatted: String,
@@ -44,8 +45,8 @@ fun Song.toSongUi(): SongUi {
         album = album,
         path = path,
         displayableDuration = duration.toDisplayableDuration(),
-        cover = Uri.parse(cover),
-        dataUri = Uri.parse(dataUri)
+        cover = cover?:"",
+        dataUri = dataUri
     )
 }
 
@@ -89,6 +90,9 @@ fun String.toBitmap(resources: Resources): Bitmap {
        return BitmapFactory.decodeResource(resources, R.drawable.logo_2)
     }
 }
+
+
+fun String.toUri() = Uri.parse(this)
 
 
 fun convertUriToBitmap(uri: Uri, contentResolver: ContentResolver,resources: Resources): Bitmap {
