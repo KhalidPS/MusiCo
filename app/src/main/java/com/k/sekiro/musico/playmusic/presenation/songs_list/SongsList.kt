@@ -58,11 +58,12 @@ import com.k.sekiro.musico.ui.theme.SkyBlue
 fun SongsList(
     modifier: Modifier = Modifier,
     //repositoryImpl: SongsRepository
-    songs: List<SongUi>
+    songs: List<SongUi>,
+    onSongClicked:(SongUi)-> Unit = {}
 ) {
 
     Scaffold (
-        bottomBar = { PlayedSongBottomBar() }
+        //bottomBar = { PlayedSongBottomBar() }
     ){
         Column(
             modifier = modifier.fillMaxSize().padding(it)
@@ -112,7 +113,10 @@ fun SongsList(
 
                 LazyColumn {
                     items(filteredSongs){
-                        Song(song = it)
+                        Song(
+                            song = it,
+                            onClick = onSongClicked
+                            )
                     }
                 }
 
@@ -159,7 +163,8 @@ fun SongsList(
 
                 items(songs){
                     Song(
-                        song = it
+                        song = it,
+                        onClick = onSongClicked
                     )
                 }
 

@@ -103,6 +103,7 @@ fun PlayedSongScreen(
     modifier: Modifier = Modifier,
     lurCache: LruCache<String, Palette>,
     state: PlayedSongState,
+    index: Int = 0,
     onAction:(PlayedSongAction) -> Unit
 ) {
 
@@ -153,8 +154,22 @@ fun PlayedSongScreen(
         else -> {coilPainter}
     }
 
+    LaunchedEffect(Unit) {
 
-    LaunchedEffect(state.playedSong) {
+        launch{
+            onAction(PlayedSongAction.PlayPause)
+
+        }
+
+        launch{
+            pagerState.scrollToPage(index)
+
+        }
+    }
+
+
+    LaunchedEffect(state.playedSong) {//this code to sync the pager with notification when seek to
+        // other song from notification
         if (state.playedSong != null && state.playedSong != state.songs[pagerState.settledPage]){
             pagerState.animateScrollToPage(state.songs.indexOf(state.playedSong))
         }
@@ -206,9 +221,9 @@ fun PlayedSongScreen(
                 )
             }
 
-            val song = state.songs[it]
+   /*         val song = state.songs[it]
 
-/*            outlineColor = getColorFromCover(
+            outlineColor = getColorFromCover(
                 lurCache = lurCache,
                 context = context,
                 song = song

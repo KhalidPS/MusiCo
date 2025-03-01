@@ -22,6 +22,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import androidx.palette.graphics.Palette
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
@@ -29,6 +30,7 @@ import com.k.sekiro.musico.playmusic.domain.SongsRepository
 import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
+import com.k.sekiro.musico.playmusic.presenation.model.CustomNavType
 import com.k.sekiro.musico.playmusic.presenation.model.DisplayableDuration
 import com.k.sekiro.musico.playmusic.presenation.model.Home
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
@@ -41,6 +43,7 @@ import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
+import kotlin.reflect.typeOf
 
 class MainActivity : ComponentActivity() {
     private var isServiceRunning: Boolean = false
@@ -154,20 +157,39 @@ class MainActivity : ComponentActivity() {
                         composable<Home> {
                             if (!songs.isEmpty()) {
                                 SongsList(
-                                    songs = songs
+                                    songs = songs,
+                                    onSongClicked = {
+                                        controller.navigate(it){
+
+                                        }
+                                    }
                                 )
                             } else {
                                 LoadingScreen()
                             }
                         }
 
-                        composable<SongUi> {
+
+                        composable<SongUi>(
+                            typeMap = mapOf(
+                                typeOf<DisplayableDuration>() to CustomNavType.DisplayableDurationType
+                            )
+                        ) {
+
+                            val song = it.toRoute<SongUi>()
+                            val index = state.songs.indexOf(song)
+
+                           // viewModel.onAction(PlayedSongAction.ChangeToOtherSong(index))
 
                             PlayedSongScreen(
                                 lurCache = lruCache,
                                 state = state,
-                                onAction = playedSongViewModel::onAction
+                                onAction = playedSongViewModel::onAction,
+                                index = index
                             )
+
+                            //viewModel.onAction(PlayedSongAction.PlayPause)
+
                             //SongsList(repositoryImpl = repo)
                         }
 
@@ -184,18 +206,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-override fun onDestroy() {
-    super.onDestroy()
-    MediaController.releaseFuture(controllerFuture)
-    /* Intent(this, PlayerSessionService::class.java).apply {
-         stopService(this)
-     }*/
+    override fun onDestroy() {
+        super.onDestroy()
+        MediaController.releaseFuture(controllerFuture)
+        /* Intent(this, PlayerSessionService::class.java).apply {
+     stopService(this)
+ }*/
 
-    //unbindService(serviceConnection)
+        //unbindService(serviceConnection)
+    }
 }
 
 
-}
 
 
 

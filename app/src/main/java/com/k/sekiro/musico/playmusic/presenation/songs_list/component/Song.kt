@@ -21,6 +21,7 @@ import androidx.compose.material.icons.twotone.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +35,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
 import com.k.sekiro.musico.core.presentaion.util.convertResToBitmap
 import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
@@ -67,9 +70,20 @@ fun Song(
     ) {
        // val song = song.toSongUi(context.contentResolver,context.resources)
         val songCover = song.cover
+        val painter = rememberAsyncImagePainter(song.cover)
+        val painterState = painter.state.collectAsState()
+
 
         Image(
-            painter = painterResource(R.drawable.logo_2),
+            painter = when(painterState.value){
+                is  AsyncImagePainter.State.Empty -> {
+                    painterResource(R.drawable.logo_2)
+                }
+                is AsyncImagePainter.State.Error -> {
+                    painterResource(R.drawable.logo_2)
+                }
+                else -> {painter}
+            },
            // bitmap = songCover.asImageBitmap(),
             contentDescription = "song album cover",
             contentScale = ContentScale.Crop,

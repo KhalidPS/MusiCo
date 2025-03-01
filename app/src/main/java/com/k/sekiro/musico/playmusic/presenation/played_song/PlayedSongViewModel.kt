@@ -50,6 +50,7 @@ class PlayedSongViewModel(
     private val stateKey = "playedSongState"
 
 
+
     private val _state = MutableStateFlow<PlayedSongState>(PlayedSongState())
     val state = _state
         .onStart {
@@ -65,8 +66,6 @@ class PlayedSongViewModel(
 
 
     init {
-
-
 
         viewModelScope.launch{
             musiCoServiceHandler.audioState.collectLatest { playerState ->
