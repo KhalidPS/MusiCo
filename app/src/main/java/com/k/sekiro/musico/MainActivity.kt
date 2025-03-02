@@ -33,6 +33,7 @@ import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
 import com.k.sekiro.musico.playmusic.presenation.model.CustomNavType
 import com.k.sekiro.musico.playmusic.presenation.model.DisplayableDuration
 import com.k.sekiro.musico.playmusic.presenation.model.Home
+import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
@@ -158,8 +159,8 @@ class MainActivity : ComponentActivity() {
                             if (!songs.isEmpty()) {
                                 SongsList(
                                     songs = songs,
-                                    onSongClicked = {
-                                        controller.navigate(it){
+                                    onSongClicked = { song ,index ->
+                                        controller.navigate(PlayedSong(index)){
 
                                         }
                                     }
@@ -170,14 +171,16 @@ class MainActivity : ComponentActivity() {
                         }
 
 
-                        composable<SongUi>(
-                            typeMap = mapOf(
+                        composable<PlayedSong>(
+                          /*  typeMap = mapOf(
                                 typeOf<DisplayableDuration>() to CustomNavType.DisplayableDurationType
-                            )
+                            )*/
                         ) {
 
-                            val song = it.toRoute<SongUi>()
-                            val index = state.songs.indexOf(song)
+                          /*  val song = it.toRoute<SongUi>()
+                            val index = state.songs.indexOf(song)*/
+
+                            val index = it.toRoute<PlayedSong>().index
 
                            // viewModel.onAction(PlayedSongAction.ChangeToOtherSong(index))
 

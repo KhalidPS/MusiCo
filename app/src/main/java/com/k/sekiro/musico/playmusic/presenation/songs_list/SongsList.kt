@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -59,14 +60,16 @@ fun SongsList(
     modifier: Modifier = Modifier,
     //repositoryImpl: SongsRepository
     songs: List<SongUi>,
-    onSongClicked:(SongUi)-> Unit = {}
+    onSongClicked:(SongUi,index:Int)-> Unit = {_,_ ->}
 ) {
 
     Scaffold (
         //bottomBar = { PlayedSongBottomBar() }
     ){
         Column(
-            modifier = modifier.fillMaxSize().padding(it)
+            modifier = modifier
+                .fillMaxSize()
+                .padding(it)
         ) {
 
             var isExpanded by remember { mutableStateOf(false) }
@@ -112,10 +115,10 @@ fun SongsList(
                     mockSongs.filter { it.name.contains(value,true) }.map { it.toSongUi() }
 
                 LazyColumn {
-                    items(filteredSongs){
+                    itemsIndexed(filteredSongs){index, song ->
                         Song(
-                            song = it,
-                            onClick = onSongClicked
+                            song = song,
+                            onClick = { onSongClicked(it,index) }
                             )
                     }
                 }
@@ -161,10 +164,10 @@ fun SongsList(
                 modifier = Modifier.fillMaxSize()
             ){
 
-                items(songs){
+                itemsIndexed(songs){ index, song ->
                     Song(
-                        song = it,
-                        onClick = onSongClicked
+                        song = song,
+                        onClick = { onSongClicked(it,index) }
                     )
                 }
 
