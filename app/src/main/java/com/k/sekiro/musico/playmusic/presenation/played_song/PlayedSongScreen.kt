@@ -164,13 +164,17 @@ fun PlayedSongScreen(
 
             }
         }
-            launch{
-                Log.e("ks","index state 2: $indexState")
-                pagerState.scrollToPage(indexState)
-                delay(300)
-                indexState = 0
+        launch{
+            Log.e("ks","index state 2: $indexState")
+            pagerState.scrollToPage(indexState)
+            delay(300)
+            indexState = if (indexState == 0) {
+                1
+            }else if (indexState == state.songs.lastIndex) state.songs.lastIndex -1
 
-            }
+            else 0
+
+        }
 
 
 
@@ -191,11 +195,11 @@ fun PlayedSongScreen(
 
         snapshotFlow { pagerState.settledPage }.collect {
 
-           if (state.songs[indexState] != state.playedSong){
-               onAction(PlayedSongAction.ChangeToOtherSong(it))
-               //onStart()
-               onAction(PlayedSongAction.PlayPause)
-           }
+            if (state.songs[indexState] != state.playedSong){
+                onAction(PlayedSongAction.ChangeToOtherSong(it))
+                //onStart()
+                onAction(PlayedSongAction.PlayPause)
+            }
 
             val job1 = launch { line1X.snapTo(0f) }
             val job2 = launch { line2Y.snapTo(0f) }
@@ -233,52 +237,52 @@ fun PlayedSongScreen(
                 )
             }
 
-   /*         val song = state.songs[it]
+            /*         val song = state.songs[it]
 
-            outlineColor = getColorFromCover(
-                lurCache = lurCache,
-                context = context,
-                song = song
-            )
+                     outlineColor = getColorFromCover(
+                         lurCache = lurCache,
+                         context = context,
+                         song = song
+                     )
 
-            spotColor = outlineColor*/
+                     spotColor = outlineColor*/
 
-                        launch(Dispatchers.Default) {
+            launch(Dispatchers.Default) {
 
-                            val song = state.songs[it]
-                            val songCover = convertUriToBitmap(song.cover.toUri(),context.contentResolver,context.resources)
+                val song = state.songs[it]
+                val songCover = convertUriToBitmap(song.cover.toUri(),context.contentResolver,context.resources)
 
-                            val palette = if (lurCache[song.path] != null) {
-                                Log.e("ks", "$it :${lurCache[song.path]}")
-                                lurCache[song.path]!!
-                            } else {
-                                Palette.from(songCover).generate().apply {
-                                    lurCache.put(song.path, this)
-                                }
-                            }
-
-
-                            withContext(Dispatchers.Main.immediate) {
-                                outlineColor =
-                                    if (palette.vibrantSwatch != null) Color(
-                                        palette.vibrantSwatch!!.rgb
-                                    ) else if(palette.lightVibrantSwatch != null){
-                                        Color(palette.lightVibrantSwatch!!.rgb)
-                                    }else if (palette.darkVibrantSwatch != null){
-                                        Color(palette.darkVibrantSwatch!!.rgb)
-                                    }else if (palette.lightMutedSwatch != null){
-                                        Color(palette.lightMutedSwatch!!.rgb)
-                                    }else if (palette.mutedSwatch != null){
-                                       Color(palette.mutedSwatch!!.rgb)
-                                    }else if (palette.darkMutedSwatch != null){
-                                        Color(palette.darkMutedSwatch!!.rgb)
-                                    } else Color.Cyan
-                                spotColor = outlineColor
-
-                            }
+                val palette = if (lurCache[song.path] != null) {
+                    Log.e("ks", "$it :${lurCache[song.path]}")
+                    lurCache[song.path]!!
+                } else {
+                    Palette.from(songCover).generate().apply {
+                        lurCache.put(song.path, this)
+                    }
+                }
 
 
-                        }
+                withContext(Dispatchers.Main.immediate) {
+                    outlineColor =
+                        if (palette.vibrantSwatch != null) Color(
+                            palette.vibrantSwatch!!.rgb
+                        ) else if(palette.lightVibrantSwatch != null){
+                            Color(palette.lightVibrantSwatch!!.rgb)
+                        }else if (palette.darkVibrantSwatch != null){
+                            Color(palette.darkVibrantSwatch!!.rgb)
+                        }else if (palette.lightMutedSwatch != null){
+                            Color(palette.lightMutedSwatch!!.rgb)
+                        }else if (palette.mutedSwatch != null){
+                            Color(palette.mutedSwatch!!.rgb)
+                        }else if (palette.darkMutedSwatch != null){
+                            Color(palette.darkMutedSwatch!!.rgb)
+                        } else Color.Cyan
+                    spotColor = outlineColor
+
+                }
+
+
+            }
             /*.join()
             snapshotFlow { colorAnimation.value }.collect { value ->
                 spotColor = lerp(outlineColor, Color.White, value)
@@ -426,7 +430,7 @@ fun PlayedSongScreen(
 
 
 
-                  //  val songCover = songs[it].cover?:convertResToBitmap(context,R.drawable.logo_2)
+                    //  val songCover = songs[it].cover?:convertResToBitmap(context,R.drawable.logo_2)
 
                     val painter = rememberAsyncImagePainter(state.songs[it].cover)
                     val painterState = painter.state.collectAsState()
@@ -605,10 +609,10 @@ fun PlayedSongScreen(
                         onClick = { /**/ },
                         modifier = Modifier
                             .size(70.dp)
-                          /*  .background(
-                                color = Color.Black,
-                                shape = CircleShape
-                            )*/
+                        /*  .background(
+                              color = Color.Black,
+                              shape = CircleShape
+                          )*/
 
                     ) {
                         Icon(
@@ -623,7 +627,7 @@ fun PlayedSongScreen(
                                     },
                                 ),
                             tint = Color.White
-                            )
+                        )
                     }
 
                     IconButton(
@@ -660,9 +664,9 @@ fun PlayedSongScreen(
 @Preview
 @Composable
 private fun PlayedSongScreenPrev() {
-      PlayedSongScreen(
-          lurCache = LruCache(4),
-          state = PlayedSongState(),
-          onAction = {},
-      )
+    PlayedSongScreen(
+        lurCache = LruCache(4),
+        state = PlayedSongState(),
+        onAction = {},
+    )
 }
