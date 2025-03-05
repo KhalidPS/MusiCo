@@ -94,6 +94,7 @@ import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.absoluteValue
@@ -112,7 +113,7 @@ fun PlayedSongScreen(
     val density = LocalDensity.current.density
     val pagerState = rememberPagerState(pageCount = { state.songs.size })
     val scope = rememberCoroutineScope()
-
+    var indexState = index
 
 
 
@@ -155,16 +156,24 @@ fun PlayedSongScreen(
     }
 
     LaunchedEffect(Unit) {
+        Log.e("ks","index state 1: $indexState")
 
-        launch{
-            onAction(PlayedSongAction.PlayPause)
+        if (state.songs[indexState] != state.playedSong){
+            launch{
+                onAction(PlayedSongAction.PlayPause)
 
+            }
         }
+            launch{
+                Log.e("ks","index state 2: $indexState")
+                pagerState.scrollToPage(indexState)
+                delay(300)
+                indexState = 0
 
-        launch{
-            pagerState.scrollToPage(index)
+            }
 
-        }
+
+
     }
 
 
@@ -178,12 +187,15 @@ fun PlayedSongScreen(
 
     LaunchedEffect(pagerState) {
 
+        Log.e("ks","index state 3: $indexState")
 
         snapshotFlow { pagerState.settledPage }.collect {
 
-            onAction(PlayedSongAction.ChangeToOtherSong(it))
-            //onStart()
-            onAction(PlayedSongAction.PlayPause)
+           if (state.songs[indexState] != state.playedSong){
+               onAction(PlayedSongAction.ChangeToOtherSong(it))
+               //onStart()
+               onAction(PlayedSongAction.PlayPause)
+           }
 
             val job1 = launch { line1X.snapTo(0f) }
             val job2 = launch { line2Y.snapTo(0f) }
@@ -377,7 +389,6 @@ fun PlayedSongScreen(
                     pageSize = PageSize.Fixed(300.dp),
                     contentPadding = PaddingValues(horizontal = 60.dp),
                 ) {
-
 
                     val pageOffset = pagerState.getOffsetDistanceInPages(it).absoluteValue
                     // or you can use pagerState.currentPageOffsetFraction instead of getOffsetDis.....

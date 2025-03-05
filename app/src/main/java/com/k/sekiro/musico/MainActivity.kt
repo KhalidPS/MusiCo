@@ -126,7 +126,7 @@ class MainActivity : ComponentActivity() {
             MusiCoTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
-                    val controller = rememberNavController()
+                    val navController = rememberNavController()
 
 
                     val playedSongViewModel: PlayedSongViewModel = koinViewModel()
@@ -149,7 +149,7 @@ class MainActivity : ComponentActivity() {
                                             updateShowDialog = requestPermissionScreenViewModel::updateShowDialog
                                         ){*/
                     NavHost(
-                        navController = controller,
+                        navController = navController,
                         startDestination = Home::class,
                         modifier = Modifier.padding(innerPadding)
                     ) {
@@ -160,7 +160,7 @@ class MainActivity : ComponentActivity() {
                                 SongsList(
                                     songs = songs,
                                     onSongClicked = { song ,index ->
-                                        controller.navigate(PlayedSong(index)){
+                                        navController.navigate(PlayedSong(index)){
 
                                         }
                                     }
@@ -192,8 +192,6 @@ class MainActivity : ComponentActivity() {
                             )
 
                             //viewModel.onAction(PlayedSongAction.PlayPause)
-
-                            //SongsList(repositoryImpl = repo)
                         }
 
                     }
