@@ -61,6 +61,8 @@ fun SongCD(
     val painterState = painter.state.collectAsState()
     var clicked by remember { mutableStateOf(false) }
 
+
+
 /*    val baseColor = Color(0xFF9A9A9A)
     val highlightAlpha = .5f
     val highlightColor = lerp(baseColor, Color.White,.5f)
@@ -88,28 +90,26 @@ fun SongCD(
         )
     )*/
 
-    var oldValue = 0f
-    val rotateAnim = remember { Animatable(oldValue) }
+    var lastAnimValue by remember { mutableStateOf(0f) }
+    val rotateAnim = remember(clicked) { Animatable(lastAnimValue) }
 
 
     LaunchedEffect(clicked) {
-        if (!clicked){
-            while (!clicked){
-                if (rotateAnim.value == 360f){
-                    rotateAnim.snapTo(0f)
-                }
+        if (clicked){
+
                 rotateAnim.animateTo(
-                  //  if (oldValue == 0f) 360f else 360f - oldValue
-                    360f,
-                    animationSpec = tween(
-                        durationMillis = 5000,
-                        easing = LinearEasing
+                    360f + lastAnimValue,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(
+                            durationMillis = 5000,
+                            easing = LinearEasing,
+                        ),
+                        repeatMode = RepeatMode.Restart
                     )
-                )
-            }
-        }else{
-            oldValue = rotateAnim.value
-            rotateAnim.stop()
+                ){
+                    lastAnimValue = value
+                }
+
         }
     }
 

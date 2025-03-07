@@ -167,7 +167,7 @@ fun PlayedSongScreen(
         launch{
             Log.e("ks","index state 2: $indexState")
             pagerState.scrollToPage(indexState)
-            delay(300)
+            delay(100)
             indexState = if (indexState == 0) {
                 1
             }else if (indexState == state.songs.lastIndex) state.songs.lastIndex -1
