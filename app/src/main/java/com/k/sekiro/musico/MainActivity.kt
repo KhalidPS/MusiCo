@@ -10,6 +10,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.collection.LruCache
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -163,6 +169,12 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate(PlayedSong(index)){
 
                                         }
+                                    },
+                                    state = state,
+                                    onPlayClicked = { playedSongViewModel.onAction(PlayedSongAction.PlayPause) },
+                                    onBottomBarClicked = {
+                                        val index = if (state.playedSong != null) songs.indexOf(state.playedSong) else return@SongsList
+                                        navController.navigate(PlayedSong(index))
                                     }
                                 )
                             } else {
@@ -175,6 +187,24 @@ class MainActivity : ComponentActivity() {
                           /*  typeMap = mapOf(
                                 typeOf<DisplayableDuration>() to CustomNavType.DisplayableDurationType
                             )*/
+                            enterTransition = {
+                                slideInVertically(
+                                    animationSpec = tween(
+                                        durationMillis = 1000,
+                                        easing = FastOutSlowInEasing
+                                    ),
+                                    initialOffsetY = {it}
+                                )
+                            } ,
+                            exitTransition = {
+                                slideOutVertically(
+                                    animationSpec = tween(
+                                        durationMillis = 1000,
+                                        easing = FastOutSlowInEasing
+                                    ),
+                                    targetOffsetY = { it }
+                                )
+                            }
                         ) {
 
                           /*  val song = it.toRoute<SongUi>()

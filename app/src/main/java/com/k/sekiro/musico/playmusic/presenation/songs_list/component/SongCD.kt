@@ -55,11 +55,12 @@ import androidx.compose.runtime.setValue
 @Composable
 fun SongCD(
     cover: Uri,
-    radius: Dp = 60.dp
+    radius: Dp = 60.dp,
+    isPlaying: Boolean = true
 ) {
     val painter = rememberAsyncImagePainter(cover)
     val painterState = painter.state.collectAsState()
-    var clicked by remember { mutableStateOf(false) }
+    //var clicked by remember { mutableStateOf(false) }
 
 
 
@@ -91,11 +92,11 @@ fun SongCD(
     )*/
 
     var lastAnimValue by remember { mutableStateOf(0f) }
-    val rotateAnim = remember(clicked) { Animatable(lastAnimValue) }
+    val rotateAnim = remember(isPlaying) { Animatable(lastAnimValue) }
 
 
-    LaunchedEffect(clicked) {
-        if (clicked){
+    LaunchedEffect(isPlaying) {
+        if (isPlaying){
 
                 rotateAnim.animateTo(
                     360f + lastAnimValue,
@@ -245,7 +246,7 @@ fun SongCD(
 
                 }*/
                 .clickable(
-                    onClick = {clicked = !clicked}
+                    onClick = {/*clicked = !clicked*/}
                 )
         )
 

@@ -41,6 +41,7 @@ import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
+import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongState
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayListBox
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayedSongBottomBar
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
@@ -60,12 +61,24 @@ fun SongsList(
     modifier: Modifier = Modifier,
     //repositoryImpl: SongsRepository
     songs: List<SongUi>,
-    onSongClicked:(SongUi,index:Int)-> Unit = {_,_ ->}
+    state: PlayedSongState,
+    onSongClicked: (SongUi, index: Int) -> Unit = { _, _ -> },
+    onPlayClicked:() -> Unit = {},
+    onBottomBarClicked:() -> Unit = {}
 ) {
 
-    Scaffold (
-        //bottomBar = { PlayedSongBottomBar() }
-    ){
+    Scaffold(
+        bottomBar = {
+            PlayedSongBottomBar(
+                song = state.playedSong ?:songs[0],
+                isPlaying = state.isPlaying,
+                onPlayClicked = onPlayClicked,
+                progress = state.sliderProgress,
+                currentPosition = state.currentPosition,
+                onClicked = onBottomBarClicked
+            )
+        }
+    ) {
         Column(
             modifier = modifier
                 .fillMaxSize()
@@ -90,8 +103,8 @@ fun SongsList(
                             .clip(RoundedCornerShape(30.dp))
                             .padding(20.dp),
                         decorationBox = {
-                            Box{
-                                if(value.isEmpty() || value.isBlank()){
+                            Box {
+                                if (value.isEmpty() || value.isBlank()) {
                                     Text(
                                         text = "Search",
                                         color = Color.Gray
@@ -112,14 +125,14 @@ fun SongsList(
                     .padding(horizontal = 4.dp)
             ) {
                 val filteredSongs =
-                    mockSongs.filter { it.name.contains(value,true) }.map { it.toSongUi() }
+                    mockSongs.filter { it.name.contains(value, true) }.map { it.toSongUi() }
 
                 LazyColumn {
-                    itemsIndexed(filteredSongs){index, song ->
+                    itemsIndexed(filteredSongs) { index, song ->
                         Song(
                             song = song,
-                            onClick = { onSongClicked(it,index) }
-                            )
+                            onClick = { onSongClicked(it, index) }
+                        )
                     }
                 }
 
@@ -159,20 +172,19 @@ fun SongsList(
 
             }
 
-            LazyColumn (
+            LazyColumn(
                 contentPadding = PaddingValues(vertical = 8.dp),
                 modifier = Modifier.fillMaxSize()
-            ){
+            ) {
 
-                itemsIndexed(songs){ index, song ->
+                itemsIndexed(songs) { index, song ->
                     Song(
                         song = song,
-                        onClick = { onSongClicked(it,index) }
+                        onClick = { onSongClicked(it, index) }
                     )
                 }
 
             }
-
 
 
         }
@@ -184,5 +196,5 @@ fun SongsList(
 @Preview
 @Composable
 private fun SongsListPrev() {
-    SongsList(songs = mockSongs.map { it.toSongUi() })
+    SongsList(songs = mockSongs.map { it.toSongUi() }, state = PlayedSongState())
 }

@@ -6,10 +6,12 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.repeatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,9 +21,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,31 +71,78 @@ import com.k.sekiro.musico.playmusic.presenation.model.toUri
 @Composable
 fun PlayedSongBottomBar(
     song: SongUi = mockSongs[0].toSongUi(),
-    lurCache: LruCache<String, Palette> = LruCache(4 * 1024 * 1024)
+    lurCache: LruCache<String, Palette> = LruCache(4 * 1024 * 1024),
+    isPlaying: Boolean = false,
+    progress: Float,
+    currentPosition: Long,
+    onPlayClicked: () -> Unit = {},
+    onClicked:() -> Unit = {}
 ) {
 
     val context = LocalContext.current
-   // val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
+    // val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
+    var songUi: SongUi? = null
 
     var bottomBarColor by remember { mutableStateOf(Color.White) }
 
-/*    val infiniteTransition = rememberInfiniteTransition("song name animation")
-    val translationXValue by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = screenWidth,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5000),
-            repeatMode = RepeatMode.Restart
+    /*    val infiniteTransition = rememberInfiniteTransition("song name animation")
+        val translationXValue by infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = screenWidth,
+            animationSpec = infiniteRepeatable(
+                animation = tween(5000),
+                repeatMode = RepeatMode.Restart
+            )
+
+        )*/
+
+    //var oldAnimValue by remember { mutableStateOf(progress) }
+    //val progressAnim  = remember (isPlaying){ Animatable(progress) }
+    val progressAnim = key(currentPosition) {
+        animateFloatAsState(
+            targetValue = progress,
+            animationSpec = tween(
+                //((song.displayableDuration.durationMillis - currentPosition)).toInt(),
+                (song.displayableDuration.durationMillis * (progress / 100f)).toInt(),
+                easing = LinearEasing
+            )
         )
-
-    )*/
-
-    val progressAnim  = remember { Animatable(0f) }
+    }
 
 
+    Log.e(
+        "ks",
+        "tween duration for progress :${(song.displayableDuration.durationMillis * (progress / 100f)).toInt()}"
+    )
+    Log.e("ks", "progress in 360: ${progressAnim.value * 360f / 100f}")
 
-    LaunchedEffect(true) {
-        val songCover = withContext(Dispatchers.Default){convertUriToBitmap(song.cover.toUri(),context.contentResolver,context.resources)}
+
+    /*    LaunchedEffect(isPlaying,currentPosition) {
+            Log.e("ks","the current position : $currentPosition")
+            if (isPlaying){
+                progressAnim.animateTo(
+                    targetValue = progress,
+                    animationSpec = tween(
+                        //((song.displayableDuration.durationMillis - currentPosition)).toInt(),
+                        (song.displayableDuration.durationMillis * (progress/100f)).toInt(),
+                        easing = LinearEasing
+                    )
+                ){
+                   // oldAnimValue = value
+                }
+            }
+
+
+        }*/
+
+    LaunchedEffect(song) {
+        val songCover = withContext(Dispatchers.Default) {
+            convertUriToBitmap(
+                song.cover.toUri(),
+                context.contentResolver,
+                context.resources
+            )
+        }
 
         val palette = if (lurCache[song.path] != null) {
             lurCache[song.path]!!
@@ -103,40 +155,33 @@ fun PlayedSongBottomBar(
         bottomBarColor =
             if (palette.vibrantSwatch != null) Color(
                 palette.vibrantSwatch!!.rgb
-            ) else if(palette.lightVibrantSwatch != null){
+            ) else if (palette.lightVibrantSwatch != null) {
                 Color(palette.lightVibrantSwatch!!.rgb)
-            }else if (palette.darkVibrantSwatch != null){
+            } else if (palette.darkVibrantSwatch != null) {
                 Color(palette.darkVibrantSwatch!!.rgb)
-            }else if (palette.lightMutedSwatch != null){
+            } else if (palette.lightMutedSwatch != null) {
                 Color(palette.lightMutedSwatch!!.rgb)
-            }else if (palette.mutedSwatch != null){
+            } else if (palette.mutedSwatch != null) {
                 Color(palette.mutedSwatch!!.rgb)
-            }else if (palette.darkMutedSwatch != null){
+            } else if (palette.darkMutedSwatch != null) {
                 Color(palette.darkMutedSwatch!!.rgb)
             } else Color.Cyan
 
 
-        progressAnim.animateTo(
-            targetValue = 360f,
-            animationSpec = tween(
-                60000,
-                easing = LinearEasing
-            )
-        )
-
-/*        bottomBarColor = getColorFromCover(
-            lurCache = lurCache,
-            context = context,
-            song = song
-        )*/
+        /*        bottomBarColor = getColorFromCover(
+                    lurCache = lurCache,
+                    context = context,
+                    song = song
+                )*/
 
     }
 
 
     Box(
         contentAlignment = Alignment.CenterStart,
-    ){
-        Row (
+        modifier = Modifier.clickable(onClick = onClicked)
+    ) {
+        Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
                 .fillMaxWidth()
@@ -155,7 +200,7 @@ fun PlayedSongBottomBar(
                 }
                 .padding(start = 60.dp),
             verticalAlignment = Alignment.CenterVertically
-        ){
+        ) {
 
             Column(
                 verticalArrangement = Arrangement.Center,
@@ -166,14 +211,14 @@ fun PlayedSongBottomBar(
                     color = Color.White,
                     fontSize = 16.sp,
                     maxLines = 1,
-/*                    modifier = Modifier.applyIf(
-                        song.name.length >= 30,
-                        modifier = {
-                            graphicsLayer {
-                                translationX+= translationXValue
-                            }
-                        }
-                    )*/
+                    /*                    modifier = Modifier.applyIf(
+                                            song.name.length >= 30,
+                                            modifier = {
+                                                graphicsLayer {
+                                                    translationX+= translationXValue
+                                                }
+                                            }
+                                        )*/
                 )
                 Text(
                     text = song.artist,
@@ -185,39 +230,54 @@ fun PlayedSongBottomBar(
             }
 
 
+            /** Here the modifier code for box was for icon without box but I added the box to make
+             * the Icon size smaller than the circular progress size as in mi app**/
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(24.dp)
+                    .weight(.5f)
+                    .clickable(
+                        onClick = onPlayClicked,
+                        indication = null,
+                        interactionSource = null
+
+                    )
+                    .drawBehind {
+                        drawCircle(
+                            color = Color.White.copy(alpha = .3f),
+                            style = Stroke(
+                                width = 2.dp.toPx()
+                            )
+                        )
+                        drawArc(
+                            color = Color.White,
+                            useCenter = false,
+                            style = Stroke(
+                                width = 2.dp.toPx()
+                            ),
+                            startAngle = -90f,
+                            sweepAngle = progressAnim.value * 360f / 100f,
+                            size = Size(size.minDimension, size.minDimension),
+                            topLeft = Offset(size.minDimension * 1.8f, 0f)
+
+                        )
+
+
+                    }
+            ) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = "play icon",
-                    modifier = Modifier.weight(.5f)
-                        .drawBehind {
-                            drawCircle(
-                                color = Color.White.copy(alpha = .3f),
-                                style = Stroke(
-                                    width = 2.dp.toPx()
-                                )
-                            )
-                            drawArc(
-                                color = Color.White,
-                                useCenter = false,
-                                style = Stroke(
-                                    width = 2.dp.toPx()
-                                ),
-                                startAngle = 0f,
-                                sweepAngle = progressAnim.value,
-                                size = Size(size.minDimension,size.minDimension),
-                                topLeft = Offset(size.minDimension*1.8f,0f)
+                    modifier = Modifier.size(16.dp)
 
-                            )
-
-
-                        }
                 )
-
+            }
 
 
         }
 
-        SongCD(song.cover.toUri())
+        SongCD(song.cover.toUri(), isPlaying = isPlaying)
     }
 
 
@@ -226,5 +286,5 @@ fun PlayedSongBottomBar(
 @Preview
 @Composable
 private fun PlayedSongBottomBarPrev() {
-    PlayedSongBottomBar()
+    PlayedSongBottomBar(progress = 180f, currentPosition = 0L)
 }

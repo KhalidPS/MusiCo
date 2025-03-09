@@ -284,7 +284,8 @@ class PlayedSongViewModel(
             }
             it.copy(
                 sliderProgress =  progress,
-                passedTimeDuration = fromMillis(currentProgress)
+                passedTimeDuration = fromMillis(currentProgress),
+                currentPosition = currentProgress
             )
         }
     }
