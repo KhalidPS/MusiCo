@@ -11,6 +11,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.collection.LruCache
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -21,6 +23,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -99,6 +105,7 @@ class MainActivity : ComponentActivity() {
     }
 
 
+    @OptIn(ExperimentalSharedTransitionApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
 
         if (intent.action != null && intent.action == Intent.ACTION_RUN) {
@@ -141,6 +148,7 @@ class MainActivity : ComponentActivity() {
 
                     val state = playedSongViewModel.state.collectAsState(PlayedSongState()).value
                     val songs = state.songs
+                    var isBottomBarClicked by remember { mutableStateOf(false) }
 
 
                     /*                    val requestPermissionScreenViewModel: RequestPermissionScreenViewModel = koinViewModel()
@@ -154,77 +162,89 @@ class MainActivity : ComponentActivity() {
                                             updateGoToSettings = requestPermissionScreenViewModel::updateGoToSettings,
                                             updateShowDialog = requestPermissionScreenViewModel::updateShowDialog
                                         ){*/
-                    NavHost(
-                        navController = navController,
-                        startDestination = Home::class,
-                        modifier = Modifier.padding(innerPadding)
-                    ) {
 
-
-                        composable<Home> {
-                            if (!songs.isEmpty()) {
-                                SongsList(
-                                    songs = songs,
-                                    onSongClicked = { song ,index ->
-                                        navController.navigate(PlayedSong(index)){
-
-                                        }
-                                    },
-                                    state = state,
-                                    onPlayClicked = { playedSongViewModel.onAction(PlayedSongAction.PlayPause) },
-                                    onBottomBarClicked = {
-                                        val index = if (state.playedSong != null) songs.indexOf(state.playedSong) else return@SongsList
-                                        navController.navigate(PlayedSong(index))
-                                    }
-                                )
-                            } else {
-                                LoadingScreen()
-                            }
-                        }
-
-
-                        composable<PlayedSong>(
-                          /*  typeMap = mapOf(
-                                typeOf<DisplayableDuration>() to CustomNavType.DisplayableDurationType
-                            )*/
-                            enterTransition = {
-                                slideInVertically(
-                                    animationSpec = tween(
-                                        durationMillis = 1000,
-                                        easing = FastOutSlowInEasing
-                                    ),
-                                    initialOffsetY = {it}
-                                )
-                            } ,
-                            exitTransition = {
-                                slideOutVertically(
-                                    animationSpec = tween(
-                                        durationMillis = 1000,
-                                        easing = FastOutSlowInEasing
-                                    ),
-                                    targetOffsetY = { it }
-                                )
-                            }
+                    SharedTransitionLayout {
+                        NavHost(
+                            navController = navController,
+                            startDestination = Home::class,
+                            modifier = Modifier.padding(innerPadding)
                         ) {
 
-                          /*  val song = it.toRoute<SongUi>()
-                            val index = state.songs.indexOf(song)*/
 
-                            val index = it.toRoute<PlayedSong>().index
+                            composable<Home> {
+                                if (!songs.isEmpty()) {
+                                    SongsList(
+                                        songs = songs,
+                                        onSongClicked = { song ,index ->
+                                            isBottomBarClicked = false
+                                            navController.navigate(PlayedSong(index))
+                                        },
+                                        state = state,
+                                        onPlayClicked = { playedSongViewModel.onAction(PlayedSongAction.PlayPause) },
+                                        onBottomBarClicked = {
+                                            isBottomBarClicked = true
+                                            val index = if (state.playedSong != null) songs.indexOf(state.playedSong) else return@SongsList
+                                            navController.navigate(PlayedSong(index))
+                                        },
+                                        animatedVisibilityScope = this,
+                                        onAction = playedSongViewModel::onAction
+                                    )
+                                } else {
+                                    LoadingScreen()
+                                }
+                            }
 
-                           // viewModel.onAction(PlayedSongAction.ChangeToOtherSong(index))
 
-                            PlayedSongScreen(
-                                lurCache = lruCache,
-                                state = state,
-                                onAction = playedSongViewModel::onAction,
-                                index = index
-                            )
+                            composable<PlayedSong>(
+                                /*  typeMap = mapOf(
+                                      typeOf<DisplayableDuration>() to CustomNavType.DisplayableDurationType
+                                  )*/
+                                enterTransition = if (isBottomBarClicked){
+                                    {
+                                        slideInVertically(
+                                            animationSpec = tween(
+                                                durationMillis = 1000,
+                                                easing = FastOutSlowInEasing
+                                            ),
+                                            initialOffsetY = {it}
+                                        )
+                                    }
+                                } else null,
+                                exitTransition = if (isBottomBarClicked){
+                                    {
+                                        slideOutVertically(
+                                            animationSpec = tween(
+                                                durationMillis = 1000,
+                                                easing = FastOutSlowInEasing
+                                            ),
+                                            targetOffsetY = { it }
+                                        )
+                                    }
+                                } else null
+                            ) {
 
-                            //viewModel.onAction(PlayedSongAction.PlayPause)
+                                /*  val song = it.toRoute<SongUi>()
+                                  val index = state.songs.indexOf(song)*/
+
+                                val index = it.toRoute<PlayedSong>().index
+
+                                // viewModel.onAction(PlayedSongAction.ChangeToOtherSong(index))
+
+                                PlayedSongScreen(
+                                    lurCache = lruCache,
+                                    state = state,
+                                    onAction = playedSongViewModel::onAction,
+                                    index = index,
+                                    animatedVisibilityScope = this,
+                                    isBottomBarClicked = isBottomBarClicked
+                                )
+
+                                //viewModel.onAction(PlayedSongAction.PlayPause)
+                            }
+
                         }
-
                     }
+
 
 
                 }

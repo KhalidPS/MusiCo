@@ -2,6 +2,7 @@ package com.k.sekiro.musico.core.presentaion.util
 
 import android.content.Context
 import androidx.collection.LruCache
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -15,7 +16,21 @@ import kotlinx.coroutines.withContext
 
 fun Modifier.applyIf(
     condition: Boolean,
-    modifier: Modifier.() -> Modifier
+    modifier:Modifier.() -> Modifier
+): Modifier {
+    return then(
+        if (condition) {
+            modifier()
+        } else {
+            Modifier
+        }
+    )
+}
+
+@Composable
+fun Modifier.applyIfComposable(
+    condition: Boolean,
+    modifier: @Composable Modifier.() -> Modifier
 ): Modifier {
     return then(
         if (condition) {

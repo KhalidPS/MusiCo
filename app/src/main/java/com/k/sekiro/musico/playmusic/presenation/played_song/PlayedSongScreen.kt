@@ -1,9 +1,13 @@
 package com.k.sekiro.musico.playmusic.presenation.played_song
 
-import android.graphics.drawable.Icon
 import android.os.Build
 import android.util.Log
 import androidx.collection.LruCache
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -24,13 +28,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Repeat
@@ -38,14 +40,12 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.twotone.PauseCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,9 +55,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -71,26 +69,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.palette.graphics.Palette
-import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
-import coil3.request.ImageRequest
-import coil3.request.placeholder
 import com.k.sekiro.musico.R
+import com.k.sekiro.musico.core.presentaion.util.Constants
 import com.k.sekiro.musico.core.presentaion.util.applyIf
-import com.k.sekiro.musico.core.presentaion.util.convertResToBitmap
-import com.k.sekiro.musico.core.presentaion.util.getColorFromCover
-import com.k.sekiro.musico.core.presentaion.util.icons.MusicIcons
-import com.k.sekiro.musico.core.presentaion.util.icons.Pause
-import com.k.sekiro.musico.core.presentaion.util.icons.Repeat
-import com.k.sekiro.musico.core.presentaion.util.icons.TrackNext
-import com.k.sekiro.musico.core.presentaion.util.icons.TrackPrevious
+import com.k.sekiro.musico.core.presentaion.util.applyIfComposable
 import com.k.sekiro.musico.core.presentaion.util.toPx
-import com.k.sekiro.musico.playmusic.domain.model.Song
-import com.k.sekiro.musico.playmusic.domain.model.mockSongs
-import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.convertUriToBitmap
-import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
 import kotlinx.coroutines.Dispatchers
@@ -99,21 +85,27 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.absoluteValue
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun PlayedSongScreen(
+fun SharedTransitionScope.PlayedSongScreen(
     modifier: Modifier = Modifier,
     lurCache: LruCache<String, Palette>,
     state: PlayedSongState,
     index: Int = 0,
+    isBottomBarClicked: Boolean = false,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onAction:(PlayedSongAction) -> Unit
 ) {
 
 
     val context = LocalContext.current
     val density = LocalDensity.current.density
-    val pagerState = rememberPagerState(pageCount = { state.songs.size })
+    val pagerState = rememberPagerState(
+        pageCount = { state.songs.size },
+        initialPage = index
+    )
+   // var indexState = index
     val scope = rememberCoroutineScope()
-    var indexState = index
 
 
 
@@ -156,15 +148,15 @@ fun PlayedSongScreen(
     }
 
     LaunchedEffect(Unit) {
-        Log.e("ks","index state 1: $indexState")
+        Log.e("ks","index state 1: $index")
 
-        if (state.songs[indexState] != state.playedSong){
+        if (state.songs[index] != state.playedSong){
             launch{
                 onAction(PlayedSongAction.PlayPause)
 
             }
         }
-        launch{
+/*        launch{
             Log.e("ks","index state 2: $indexState")
             pagerState.scrollToPage(indexState)
             delay(100)
@@ -174,7 +166,7 @@ fun PlayedSongScreen(
 
             else 0
 
-        }
+        }*/
 
 
 
@@ -183,6 +175,11 @@ fun PlayedSongScreen(
 
     LaunchedEffect(state.playedSong) {//this code to sync the pager with notification when seek to
         // other song from notification
+        delay(500) /** this delay to prevent the pager random choose for songs with lag,
+         without this delay if you choose song from list thr lag will start in pager so
+         we make the check  if the current song match the settled one after 200 millis second this will
+         ensure that the selected song is settled then we can check for current playing song that match the
+         pager if we change song from notification**/
         if (state.playedSong != null && state.playedSong != state.songs[pagerState.settledPage]){
             pagerState.animateScrollToPage(state.songs.indexOf(state.playedSong))
         }
@@ -191,15 +188,15 @@ fun PlayedSongScreen(
 
     LaunchedEffect(pagerState) {
 
-        Log.e("ks","index state 3: $indexState")
+        Log.e("ks","index state 3: $index")
 
         snapshotFlow { pagerState.settledPage }.collect {
 
-            if (state.songs[indexState] != state.playedSong){
+           // if (state.songs[indexState] != state.playedSong){
                 onAction(PlayedSongAction.ChangeToOtherSong(it))
                 //onStart()
                 onAction(PlayedSongAction.PlayPause)
-            }
+            //}
 
             val job1 = launch { line1X.snapTo(0f) }
             val job2 = launch { line2Y.snapTo(0f) }
@@ -449,6 +446,12 @@ fun PlayedSongScreen(
                         //bitmap = songs[it].cover.asImageBitmap(),
                         contentDescription = null,
                         modifier = Modifier
+                            .applyIfComposable(!isBottomBarClicked){
+                                sharedBounds(
+                                    sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_${state.songs[it].path}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                            }
                             .applyIf(
                                 condition = pagerState.currentPage == it && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
                                 modifier = {
@@ -492,18 +495,6 @@ fun PlayedSongScreen(
 
                 }
 
-
-                /*   Image(
-                       painter = painterResource(R.drawable.song_cover),
-                       contentDescription = null,
-                       modifier = Modifier
-                           .clip(RoundedCornerShape(12.dp))
-                           .size(
-                               height = 300.dp,
-                               width = 250.dp
-                           ),
-                       contentScale = ContentScale.Crop
-                   )*/
                 Spacer(Modifier.weight(1f))
 
                 Text(
@@ -512,6 +503,13 @@ fun PlayedSongScreen(
                     fontWeight = FontWeight.Black,
                     textAlign = TextAlign.Start,
                     modifier = Modifier
+                        .applyIfComposable(!isBottomBarClicked){
+                            sharedBounds(
+                                sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${state.songs[pagerState.currentPage].path}"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
+                        }
+
                         .fillMaxWidth()
                         .padding(
                             horizontal = 12.dp,
@@ -528,6 +526,13 @@ fun PlayedSongScreen(
                     fontSize = 20.sp,
                     textAlign = TextAlign.Start,
                     modifier = Modifier
+                        .applyIfComposable(!isBottomBarClicked){
+                            sharedBounds(
+                                sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${state.songs[pagerState.currentPage].path}"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
+                        }
+
                         .fillMaxWidth()
                         .padding(
                             horizontal = 12.dp,
@@ -594,7 +599,15 @@ fun PlayedSongScreen(
                     }
 
                     IconButton(
-                        onClick = { onAction(PlayedSongAction.SeekToPrevious) },
+                        onClick = {
+                            onAction(PlayedSongAction.SeekToPrevious)
+                            scope.launch{
+                                if (pagerState.settledPage > 0){
+                                    pagerState.animateScrollToPage(pagerState.settledPage-1)
+
+                                }
+                            }
+                                  },
 
                         ) {
                         Icon(
@@ -609,10 +622,6 @@ fun PlayedSongScreen(
                         onClick = { /**/ },
                         modifier = Modifier
                             .size(70.dp)
-                        /*  .background(
-                              color = Color.Black,
-                              shape = CircleShape
-                          )*/
 
                     ) {
                         Icon(
@@ -631,7 +640,14 @@ fun PlayedSongScreen(
                     }
 
                     IconButton(
-                        onClick = { onAction(PlayedSongAction.SeekToNext) },
+                        onClick = {
+                            onAction(PlayedSongAction.SeekToNext)
+                            scope.launch{
+                                if (pagerState.settledPage < state.songs.lastIndex)
+                                pagerState.animateScrollToPage(pagerState.settledPage+1)
+                            }
+
+                        },
 
                         ) {
                         Icon(
@@ -661,12 +677,19 @@ fun PlayedSongScreen(
 }
 
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
 private fun PlayedSongScreenPrev() {
-    PlayedSongScreen(
-        lurCache = LruCache(4),
-        state = PlayedSongState(),
-        onAction = {},
-    )
+    SharedTransitionLayout {
+        AnimatedVisibility(true) {
+            PlayedSongScreen(
+                lurCache = LruCache(4),
+                state = PlayedSongState(),
+                onAction = {},
+                animatedVisibilityScope = this
+            )
+        }
+    }
+
 }

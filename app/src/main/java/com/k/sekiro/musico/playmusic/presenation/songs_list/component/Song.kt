@@ -1,8 +1,11 @@
 package com.k.sekiro.musico.playmusic.presenation.songs_list.component
 
-import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,8 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.twotone.MoreVert
 import androidx.compose.material.icons.twotone.Share
 import androidx.compose.material3.Icon
@@ -25,29 +26,27 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
-import com.k.sekiro.musico.core.presentaion.util.convertResToBitmap
-import com.k.sekiro.musico.playmusic.domain.model.Song
-import com.k.sekiro.musico.playmusic.domain.model.mockSongs
-import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.R
+import com.k.sekiro.musico.core.presentaion.util.Constants
+import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
+import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun Song(
+fun SharedTransitionScope.Song(
     modifier: Modifier = Modifier,
     song: SongUi,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onClick:(SongUi) -> Unit = {},
     onShareClick:() -> Unit = {},
     onMoreActionClick: () -> Unit = {}
@@ -88,8 +87,13 @@ fun Song(
             contentDescription = "song album cover",
             contentScale = ContentScale.Crop,
             modifier = Modifier
+                .sharedBounds(
+                    sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_${song.path}"),
+                     animatedVisibilityScope = animatedVisibilityScope
+                )
                 .clip(RoundedCornerShape(12.dp))
                 .size(70.dp)
+
         )
 
         Column(
@@ -101,6 +105,10 @@ fun Song(
                 text = song.name,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
+                    .sharedBounds(
+                        sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${song.path}"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
                     .widthIn(max = 165.dp)
                     .padding(bottom = 8.dp),
                 maxLines = 1,
@@ -111,7 +119,13 @@ fun Song(
                 overflow = TextOverflow.Ellipsis,
                 color = Color.Gray,
                 maxLines = 1,
-                modifier = Modifier.widthIn(max = 166.dp)
+                modifier = Modifier
+                    .sharedBounds(
+                        sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${song.path}"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                    .widthIn(max = 166.dp)
+
             )
         }
 
@@ -130,10 +144,20 @@ fun Song(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
 private fun SongPrev() {
-    Song(
-        song = mockSongs[1].toSongUi()
-    )
+
+    SharedTransitionLayout {
+        AnimatedVisibility(true) {
+            Song(
+                song = mockSongs[1].toSongUi(),
+                animatedVisibilityScope = this
+            )
+        }
+    }
+
+
+
 }

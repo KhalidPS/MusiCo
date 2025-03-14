@@ -1,5 +1,10 @@
 package com.k.sekiro.musico.playmusic.presenation.songs_list
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +46,7 @@ import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
+import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongState
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayListBox
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayedSongBottomBar
@@ -55,16 +61,18 @@ import com.k.sekiro.musico.ui.theme.RecentPlayListColor
 import com.k.sekiro.musico.ui.theme.Red2
 import com.k.sekiro.musico.ui.theme.SkyBlue
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun SongsList(
+fun SharedTransitionScope.SongsList(
     modifier: Modifier = Modifier,
     //repositoryImpl: SongsRepository
     songs: List<SongUi>,
     state: PlayedSongState,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onSongClicked: (SongUi, index: Int) -> Unit = { _, _ -> },
     onPlayClicked:() -> Unit = {},
-    onBottomBarClicked:() -> Unit = {}
+    onBottomBarClicked:() -> Unit = {},
+    onAction:(PlayedSongAction) -> Unit = {}
 ) {
 
     Scaffold(
@@ -75,7 +83,8 @@ fun SongsList(
                 onPlayClicked = onPlayClicked,
                 progress = state.sliderProgress,
                 currentPosition = state.currentPosition,
-                onClicked = onBottomBarClicked
+                onClicked = onBottomBarClicked,
+                onAction = onAction,
             )
         }
     ) {
@@ -131,7 +140,8 @@ fun SongsList(
                     itemsIndexed(filteredSongs) { index, song ->
                         Song(
                             song = song,
-                            onClick = { onSongClicked(it, index) }
+                            onClick = { onSongClicked(it, index) },
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
                 }
@@ -180,7 +190,8 @@ fun SongsList(
                 itemsIndexed(songs) { index, song ->
                     Song(
                         song = song,
-                        onClick = { onSongClicked(it, index) }
+                        onClick = { onSongClicked(it, index) },
+                        animatedVisibilityScope = animatedVisibilityScope
                     )
                 }
 
@@ -193,8 +204,14 @@ fun SongsList(
 }
 
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
 private fun SongsListPrev() {
-    SongsList(songs = mockSongs.map { it.toSongUi() }, state = PlayedSongState())
+    SharedTransitionLayout {
+        AnimatedVisibility(true) {
+            SongsList(songs = mockSongs.map { it.toSongUi() }, state = PlayedSongState(), animatedVisibilityScope = this)
+
+        }
+    }
 }
