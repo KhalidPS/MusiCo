@@ -1,5 +1,7 @@
 package com.k.sekiro.musico.playmusic.player.service
 
+import android.content.SharedPreferences
+import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -19,12 +21,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 class MusiCoServiceHandler(private val mediaControllerShared: SharedFlow<MediaController>) :
-    Player.Listener {
+    Player.Listener , KoinComponent{
     private val _audioState: MutableStateFlow<PlayerState> =
         MutableStateFlow(PlayerState.Initial)
     val audioState: StateFlow<PlayerState> = _audioState.asStateFlow()
+
+    val sharedPreferences: SharedPreferences by inject()
 
     private var mediaController: MediaController? = null
 
@@ -131,12 +137,31 @@ class MusiCoServiceHandler(private val mediaControllerShared: SharedFlow<MediaCo
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         _audioState.value = PlayerState.Playing(isPlaying = isPlaying)
         _audioState.value = PlayerState.CurrentPlaying(mediaController!!.currentMediaItemIndex)
+
+        val currentSong = mediaController!!.currentMediaItemIndex
+        val currentProgress = mediaController!!.currentPosition
+
+        Log.e("ks","playing changed")
+        
         if (isPlaying) {
             scope.launch {
                 startProgressUpdate()
+                sharedPreferences.edit().apply{
+                    putInt("currentIndex",currentSong)
+                    putLong("currentProgress",currentProgress)
+                    putBoolean("isResumeable",true)
+                    apply()
+                }
+
             }
         } else {
             stopProgressUpdate()
+            sharedPreferences.edit().apply{
+                putInt("currentIndex",currentSong)
+                putLong("currentProgress",currentProgress)
+                putBoolean("isResumeable",false)
+                apply()
+            }
         }
     }
 

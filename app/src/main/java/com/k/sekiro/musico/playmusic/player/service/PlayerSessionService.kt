@@ -2,6 +2,7 @@ package com.k.sekiro.musico.playmusic.player.service
 
 import android.app.Service
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
@@ -15,9 +16,11 @@ import com.k.sekiro.musico.playmusic.player.notification.MusiCoNotificationManag
 import org.koin.android.ext.android.inject
 
 
-class PlayerSessionService: MediaSessionService() {
+class PlayerSessionService : MediaSessionService() {
     val mediaSession: MediaSession by inject()
     val musiCoNotificationManager: MusiCoNotificationManager by inject()
+    val sharedPreferences: SharedPreferences by inject()
+    var isAlive = false
 
 
     @OptIn(UnstableApi::class)
@@ -28,7 +31,7 @@ class PlayerSessionService: MediaSessionService() {
             mediaSession = mediaSession,
             mediaSessionService = this
         )
-        Log.e("ks","create service......")
+        Log.e("ks", "create service......")
     }
 
 
@@ -37,6 +40,24 @@ class PlayerSessionService: MediaSessionService() {
 
         Log.e("ks", "start command with intent : $intent")
 
+        isAlive = true
+
+
+
+    /*    val currentSong = mediaSession.player.currentMediaItemIndex
+        val currentProgress = mediaSession.player.currentPosition
+        sharedPreferences.edit().apply {
+            putInt("currentIndex",currentSong)
+            putLong("currentProgress",currentProgress)
+            if (mediaSession.player.isPlaying){
+                putBoolean("isResumeable",true)
+
+            }else{
+                putBoolean("isResumeable",false)
+
+            }
+            apply()
+        }*/
 
 
 
@@ -45,10 +66,26 @@ class PlayerSessionService: MediaSessionService() {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
+
+        if (isAlive){
+            val currentSong = mediaSession.player.currentMediaItemIndex
+            val currentProgress = mediaSession.player.currentPosition
+            sharedPreferences.edit().apply {
+                putInt("currentIndex", currentSong)
+                putLong("currentProgress", currentProgress)
+                if (mediaSession.player.isPlaying) {
+                    putBoolean("isResumeable", true)
+
+                } else {
+                    putBoolean("isResumeable", false)
+
+                }
+                apply()
+            }
+        }
+
         return mediaSession
     }
-
-
 
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -60,19 +97,55 @@ class PlayerSessionService: MediaSessionService() {
         ) {
             // Stop the service if not playing, continue playing in the background otherwise.
             //stopForeground(STOP_FOREGROUND_REMOVE)
+
+            val currentSong = mediaSession.player.currentMediaItemIndex
+            val currentProgress = mediaSession.player.currentPosition
+            sharedPreferences.edit().apply {
+                putInt("currentIndex", currentSong)
+                putLong("currentProgress", currentProgress)
+                putBoolean("isResumeable", false)
+                apply()
+            }
+
             stopSelf()
-            Log.e("ks","remove app from background")
+            Log.e("ks", "remove app from background")
+        } else {
+
+            val currentSong = mediaSession.player.currentMediaItemIndex
+            val currentProgress = mediaSession.player.currentPosition
+            sharedPreferences.edit().apply {
+                putInt("currentIndex", currentSong)
+                putLong("currentProgress", currentProgress)
+                if (mediaSession.player.isPlaying) {
+                    putBoolean("isResumeable", true)
+                }
+                apply()
+            }
         }
+
     }
 
     override fun onDestroy() {
         super.onDestroy()
+
+
+        val currentSong = mediaSession.player.currentMediaItemIndex
+        val currentProgress = mediaSession.player.currentPosition
+        sharedPreferences.edit().apply {
+            putInt("currentIndex", currentSong)
+            putLong("currentProgress", currentProgress)
+            putBoolean("isResumeable", false)
+            apply()
+        }
+
         mediaSession?.run {
             release()
             player.release()
-            Log.e("ks","Service Destroyed ^_^")
+            Log.e("ks", "Service Destroyed ^_^")
             //mediaSession = null
         }
+
+
     }
 
     /*

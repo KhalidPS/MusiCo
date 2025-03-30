@@ -120,11 +120,11 @@ fun PlayedSongBottomBar(
     }
 
 
-    Log.e(
+/*    Log.e(
         "ks",
         "tween duration for progress :${(song.displayableDuration.durationMillis * (progress / 100f)).toInt()}"
     )
-    Log.e("ks", "progress in 360: ${progressAnim.value * 360f / 100f}")
+    Log.e("ks", "progress in 360: ${progressAnim.value * 360f / 100f}")*/
 
 
     /*    LaunchedEffect(isPlaying,currentPosition) {

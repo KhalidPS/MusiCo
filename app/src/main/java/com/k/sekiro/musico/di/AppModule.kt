@@ -115,6 +115,9 @@ val appModule = module{
 
     single{ MusiCoNotificationManager(androidContext(),get<ExoPlayer>()) }
 
+
+    single { androidContext().getSharedPreferences("settings", Context.MODE_PRIVATE) }
+
     //single { MusiCoServiceHandler(get()) }
 
 /*    single{

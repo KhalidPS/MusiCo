@@ -23,7 +23,7 @@ fun getSongsByUri(resolver: ContentResolver,uri: Uri,songList: MutableList<Song>
     )
 
     val selection = MediaStore.Audio.AudioColumns.IS_MUSIC + " = ? AND (${MediaStore.Audio.Media.DATA} LIKE ? " +
-            "OR ${MediaStore.Audio.Media.DATA} LIKE ? OR ${MediaStore.Audio.Media.DATA} LIKE ?)"
+            "OR ${MediaStore.Audio.Media.DATA} LIKE ? OR ${MediaStore.Audio.Media.DATA} LIKE ?) AND ${MediaStore.Audio.AudioColumns.DURATION} > 1463"
     val selectionArgs = arrayOf("1","%.mp3","%.acc","%.wav")
     //val selection = MediaStore.Audio.Media.MIME_TYPE + " LIKE 'audio%'"
     //val selection = MediaStore.Audio.Media.DATA + " LIKE '%.mp3'"

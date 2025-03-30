@@ -3,6 +3,7 @@ package com.k.sekiro.musico
 import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -28,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.navigation.NavType
@@ -53,6 +55,10 @@ import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongState
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -64,6 +70,7 @@ class MainActivity : ComponentActivity() {
     lateinit var controllerFuture: ListenableFuture<MediaController>
 
     private val viewModel: PlayedSongViewModel by viewModel()
+    private val sharedPreferences: SharedPreferences by inject()
     //private lateinit var viewModel: PlayedSongViewModel
 
 
@@ -98,7 +105,28 @@ class MainActivity : ComponentActivity() {
                 if (controllerFuture.isDone) {
                     controller = controllerFuture.get()
                     viewModel.initController(controller!!)
-                    Log.e("ks", "after post the value")
+                    val currentSong = sharedPreferences.getInt("currentIndex",0)
+                    val currentProgress = sharedPreferences.getLong("currentProgress",0)
+                    val isResumeable = sharedPreferences.getBoolean("isResumeable",false)
+
+                    Log.e("ks","""
+                        activity currentIndex:$currentSong
+                        activity currentProgress:$currentProgress
+                        activity isResumeable:$isResumeable
+                    """.trimIndent())
+
+                    lifecycleScope.launch {
+                        delay(1000)
+                        withContext(Dispatchers.Main) {
+
+                            controller!!.seekTo(currentSong,currentProgress)
+                            if (isResumeable){
+                                controller!!.prepare()
+                                controller!!.play()
+                            }
+                        }
+                    }
+
                 }
             }, MoreExecutors.directExecutor()
         )
