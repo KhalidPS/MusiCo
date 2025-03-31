@@ -187,6 +187,13 @@ class MainActivity : ComponentActivity() {
                                val index =  it[intPreferencesKey("index")]?:0
                                val progress =  it[longPreferencesKey("progress")]?:0
                                val isResumed =  it[booleanPreferencesKey("isResumed")]?:false
+
+                                controller?.seekTo(index,progress)
+
+                                if (isResumed){
+                                    controller?.prepare()
+                                    controller?.play()
+                                }
                             }
 
                     }
