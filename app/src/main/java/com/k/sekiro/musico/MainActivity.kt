@@ -2,35 +2,40 @@ package com.k.sekiro.musico
 
 import android.Manifest
 import android.content.ComponentName
-import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.OptIn
 import androidx.collection.LruCache
-import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSourceException
+import androidx.media3.datasource.FileDataSource
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -38,89 +43,79 @@ import androidx.navigation.toRoute
 import androidx.palette.graphics.Palette
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
-import com.k.sekiro.musico.playmusic.domain.SongsRepository
-import com.k.sekiro.musico.playmusic.domain.model.Song
+import com.k.sekiro.musico.playmusic.player.service.PlayerEvent
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
+import com.k.sekiro.musico.playmusic.player.service.PlayerState
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
-import com.k.sekiro.musico.playmusic.presenation.model.CustomNavType
-import com.k.sekiro.musico.playmusic.presenation.model.DisplayableDuration
 import com.k.sekiro.musico.playmusic.presenation.model.Home
 import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
+import com.k.sekiro.musico.playmusic.presenation.model.toUri
+import com.k.sekiro.musico.playmusic.presenation.played_song.PlayType
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongState
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
-import kotlin.reflect.typeOf
 
 class MainActivity : ComponentActivity() {
-    private var isServiceRunning: Boolean = false
     var controller: MediaController? = null
     lateinit var controllerFuture: ListenableFuture<MediaController>
-
+    val lruCache: LruCache<String, Palette> by inject()
     private val viewModel: PlayedSongViewModel by viewModel()
-    //private lateinit var viewModel: PlayedSongViewModel
 
 
-    private fun startingService() {
-        var intent = Intent(this, PlayerSessionService::class.java).apply {
-        }
 
-        if (!isServiceRunning) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
+
+    private val listener = object : Player.Listener{
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            when (playbackState) {
+                ExoPlayer.STATE_BUFFERING -> viewModel.calculateProgressValue(controller!!.currentPosition)
             }
-
-            isServiceRunning = true
         }
-    }
 
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            super.onPlayWhenReadyChanged(playWhenReady, reason)
+        }
 
-    override fun onStart() {
-        super.onStart()
-
-        val sessionToken = SessionToken(
-            this, ComponentName(
-                this,
-                PlayerSessionService::class.java
-            )
-        )
-        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
-        controllerFuture.addListener(
-            {
-                if (controllerFuture.isDone) {
-                    controller = controllerFuture.get()
-                    viewModel.initController(controller!!)
-                    Log.e("ks", "after post the value")
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            viewModel.updateIsPlaying(isPlaying)
+            viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
+            if (isPlaying) {
+                lifecycleScope.launch {
+                    startProgressUpdate()
                 }
-            }, MoreExecutors.directExecutor()
-        )
+            } else {
+                stopProgressUpdate()
+            }
+        }
+
+        override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+            super.onMediaMetadataChanged(mediaMetadata)
+
+            viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            super.onMediaItemTransition(mediaItem, reason)
+        }
+
+
+
     }
 
 
-    @OptIn(ExperimentalSharedTransitionApi::class)
+
+    @ExperimentalSharedTransitionApi
+    @OptIn(ExperimentalSharedTransitionApi::class, UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
 
-        if (intent.action != null && intent.action == Intent.ACTION_RUN) {
-
-            val index = intent.getIntExtra("currentPlayingIndex", 0)
-            val position = intent.getLongExtra("currentPlayingPosition", 0L)
-            val name = intent.getStringExtra("name")
-
-            Log.e("ks", "index:$index, name:$name, position:$position")
-
-            Log.e("ks", "geting the intent ")
-        }
-
-        val lruCache: LruCache<String, Palette> by inject()
-        val repo: SongsRepository by inject()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissions(arrayOf(Manifest.permission.READ_MEDIA_AUDIO), 0)
@@ -134,6 +129,29 @@ class MainActivity : ComponentActivity() {
         }
 
         super.onCreate(savedInstanceState)
+
+
+
+
+        val sessionToken = SessionToken(
+            this, ComponentName(
+                this,
+                PlayerSessionService::class.java
+            )
+        )
+        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+        controllerFuture.addListener(
+            {
+                if (controllerFuture.isDone) {
+                    controller = controllerFuture.get()
+                    controller?.addListener(listener)
+                    Log.e("ks","MediaController : $controller")
+                }
+            }, MoreExecutors.directExecutor()
+        )
+
+
+
         enableEdgeToEdge()
         setContent {
             MusiCoTheme {
@@ -141,27 +159,25 @@ class MainActivity : ComponentActivity() {
 
                     val navController = rememberNavController()
 
-
-                    val playedSongViewModel: PlayedSongViewModel = koinViewModel()
-                    //viewModel = playedSongViewModel
+                    //val playedSongViewModel: PlayedSongViewModel = koinViewModel()
 
 
-                    val state = playedSongViewModel.state.collectAsState(PlayedSongState()).value
+                    val state = viewModel.state.collectAsState(PlayedSongState()).value
                     val songs = state.songs
                     var isBottomBarClicked by remember { mutableStateOf(false) }
 
 
-                    /*                    val requestPermissionScreenViewModel: RequestPermissionScreenViewModel = koinViewModel()
-                                        val showDialog = requestPermissionScreenViewModel.showDialog.collectAsState(false).value
-                                        val goToSettings = requestPermissionScreenViewModel.goToSettings.collectAsState(false).value
 
-                                        RequestPermissionScreen(
-                                            context = this,
-                                            showDialog = showDialog,
-                                            goToSettings = goToSettings,
-                                            updateGoToSettings = requestPermissionScreenViewModel::updateGoToSettings,
-                                            updateShowDialog = requestPermissionScreenViewModel::updateShowDialog
-                                        ){*/
+                    LaunchedEffect(controller) {
+                        while (controller == null){
+                            delay(100)
+                        }
+                        Log.e("ks","not noll: $controller")
+                        setMediaItems(songs)
+
+                    }
+
+
 
                     SharedTransitionLayout {
                         NavHost(
@@ -180,14 +196,14 @@ class MainActivity : ComponentActivity() {
                                             navController.navigate(PlayedSong(index))
                                         },
                                         state = state,
-                                        onPlayClicked = { playedSongViewModel.onAction(PlayedSongAction.PlayPause) },
+                                        onPlayClicked = { onAction(PlayedSongAction.PlayPause) },
                                         onBottomBarClicked = {
                                             isBottomBarClicked = true
                                             val index = if (state.playedSong != null) songs.indexOf(state.playedSong) else return@SongsList
                                             navController.navigate(PlayedSong(index))
                                         },
                                         animatedVisibilityScope = this,
-                                        onAction = playedSongViewModel::onAction
+                                        onAction = ::onAction
                                     )
                                 } else {
                                     LoadingScreen()
@@ -228,18 +244,16 @@ class MainActivity : ComponentActivity() {
 
                                 val index = it.toRoute<PlayedSong>().index
 
-                                // viewModel.onAction(PlayedSongAction.ChangeToOtherSong(index))
 
                                 PlayedSongScreen(
                                     lurCache = lruCache,
                                     state = state,
-                                    onAction = playedSongViewModel::onAction,
+                                    onAction = ::onAction,
                                     index = index,
                                     animatedVisibilityScope = this,
                                     isBottomBarClicked = isBottomBarClicked
                                 )
 
-                                //viewModel.onAction(PlayedSongAction.PlayPause)
                             }
 
                         }
@@ -260,13 +274,219 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         MediaController.releaseFuture(controllerFuture)
-        /* Intent(this, PlayerSessionService::class.java).apply {
-     stopService(this)
- }*/
+        controller?.removeListener(listener)
+        controller?.release()
 
-        //unbindService(serviceConnection)
+
     }
+
+
+    private suspend fun playOrPause() {
+        if (controller!!.isPlaying) {
+            controller!!.pause()
+            stopProgressUpdate()
+        } else {
+            controller!!.play()
+            viewModel.updateIsPlaying(true)
+            startProgressUpdate()
+        }
+    }
+
+    private suspend fun startProgressUpdate() {
+        while (true) {
+            delay(500)
+            viewModel.calculateProgressValue(controller!!.currentPosition)
+        }
+    }
+
+    private fun stopProgressUpdate() {
+        viewModel.updateIsPlaying(false)
+    }
+
+    suspend fun onPlayerEvents(
+        playerEvent: PlayerEvent,
+        selectedAudioIndex: Int = -1,
+        seekPosition: Long = 0,
+    ) {
+        when (playerEvent) {
+            PlayerEvent.Backward -> controller!!.seekBack()
+            PlayerEvent.Forward -> controller!!.seekForward()
+            PlayerEvent.SeekToNext -> controller!!.seekToNext()
+            PlayerEvent.SeekToPrevious -> controller!!.seekToPrevious()
+            PlayerEvent.PlayPause -> playOrPause()
+            PlayerEvent.SeekTo -> controller!!.seekTo(seekPosition)
+            PlayerEvent.SelectedAudioChange -> {
+                when (selectedAudioIndex) {
+                    controller!!.currentMediaItemIndex -> {
+                        playOrPause()
+                    }
+
+                    else -> {
+                        controller!!.seekToDefaultPosition(selectedAudioIndex)
+                        viewModel.updateIsPlaying(true)
+                        controller!!.playWhenReady = true
+                        startProgressUpdate()
+                    }
+                }
+            }
+
+            PlayerEvent.Stop -> stopProgressUpdate()
+            is PlayerEvent.UpdateProgress -> {
+                controller!!.seekTo(
+                    (controller!!.duration * playerEvent.newProgress).toLong()
+                )
+            }
+
+            is PlayerEvent.ChangePlayType -> {
+                onChangPlayType(playerEvent.type)
+            }
+
+            is PlayerEvent.ClickNotification -> {
+                val song = getSongPlayedInBackground()
+
+                if (song != null){
+                    viewModel.updatePlayedSong(song.first)
+
+
+                    controller!!.seekTo(song.second)
+
+                }
+
+            }
+        }
+    }
+
+
+    fun addMediaItem(mediaItem: MediaItem) {
+        controller!!.setMediaItem(mediaItem)
+        controller!!.prepare()
+    }
+
+    fun setMediaItemList(mediaItems: List<MediaItem>) {
+        controller!!.setMediaItems(mediaItems)
+        controller!!.prepare()
+    }
+
+
+    /*    fun initController(controller: MediaController){
+            this.controller = controller
+        }*/
+
+    private  fun onChangPlayType(type: PlayType) {
+        when (type) {
+            PlayType.RepeatAll -> {
+                controller!!.shuffleModeEnabled = false
+                controller!!.repeatMode = Player.REPEAT_MODE_ALL
+            }
+
+            PlayType.RepeatOne -> {
+                controller!!.shuffleModeEnabled = false
+                controller!!.repeatMode = Player.REPEAT_MODE_ONE
+            }
+
+            PlayType.Shuffle -> {
+                controller!!.repeatMode = Player.REPEAT_MODE_OFF
+                controller!!.shuffleModeEnabled = true
+            }
+        }
+
+        viewModel.updatePlayType(type)
+
+    }
+
+
+    private  fun getSongPlayedInBackground(): Pair<Int, Long>? {
+        return if (controller != null && controller!!.isPlaying) {
+            Pair(controller!!.currentMediaItemIndex, controller!!.currentPosition)
+        } else {
+            null
+        }
+    }
+
+
+
+    @OptIn(UnstableApi::class)
+    private fun setMediaItems(songs: List<SongUi>){
+        try {
+            songs.map {song ->
+                MediaItem.Builder()
+                    .setUri(song.dataUri)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setArtworkUri(song.cover.toUri())
+                            .setTitle(song.artist)
+                            .setDisplayTitle(song.name)
+                            .setAlbumTitle(song.album)
+                            .setArtist(song.artist)
+                            .build()
+                    ).build()
+            }.also {setMediaItemList(it)}
+        }catch (ex: DataSourceException){
+            Log.e("ks","converting song to MediaItem problem :${ex}")
+        }catch (ex: FileDataSource.FileDataSourceException){
+            Log.e("ks","converting song to MediaItem problem :${ex}")
+        }catch (ex: Exception){
+            Log.e("ks","converting song to MediaItem problem :${ex}")
+
+        }
+    }
+
+
+    @OptIn(UnstableApi::class)
+    fun onAction(action: PlayedSongAction) {
+        lifecycleScope.launch{
+            when (action) {
+                is PlayedSongAction.ChangePlayType -> {
+                    onPlayerEvents(PlayerEvent.ChangePlayType(action.playType))
+                }
+                is PlayedSongAction.ChangeToOtherSong -> {
+                    onPlayerEvents(
+                        PlayerEvent.SelectedAudioChange,
+                        selectedAudioIndex = action.index
+                    )
+                }
+
+                PlayedSongAction.OnDownArrowClicked -> TODO()
+                PlayedSongAction.OnMoreActionClicked -> TODO()
+                PlayedSongAction.PlayPause -> onPlayerEvents(PlayerEvent.PlayPause)
+                PlayedSongAction.SeekBackward -> TODO()
+                PlayedSongAction.SeekForward -> TODO()
+                is PlayedSongAction.SeekTo -> {
+                    onPlayerEvents(
+                        PlayerEvent.SeekTo,
+                        seekPosition = ((viewModel.getPlayedSong()!!.displayableDuration.durationMillis * action.position / 100f)).toLong()
+                    )
+                }
+
+                PlayedSongAction.SeekToNext -> {
+                    onPlayerEvents(
+                        PlayerEvent.SeekToNext
+                    )
+                }
+                PlayedSongAction.SeekToPrevious -> {
+                    onPlayerEvents(
+                        PlayerEvent.SeekToPrevious
+                    )
+                }
+                is PlayedSongAction.UpdateProgress -> {
+                    onPlayerEvents(
+                        PlayerEvent.UpdateProgress(action.newProgress)
+                    )
+                    viewModel.updateProgress(action.newProgress)
+                }
+
+                PlayedSongAction.ClickNotification -> onPlayerEvents(
+                    PlayerEvent.ClickNotification
+                )
+            }
+        }
+
+    }
+
 }
+
+
+
 
 
 
