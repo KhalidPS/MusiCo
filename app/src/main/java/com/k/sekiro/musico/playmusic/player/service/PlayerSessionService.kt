@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -21,6 +22,7 @@ import com.k.sekiro.musico.playmusic.player.notification.MusiCoNotificationManag
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import kotlin.properties.ReadOnlyProperty
@@ -62,14 +64,15 @@ class PlayerSessionService: MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
 
-        if (!isAlive){
+        if (isAlive){
+
+            val currentSong = mediaSession.player.currentMediaItemIndex
+            val currentProgress = mediaSession.player.currentPosition
             scope.launch {
                 dataStore.edit {
-                    val index = it[intPreferencesKey("index")]?:0
-                    it[intPreferencesKey("index")] = index
+                    it[intPreferencesKey("index")] = currentSong
 
-                    val progress = it[longPreferencesKey("progress")]?:0
-                    it[longPreferencesKey("progress")] = progress
+                    it[longPreferencesKey("progress")] = currentProgress
                 }
             }
         }
@@ -91,21 +94,52 @@ class PlayerSessionService: MediaSessionService() {
             || player.playbackState == Player.STATE_ENDED
         ) {
 
-
+            val currentSong = mediaSession.player.currentMediaItemIndex
+            val currentProgress = mediaSession.player.currentPosition
+            scope.launch {
+                dataStore.edit {
+                    it[intPreferencesKey("index")] = currentSong
+                    it[longPreferencesKey("progress")] = currentProgress
+                    it[booleanPreferencesKey("isResumed")] = false
+                }
+            }
 
             // Stop the service if not playing, continue playing in the background otherwise.
             //stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             Log.e("ks","remove app from background")
+        }else{
+            val currentSong = mediaSession.player.currentMediaItemIndex
+            val currentProgress = mediaSession.player.currentPosition
+            scope.launch {
+                dataStore.edit {
+                    it[intPreferencesKey("index")] = currentSong
+                    it[longPreferencesKey("progress")] = currentProgress
+                    it[booleanPreferencesKey("isResumed")] = true
+                }
+            }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+
+        val currentSong = mediaSession.player.currentMediaItemIndex
+        val currentProgress = mediaSession.player.currentPosition
+        scope.launch {
+            dataStore.edit {
+                it[intPreferencesKey("index")] = currentSong
+                it[longPreferencesKey("progress")] = currentProgress
+                it[booleanPreferencesKey("isResumed")] = false
+            }
+        }
+
         mediaSession?.run {
             release()
             player.release()
             Log.e("ks","Service Destroyed ^_^")
+
+            scope.cancel()
             //mediaSession = null
         }
     }

@@ -2,6 +2,7 @@ package com.k.sekiro.musico
 
 import android.Manifest
 import android.content.ComponentName
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -26,6 +27,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -63,13 +70,15 @@ import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
+import kotlin.properties.ReadOnlyProperty
 
 class MainActivity : ComponentActivity() {
     var controller: MediaController? = null
     lateinit var controllerFuture: ListenableFuture<MediaController>
     val lruCache: LruCache<String, Palette> by inject()
     private val viewModel: PlayedSongViewModel by viewModel()
-
+    val pref:ReadOnlyProperty<Context, DataStore<Preferences>> by inject()
+    val dataStore: DataStore<Preferences> by pref
 
 
 
@@ -174,6 +183,11 @@ class MainActivity : ComponentActivity() {
                         }
                         Log.e("ks","not noll: $controller")
                         setMediaItems(songs)
+                            dataStore.edit {
+                               val index =  it[intPreferencesKey("index")]?:0
+                               val progress =  it[longPreferencesKey("progress")]?:0
+                               val isResumed =  it[booleanPreferencesKey("isResumed")]?:false
+                            }
 
                     }
 
