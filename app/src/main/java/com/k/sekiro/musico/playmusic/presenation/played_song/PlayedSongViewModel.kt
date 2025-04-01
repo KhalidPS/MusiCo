@@ -1,32 +1,15 @@
 package com.k.sekiro.musico.playmusic.presenation.played_song
 
-import android.net.Uri
-import android.util.Log
 import androidx.annotation.OptIn
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DataSourceException
-import androidx.media3.datasource.FileDataSource
-import androidx.media3.session.MediaController
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
-import com.k.sekiro.musico.playmusic.domain.model.Song
-import com.k.sekiro.musico.playmusic.player.service.MusiCoServiceHandler
-import com.k.sekiro.musico.playmusic.player.service.PlayerEvent
-import com.k.sekiro.musico.playmusic.player.service.PlayerState
-import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
-import com.k.sekiro.musico.playmusic.presenation.model.toUri
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.update
@@ -36,10 +19,11 @@ class PlayedSongViewModel(
     private val songsRepository: SongsRepository,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    private val mediaController: MutableSharedFlow<MediaController> = MutableSharedFlow<MediaController>()
 
 
-    private val musiCoServiceHandler: MusiCoServiceHandler = MusiCoServiceHandler(mediaController)
+
+
+
 
 
     /* @OptIn(SavedStateHandleSaveableApi::class)
@@ -65,51 +49,6 @@ class PlayedSongViewModel(
 
 
 
-    init {
-
-        viewModelScope.launch{
-            musiCoServiceHandler.audioState.collectLatest { playerState ->
-                when(playerState) {
-                    is PlayerState.Buffering -> calculateProgressValue(playerState.progress)
-                    is PlayerState.CurrentPlaying -> {
-                            _state.update {
-                                it.copy(
-                                    playedSong = if (
-                                        it.songs.isNotEmpty()
-                                    ){
-                                        it.songs[playerState.mediaItemIndex]
-                                    }else{
-                                        return@collectLatest
-                                    }
-                                )
-                            }
-                    }
-                    PlayerState.Initial -> {}
-                    is PlayerState.Playing -> {
-                        _state.update {
-                            it.copy(
-                                isPlaying = playerState.isPlaying
-                            )
-                        }
-                    }
-                    is PlayerState.Progress -> calculateProgressValue(playerState.progress)
-                    is PlayerState.Ready -> {
-
-                    }
-
-                    is PlayerState.PlayingType -> {
-                        _state.update {
-                            it.copy(
-                                playType = playerState.type
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-    }
-
     /*    private val _state = savedStateHandle.getStateFlow(stateKey, PlayedSongState())
     val state = _state
         .onStart {
@@ -123,60 +62,57 @@ class PlayedSongViewModel(
         )*/
 
 
-    @OptIn(UnstableApi::class)
-    fun onAction(action: PlayedSongAction) {
-        viewModelScope.launch{
-            when (action) {
-                is PlayedSongAction.ChangePlayType -> {
-                    musiCoServiceHandler.onPlayerEvents(PlayerEvent.ChangePlayType(action.playType))
-                }
-                is PlayedSongAction.ChangeToOtherSong -> {
-                    musiCoServiceHandler.onPlayerEvents(
-                        PlayerEvent.SelectedAudioChange,
-                        selectedAudioIndex = action.index
-                    )
-                }
 
-                PlayedSongAction.OnDownArrowClicked -> TODO()
-                PlayedSongAction.OnMoreActionClicked -> TODO()
-                PlayedSongAction.PlayPause -> musiCoServiceHandler.onPlayerEvents(PlayerEvent.PlayPause)
-                PlayedSongAction.SeekBackward -> TODO()
-                PlayedSongAction.SeekForward -> TODO()
-                is PlayedSongAction.SeekTo -> {
-                   musiCoServiceHandler.onPlayerEvents(
-                       PlayerEvent.SeekTo,
-                       seekPosition = ((_state.value.playedSong!!.displayableDuration.durationMillis * action.position / 100f)).toLong()
-                   )
-                }
 
-                PlayedSongAction.SeekToNext -> {
-                    musiCoServiceHandler.onPlayerEvents(
-                        PlayerEvent.SeekToNext
-                    )
+    fun updatePlayedSong(index: Int){
+        _state.update {
+            it.copy(
+                playedSong = if (
+                    it.songs.isNotEmpty()
+                ){
+                    it.songs[index]
+                }else{
+                    return
                 }
-                PlayedSongAction.SeekToPrevious -> {
-                    musiCoServiceHandler.onPlayerEvents(
-                        PlayerEvent.SeekToPrevious
-                    )
-                }
-                is PlayedSongAction.UpdateProgress -> {
-                    musiCoServiceHandler.onPlayerEvents(
-                        PlayerEvent.UpdateProgress(action.newProgress)
-                    )
-                    _state.update {
-                        it.copy(
-                            sliderProgress = action.newProgress
-                        )
-                    }
-                }
-
-                PlayedSongAction.ClickNotification -> musiCoServiceHandler.onPlayerEvents(
-                    PlayerEvent.ClickNotification
-                )
-            }
+            )
         }
-
     }
+
+    fun getPlayedSong() = _state.value.playedSong
+
+    fun updateProgress(progress: Float){
+        _state.update {
+            it.copy(
+                sliderProgress = progress
+            )
+        }
+    }
+
+
+    fun updateIsPlaying(isPlaying: Boolean){
+        _state.update {
+            it.copy(
+                isPlaying = isPlaying
+            )
+        }
+    }
+
+    fun updatePlayType(type: PlayType){
+        _state.update {
+            it.copy(
+                playType = type
+            )
+        }
+    }
+
+    fun updateDuration(duration: Long){
+        _state.update {
+            it.copy(
+
+            )
+        }
+    }
+
 
 
     private fun getAllSongsFromLocal() {
@@ -198,7 +134,7 @@ class PlayedSongViewModel(
                val songs =  songsRepository.getAllStorageSongs()
                    .filter { it.path.endsWith(".mp3") }.map {
                     it.toSongUi()
-                }.apply { setMediaItems(this) }
+                }
 
 
                 it.copy(
@@ -220,59 +156,13 @@ class PlayedSongViewModel(
         this[key] = function(this.get<T>(key))
     }
 
-    @OptIn(UnstableApi::class)
-    private fun setMediaItems(songs: List<SongUi>){
-        try {
-            songs.map {song ->
-                MediaItem.Builder()
-                    .setUri(song.dataUri)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setArtworkUri(song.cover.toUri())
-                            .setTitle(song.artist)
-                            .setDisplayTitle(song.name)
-                            .setAlbumTitle(song.album)
-                            .setArtist(song.artist)
-                            .build()
-                    ).build()
-            }.also { musiCoServiceHandler.setMediaItemList(it) }
-        }catch (ex: DataSourceException){
-            Log.e("ks","converting song to MediaItem problem :${ex}")
-        }catch (ex: FileDataSource.FileDataSourceException){
-            Log.e("ks","converting song to MediaItem problem :${ex}")
-        }catch (ex: Exception){
-            Log.e("ks","converting song to MediaItem problem :${ex}")
-
-        }
-    }
 
 
-        @OptIn(UnstableApi::class)
-    private fun addMediaItem(song: SongUi){
-        try {
-                MediaItem.Builder()
-                    .setUri(song.dataUri)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setArtworkUri(song.cover.toUri())
-                            .setTitle(song.title)
-                            .setDisplayTitle(song.name)
-                            .setAlbumTitle(song.album)
-                            .setArtist(song.artist)
-                            .build()
-                    ).build()
-            .also { musiCoServiceHandler.addMediaItem(it) }
-        }catch (ex: DataSourceException){
-            Log.e("ks","converting song to MediaItem problem :${ex}")
-        }catch (ex: FileDataSource.FileDataSourceException){
-            Log.e("ks","converting song to MediaItem problem :${ex}")
-        }catch (ex: Exception){
-            Log.e("ks","converting song to MediaItem problem :${ex}")
 
-        }
-    }
 
-    private fun calculateProgressValue(currentProgress: Long){
+
+
+    internal fun calculateProgressValue(currentProgress: Long){
 
 
         _state.update {
@@ -291,24 +181,12 @@ class PlayedSongViewModel(
     }
 
 
-    fun initController(controller: MediaController){
-        viewModelScope.launch{
-            mediaController.emit(controller)
-        }
-    }
-
 
 
 
     @OptIn(UnstableApi::class)
     override fun onCleared() {
-        viewModelScope.launch{
-            musiCoServiceHandler.onPlayerEvents(
-                PlayerEvent.Stop
-            )
-        }
 
-        musiCoServiceHandler.cancelServiceScope()
         super.onCleared()
     }
 

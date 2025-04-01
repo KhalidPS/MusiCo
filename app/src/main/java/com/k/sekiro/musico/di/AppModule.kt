@@ -10,6 +10,9 @@ import android.os.Build
 import android.os.Looper
 import androidx.collection.LruCache
 import androidx.core.app.NotificationManagerCompat
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
@@ -27,7 +30,6 @@ import com.k.sekiro.musico.playmusic.data.local.PaletteCache
 import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
 import com.k.sekiro.musico.playmusic.player.notification.MusiCoNotificationManager
-import com.k.sekiro.musico.playmusic.player.service.MusiCoServiceHandler
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.RequestPermissionScreenViewModel
@@ -120,20 +122,9 @@ val appModule = module{
 
     //single { MusiCoServiceHandler(get()) }
 
-/*    single{
-        var controller: MediaController? = null
-        val sessionToken = SessionToken(androidContext(), ComponentName(androidContext(),
-            PlayerSessionService::class.java))
-
-        val controllerFuture = MediaController.Builder(androidContext(),sessionToken).buildAsync()
-        controllerFuture.addListener({
-            if (controllerFuture.isDone){
-                controller = controllerFuture.get()
-            }
-        }, MoreExecutors.directExecutor()
-        )
-        controller?:controllerFuture.get()
-
-    }*/
+    single { androidContext().dataStore}
 
 }
+
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore("settings")
