@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
@@ -72,6 +73,14 @@ class PlayerSessionService: MediaSessionService() {
                     it[intPreferencesKey("index")] = currentSong
 
                     it[longPreferencesKey("progress")] = currentProgress
+
+                    withContext(Dispatchers.Main) {
+                        if (mediaSession.player.isPlaying){
+                            it[booleanPreferencesKey("isResumed")] = true
+                        }else{
+                            it[booleanPreferencesKey("isResumed")] = false
+                        }
+                    }
                 }
             }
         }
