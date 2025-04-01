@@ -10,6 +10,8 @@ import android.os.Build
 import android.os.Looper
 import androidx.collection.LruCache
 import androidx.core.app.NotificationManagerCompat
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -117,6 +119,9 @@ val appModule = module{
 
     //single { MusiCoServiceHandler(get()) }
 
-    single { preferencesDataStore("settings_1") }
+    single { androidContext().dataStore}
 
 }
+
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore("settings")

@@ -77,8 +77,7 @@ class MainActivity : ComponentActivity() {
     lateinit var controllerFuture: ListenableFuture<MediaController>
     val lruCache: LruCache<String, Palette> by inject()
     private val viewModel: PlayedSongViewModel by viewModel()
-    val pref:ReadOnlyProperty<Context, DataStore<Preferences>> by inject()
-    val dataStore: DataStore<Preferences> by pref
+    val dataStore: DataStore<Preferences> by inject()
 
 
 

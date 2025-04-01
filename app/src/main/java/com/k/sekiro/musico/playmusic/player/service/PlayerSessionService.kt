@@ -32,8 +32,7 @@ import kotlin.reflect.KProperty
 class PlayerSessionService: MediaSessionService() {
     val mediaSession: MediaSession by inject()
     val musiCoNotificationManager: MusiCoNotificationManager by inject()
-    val pref:ReadOnlyProperty<Context, DataStore<Preferences>> by inject()
-    val dataStore: DataStore<Preferences> by pref
+    val dataStore: DataStore<Preferences> by inject()
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     var isAlive = false
 
