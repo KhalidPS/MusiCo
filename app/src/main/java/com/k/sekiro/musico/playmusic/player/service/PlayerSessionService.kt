@@ -3,6 +3,7 @@ package com.k.sekiro.musico.playmusic.player.service
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
@@ -33,9 +34,10 @@ import kotlin.reflect.KProperty
 class PlayerSessionService: MediaSessionService() {
     val mediaSession: MediaSession by inject()
     val musiCoNotificationManager: MusiCoNotificationManager by inject()
-    val dataStore: DataStore<Preferences> by inject()
+   // val dataStore: DataStore<Preferences> by inject()
+   val sharedPref: SharedPreferences by inject()
+
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    var isAlive = false
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -52,8 +54,6 @@ class PlayerSessionService: MediaSessionService() {
     @OptIn(UnstableApi::class)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 
-        isAlive = true
-
         Log.e("ks", "start command with intent : $intent")
 
 
@@ -63,35 +63,10 @@ class PlayerSessionService: MediaSessionService() {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
-
-        if (isAlive){
-
-            val currentSong = mediaSession.player.currentMediaItemIndex
-            val currentProgress = mediaSession.player.currentPosition
-            scope.launch {
-                dataStore.edit {
-                    it[intPreferencesKey("index")] = currentSong
-
-                    it[longPreferencesKey("progress")] = currentProgress
-
-                    withContext(Dispatchers.Main) {
-                        if (mediaSession.player.isPlaying){
-                            it[booleanPreferencesKey("isResumed")] = true
-                        }else{
-                            it[booleanPreferencesKey("isResumed")] = false
-                        }
-                    }
-                }
-            }
-        }
-
-
-
-
+        
         return mediaSession
     }
-
-
+    
 
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -102,30 +77,10 @@ class PlayerSessionService: MediaSessionService() {
             || player.playbackState == Player.STATE_ENDED
         ) {
 
-            val currentSong = mediaSession.player.currentMediaItemIndex
-            val currentProgress = mediaSession.player.currentPosition
-            scope.launch {
-                dataStore.edit {
-                    it[intPreferencesKey("index")] = currentSong
-                    it[longPreferencesKey("progress")] = currentProgress
-                    it[booleanPreferencesKey("isResumed")] = false
-                }
-            }
-
             // Stop the service if not playing, continue playing in the background otherwise.
             //stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             Log.e("ks","remove app from background")
-        }else{
-            val currentSong = mediaSession.player.currentMediaItemIndex
-            val currentProgress = mediaSession.player.currentPosition
-            scope.launch {
-                dataStore.edit {
-                    it[intPreferencesKey("index")] = currentSong
-                    it[longPreferencesKey("progress")] = currentProgress
-                    it[booleanPreferencesKey("isResumed")] = true
-                }
-            }
         }
     }
 
@@ -134,12 +89,11 @@ class PlayerSessionService: MediaSessionService() {
 
         val currentSong = mediaSession.player.currentMediaItemIndex
         val currentProgress = mediaSession.player.currentPosition
-        scope.launch {
-            dataStore.edit {
-                it[intPreferencesKey("index")] = currentSong
-                it[longPreferencesKey("progress")] = currentProgress
-                it[booleanPreferencesKey("isResumed")] = false
-            }
+
+        sharedPref.edit().apply{
+            putInt("index",currentSong)
+            putLong("progress",currentProgress)
+            apply()
         }
 
         mediaSession?.run {
