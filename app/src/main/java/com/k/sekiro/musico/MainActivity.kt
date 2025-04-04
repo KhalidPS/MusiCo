@@ -51,9 +51,15 @@ import androidx.navigation.toRoute
 import androidx.palette.graphics.Palette
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import com.k.sekiro.musico.playmusic.player.getSongPlayedInBackground
+import com.k.sekiro.musico.playmusic.player.onChangPlayType
+import com.k.sekiro.musico.playmusic.player.playOrPause
 import com.k.sekiro.musico.playmusic.player.service.PlayerEvent
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.player.service.PlayerState
+import com.k.sekiro.musico.playmusic.player.setMediaItemsList
+import com.k.sekiro.musico.playmusic.player.startProgressUpdate
+import com.k.sekiro.musico.playmusic.player.stopProgressUpdate
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
 import com.k.sekiro.musico.playmusic.presenation.model.Home
 import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
@@ -68,6 +74,7 @@ import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -104,10 +111,10 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
             if (isPlaying) {
                 lifecycleScope.launch {
-                    startProgressUpdate()
+                    controller!!.startProgressUpdate(viewModel)
                 }
             } else {
-                stopProgressUpdate()
+                stopProgressUpdate(viewModel)
             }
         }
 
@@ -176,9 +183,13 @@ class MainActivity : ComponentActivity() {
                             }
                             Log.e("ks", "Played song not null: ${viewModel.getPlayedSong()}")
 
+                            withContext(Dispatchers.Main){
+                                controller!!.startProgressUpdate(viewModel)
+                            }
+
+
                         }
 
-                        startProgressUpdate()
 
                     } else {
 
@@ -197,9 +208,10 @@ class MainActivity : ComponentActivity() {
                                 "Played song not null: ${viewModel.getPlayedSong()}"
                             )
                             withContext(Dispatchers.Main) {
-                                setMediaItems(viewModel.getSongs())
+                                controller!!.setMediaItemsList(viewModel.getSongs())
                                 controller!!.seekTo(index,progress)
-                                startProgressUpdate()
+                                //controller!!.startProgressUpdate(viewModel)
+                                viewModel.calculateProgressValue(progress)
                             }
                         }
                     }
@@ -238,7 +250,7 @@ class MainActivity : ComponentActivity() {
                                         onSongClicked = { song ,index ->
                                             isBottomBarClicked = false
                                             if (controller!!.currentMediaItemIndex != index && isNewCreation){
-                                                setMediaItems(songs)
+                                                controller!!.setMediaItemsList(songs)
                                                 isNewCreation = false
                                             }
                                             navController.navigate(PlayedSong(index))
@@ -343,34 +355,9 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    private fun playOrPause() {
-        if (controller!!.isPlaying) {
-            controller!!.pause()
-            stopProgressUpdate()
-        } else {
-            controller!!.play()
-            viewModel.updateIsPlaying(true)
-            startProgressUpdate()
-        }
-    }
 
-    private fun startProgressUpdate() {
-        progressJob?.cancel()
-        progressJob = lifecycleScope.launch {
-            while (true) {
-                delay(500)
-                viewModel.calculateProgressValue(controller!!.currentPosition)
-            }
-        }
 
-    }
-
-    private fun stopProgressUpdate() {
-        viewModel.updateIsPlaying(false)
-        progressJob?.cancel()
-    }
-
-    fun onPlayerEvents(
+    suspend fun onPlayerEvents(
         playerEvent: PlayerEvent,
         selectedAudioIndex: Int = -1,
         seekPosition: Long = 0,
@@ -380,24 +367,24 @@ class MainActivity : ComponentActivity() {
             PlayerEvent.Forward -> controller!!.seekForward()
             PlayerEvent.SeekToNext -> controller!!.seekToNext()
             PlayerEvent.SeekToPrevious -> controller!!.seekToPrevious()
-            PlayerEvent.PlayPause -> playOrPause()
+            PlayerEvent.PlayPause -> controller!!.playOrPause(viewModel)
             PlayerEvent.SeekTo -> controller!!.seekTo(seekPosition)
             PlayerEvent.SelectedAudioChange -> {
                 when (selectedAudioIndex) {
                     controller!!.currentMediaItemIndex -> {
-                        playOrPause()
+                        controller!!.playOrPause(viewModel)
                     }
 
                     else -> {
                         controller!!.seekToDefaultPosition(selectedAudioIndex)
                         viewModel.updateIsPlaying(true)
                         controller!!.playWhenReady = true
-                        startProgressUpdate()
+                        controller!!.startProgressUpdate(viewModel)
                     }
                 }
             }
 
-            PlayerEvent.Stop -> stopProgressUpdate()
+            PlayerEvent.Stop -> stopProgressUpdate(viewModel)
             is PlayerEvent.UpdateProgress -> {
                 controller!!.seekTo(
                     (controller!!.duration * playerEvent.newProgress).toLong()
@@ -405,11 +392,11 @@ class MainActivity : ComponentActivity() {
             }
 
             is PlayerEvent.ChangePlayType -> {
-                onChangPlayType(playerEvent.type)
+                controller!!.onChangPlayType(playerEvent.type,viewModel)
             }
 
             is PlayerEvent.ClickNotification -> {
-                val song = getSongPlayedInBackground()
+                val song = controller!!.getSongPlayedInBackground()
 
                 if (song != null){
                     viewModel.updatePlayedSong(song.first)
@@ -424,76 +411,16 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    fun addMediaItem(mediaItem: MediaItem) {
-        controller!!.setMediaItem(mediaItem)
-        controller!!.prepare()
-    }
-
-    fun setMediaItemList(mediaItems: List<MediaItem>) {
-        controller!!.setMediaItems(mediaItems)
-        controller!!.prepare()
-    }
 
 
 
-    private fun onChangPlayType(type: PlayType) {
-        when (type) {
-            PlayType.RepeatAll -> {
-                controller!!.shuffleModeEnabled = false
-                controller!!.repeatMode = Player.REPEAT_MODE_ALL
-            }
-
-            PlayType.RepeatOne -> {
-                controller!!.shuffleModeEnabled = false
-                controller!!.repeatMode = Player.REPEAT_MODE_ONE
-            }
-
-            PlayType.Shuffle -> {
-                controller!!.repeatMode = Player.REPEAT_MODE_OFF
-                controller!!.shuffleModeEnabled = true
-            }
-        }
-
-        viewModel.updatePlayType(type)
-
-    }
-
-
-    private  fun getSongPlayedInBackground(): Pair<Int, Long>? {
-        return if (controller != null && controller!!.isPlaying) {
-            Pair(controller!!.currentMediaItemIndex, controller!!.currentPosition)
-        } else {
-            null
-        }
-    }
 
 
 
-    @OptIn(UnstableApi::class)
-    private fun setMediaItems(songs: List<SongUi>){
-        try {
-            songs.map {song ->
-                MediaItem.Builder()
-                    .setUri(song.dataUri)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setArtworkUri(song.cover.toUri())
-                            .setTitle(song.artist)
-                            .setDisplayTitle(song.name)
-                            .setAlbumTitle(song.album)
-                            .setArtist(song.artist)
-                            .build()
-                    ).build()
-            }.also {setMediaItemList(it)}
-        }catch (ex: DataSourceException){
-            Log.e("ks","converting song to MediaItem problem :${ex}")
-        }catch (ex: FileDataSource.FileDataSourceException){
-            Log.e("ks","converting song to MediaItem problem :${ex}")
-        }catch (ex: Exception){
-            Log.e("ks","converting song to MediaItem problem :${ex}")
 
-        }
-    }
+
+
+
 
 
     @OptIn(UnstableApi::class)

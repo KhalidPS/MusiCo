@@ -66,7 +66,7 @@ class MusiCoNotificationManager(
             .setMediaDescriptionAdapter(
                 MusiCoNotificationAdapter(context = context, pendingIntent = mediaSession.sessionActivity)
             )
-           // .setNotificationListener(NotificationListener(mediaSessionService))
+            .setNotificationListener(NotificationListener(mediaSessionService))
             .setSmallIconResourceId(R.drawable.ic_audio)
             .build()
             .also {
