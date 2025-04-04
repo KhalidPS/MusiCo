@@ -80,6 +80,8 @@ class PlayedSongViewModel(
 
     fun getPlayedSong() = _state.value.playedSong
 
+    fun getSongs() = _state.value.songs
+
     fun updateProgress(progress: Float){
         _state.update {
             it.copy(

@@ -34,7 +34,6 @@ import kotlin.reflect.KProperty
 class PlayerSessionService: MediaSessionService() {
     val mediaSession: MediaSession by inject()
     val musiCoNotificationManager: MusiCoNotificationManager by inject()
-   // val dataStore: DataStore<Preferences> by inject()
    val sharedPref: SharedPreferences by inject()
 
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
