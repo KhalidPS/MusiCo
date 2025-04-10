@@ -71,7 +71,6 @@ fun SharedTransitionScope.SongsList(
     state: PlayedSongState,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onSongClicked: (SongUi, index: Int) -> Unit = { _, _->},
-    onFilteredSongClicked:(SongUi, Int,List<SongUi>) -> Unit = { _, _,_->},
     onPlayClicked:() -> Unit = {},
     onBottomBarClicked:() -> Unit = {},
     onAction:(PlayedSongAction) -> Unit = {}
@@ -142,7 +141,10 @@ fun SharedTransitionScope.SongsList(
                     itemsIndexed(filteredSongs) { index, song ->
                         Song(
                             song = song,
-                            onClick = { onFilteredSongClicked(it, index,filteredSongs) }
+                            onClick = {
+                                val index2 = songs.indexOf(it)
+                                onSongClicked(it, index2)
+                            }
                         )
                     }
                 }

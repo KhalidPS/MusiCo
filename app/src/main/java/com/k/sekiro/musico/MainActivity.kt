@@ -290,17 +290,10 @@ class MainActivity : ComponentActivity() {
 
 
                             composable<Home> {
-                                var isClickFromFiltered = false
-                                var isClickedFromList = false
                                 if (!songs.isEmpty()) {
                                     SongsList(
                                         songs = songs,
                                         onSongClicked = { song ,index->
-                                            isClickedFromList = true
-                                            if (isClickFromFiltered){
-                                                controller!!.setMediaItemsList(songs)
-                                                isClickFromFiltered = false
-                                            }
                                             if (controller!!.currentMediaItemIndex != index && isNewCreation){
                                                 /** if the creation for activity is new and for first time then
                                                   set new mediaItems then reset the isNewCreation to false cuz if the
@@ -312,14 +305,6 @@ class MainActivity : ComponentActivity() {
                                                 isNewCreation = false
                                             }
                                             navController.navigate(PlayedSong(index))
-                                        },
-                                        onFilteredSongClicked = { song, index, filteredSongs ->
-                                            isClickFromFiltered = true
-                                            isClickedFromList = false
-                                            controller!!.setMediaItemsList(filteredSongs)
-                                            viewModel.updateSongs(filteredSongs)
-                                            navController.navigate(PlayedSong(index))
-
                                         },
                                         state = state,
                                         onPlayClicked = { onAction(PlayedSongAction.PlayPause) },
