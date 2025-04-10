@@ -1,5 +1,6 @@
 package com.k.sekiro.musico.playmusic.player
 
+import android.os.Bundle
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
@@ -9,6 +10,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.session.MediaController
+import com.k.sekiro.musico.playmusic.player.notification.NotificationPlayerCustomCommand
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayType
@@ -62,6 +64,7 @@ fun MediaController?.setMediaItemsList(songs: List<SongUi>) {
         songs.map { song ->
             MediaItem.Builder()
                 .setUri(song.dataUri)
+                .setMediaId("${song.name}_${song.dataUri}")
                 .setMediaMetadata(
                     MediaMetadata.Builder()
                         .setArtworkUri(song.cover.toUri())
@@ -96,16 +99,23 @@ fun MediaController?.onChangPlayType(type: PlayType, viewModel: PlayedSongViewMo
         PlayType.RepeatAll -> {
             this!!.shuffleModeEnabled = false
             this!!.repeatMode = Player.REPEAT_MODE_ALL
+            this.sendCustomCommand(NotificationPlayerCustomCommand.SHUFFLE.commandButton.sessionCommand!!,
+                Bundle.EMPTY)
         }
 
         PlayType.RepeatOne -> {
             this!!.shuffleModeEnabled = false
             this!!.repeatMode = Player.REPEAT_MODE_ONE
+            this.sendCustomCommand(NotificationPlayerCustomCommand.REPEAT_ALL.commandButton.sessionCommand!!,
+                Bundle.EMPTY)
+
         }
 
         PlayType.Shuffle -> {
             this!!.repeatMode = Player.REPEAT_MODE_OFF
             this!!.shuffleModeEnabled = true
+            this!!.sendCustomCommand(NotificationPlayerCustomCommand.REPEAT_ONE.commandButton.sessionCommand!!,
+                Bundle.EMPTY)
         }
     }
 

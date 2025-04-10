@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -64,6 +65,8 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.compose.cloudy)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.profileinstaller)
+    "baselineProfile"(project(":baselineprofile"))
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

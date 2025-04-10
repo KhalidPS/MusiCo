@@ -7,7 +7,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import android.os.Looper
+import android.util.Log
+import android.widget.Toast
 import androidx.collection.LruCache
 import androidx.core.app.NotificationManagerCompat
 import androidx.datastore.core.DataStore
@@ -19,9 +22,13 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import androidx.palette.graphics.Palette
 import androidx.room.Room
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.k.sekiro.musico.MainActivity
 import com.k.sekiro.musico.MusicoApp
@@ -30,6 +37,7 @@ import com.k.sekiro.musico.playmusic.data.local.PaletteCache
 import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
 import com.k.sekiro.musico.playmusic.player.notification.MusiCoNotificationManager
+import com.k.sekiro.musico.playmusic.player.notification.NotificationPlayerCustomCommand
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.RequestPermissionScreenViewModel
@@ -69,6 +77,7 @@ val appModule = module{
     single{ androidContext().contentResolver }
     single{ androidContext().resources }
 
+/*
     single{
         AudioAttributes.Builder()
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -86,6 +95,7 @@ val appModule = module{
             .build()
     }
 
+
     single{
 
         val pendingIntent = PendingIntent.getActivity(
@@ -97,9 +107,16 @@ val appModule = module{
             PendingIntent.FLAG_IMMUTABLE
         )
 
+        val notificationPlayerCustomCommandButtons = NotificationPlayerCustomCommand.values().map { it.commandButton }
+
+
         MediaSession.Builder(androidContext(), get<ExoPlayer>())
-            .setSessionActivity(pendingIntent).build()
+            .setSessionActivity(pendingIntent)
+            .setCallback(get<MediaSession.Callback>())
+            .setCustomLayout(notificationPlayerCustomCommandButtons)
+            .build()
     }
+*/
 
     single{
 
@@ -115,7 +132,9 @@ val appModule = module{
     }
 
 
+/*
     single{ MusiCoNotificationManager(androidContext(),get<ExoPlayer>()) }
+*/
 
 
     single { androidContext().getSharedPreferences("settings", Context.MODE_PRIVATE) }

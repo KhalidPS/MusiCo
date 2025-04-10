@@ -111,6 +111,8 @@ fun SharedTransitionScope.PlayedSongScreen(
 
     var spotColor by remember { mutableStateOf(Color.Cyan) }
 
+    var progressValue by remember { mutableFloatStateOf(0f) }
+
     /*    val infiniteTransition = rememberInfiniteTransition(label = "")
         val colorAnimation = infiniteTransition.animateFloat(
             initialValue = 0f,
@@ -548,7 +550,12 @@ fun SharedTransitionScope.PlayedSongScreen(
                 Slider(
                     value = state.sliderProgress,
                     onValueChange = {
-                        onAction(PlayedSongAction.SeekTo(it))
+                        progressValue = it
+                        onAction(PlayedSongAction.UpdateProgress(it))
+                    },
+                    onValueChangeFinished = {
+                        onAction(PlayedSongAction.SeekTo(progressValue))
+
                     },
                     valueRange = 0f..100f,
                     modifier = Modifier.padding(horizontal = 12.dp)

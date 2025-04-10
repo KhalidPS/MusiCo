@@ -276,7 +276,7 @@ fun PlayedSongBottomBar(
                             startAngle = -90f,
                             sweepAngle = progressAnim.value * 360f / 100f,
                             size = Size(size.minDimension, size.minDimension),
-                            topLeft = Offset(size.minDimension * 1.9f, 0f)
+                            topLeft = Offset(size.minDimension * 1.8f, 0f)
 
                         )
 

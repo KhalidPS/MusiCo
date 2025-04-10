@@ -2,6 +2,7 @@ package com.k.sekiro.musico.playmusic.player.notification
 
 import android.app.Notification
 import android.app.Service
+import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSessionService
 import androidx.media3.ui.PlayerNotificationManager
@@ -13,6 +14,7 @@ class NotificationListener(private val service: MediaSessionService) : PlayerNot
         notificationId: Int,
         dismissedByUser: Boolean
     ) {
+        Log.e("ks","dismissedByUser : $dismissedByUser")
         service.stopForeground(Service.STOP_FOREGROUND_REMOVE)
         service.stopSelf()
     }
@@ -22,6 +24,6 @@ class NotificationListener(private val service: MediaSessionService) : PlayerNot
         notification: Notification,
         ongoing: Boolean
     ) {
-        service.startForeground(notificationId,notification)
+      //  service.startForeground(notificationId,notification)
     }
 }

@@ -48,7 +48,7 @@ class MusiCoNotificationManager(
             //.setOnlyAlertOnce(true)
             .setOngoing(true)
             .setAutoCancel(false)
-            .setContentTitle(mediaSession.player.mediaMetadata.displayTitle)
+            .setContentTitle("My notify")
             .setContentText(mediaSession.player.mediaMetadata.albumArtist)
             .setContentIntent(mediaSession.sessionActivity)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)

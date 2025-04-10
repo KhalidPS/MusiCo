@@ -129,6 +129,23 @@ class MainActivity : ComponentActivity() {
         }
 
 
+        override fun onRepeatModeChanged(repeatMode: Int) {
+            super.onRepeatModeChanged(repeatMode)
+
+            when(repeatMode){
+                Player.REPEAT_MODE_ONE -> viewModel.updatePlayType(PlayType.RepeatOne)
+                Player.REPEAT_MODE_ALL -> viewModel.updatePlayType(PlayType.RepeatAll)
+            }
+        }
+
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+            super.onShuffleModeEnabledChanged(shuffleModeEnabled)
+            if (shuffleModeEnabled){
+                viewModel.updatePlayType(PlayType.Shuffle)
+            }
+        }
+
+
 
     }
 
@@ -337,7 +354,6 @@ class MainActivity : ComponentActivity() {
         val currentSong = controller!!.currentMediaItemIndex
         val currentProgress = controller!!.currentPosition
 
-        lifecycleScope.launch {
             Log.e("ks","currentSong >>>>>>>> $currentSong")
             Log.e("ks","currentProgress >>>>>>>> $currentProgress")
 
@@ -346,7 +362,6 @@ class MainActivity : ComponentActivity() {
                 putLong("progress",currentProgress)
                 apply()
             }
-        }
 
         MediaController.releaseFuture(controllerFuture)
         controller?.removeListener(listener)
@@ -385,10 +400,10 @@ class MainActivity : ComponentActivity() {
             }
 
             PlayerEvent.Stop -> stopProgressUpdate(viewModel)
+
             is PlayerEvent.UpdateProgress -> {
-                controller!!.seekTo(
-                    (controller!!.duration * playerEvent.newProgress).toLong()
-                )
+                viewModel.updateProgress(playerEvent.newProgress)
+
             }
 
             is PlayerEvent.ChangePlayType -> {
@@ -463,7 +478,6 @@ class MainActivity : ComponentActivity() {
                     onPlayerEvents(
                         PlayerEvent.UpdateProgress(action.newProgress)
                     )
-                    viewModel.updateProgress(action.newProgress)
                 }
 
                 PlayedSongAction.ClickNotification -> onPlayerEvents(

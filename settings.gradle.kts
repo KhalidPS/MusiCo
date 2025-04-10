@@ -24,4 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MusiCo"
 include(":app")
- 
+include(":baselineprofile")
