@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
+import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -111,6 +112,14 @@ class PlayedSongViewModel(
         _state.update {
             it.copy(
 
+            )
+        }
+    }
+
+    fun updateSongs(songs: List<SongUi>){
+        _state.update {
+            it.copy(
+                songs = songs
             )
         }
     }

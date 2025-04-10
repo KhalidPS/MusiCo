@@ -167,6 +167,11 @@ class MainActivity : ComponentActivity() {
 
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2)
+        }
+
+
         super.onCreate(savedInstanceState)
 
         isNewCreation = true
@@ -208,8 +213,9 @@ class MainActivity : ComponentActivity() {
                         }
 
 
-                    } else {
-
+                    } else if (!PlayerSessionService.isAlive){
+                        /** if the player is paused and the service is not active (new creation for service)
+                         then get the saved value from preferences then update the state and setMediaItems **/
                         val index = sharedPref.getInt("index",0)
                         val progress = sharedPref.getLong("progress",0)
 
@@ -225,10 +231,34 @@ class MainActivity : ComponentActivity() {
                                 "Played song not null: ${viewModel.getPlayedSong()}"
                             )
                             withContext(Dispatchers.Main) {
-                                controller!!.setMediaItemsList(viewModel.getSongs())
-                                controller!!.seekTo(index,progress)
+                                controller!!.setMediaItemsList(viewModel.getSongs(),index,progress)
                                 //controller!!.startProgressUpdate(viewModel)
                                 viewModel.calculateProgressValue(progress)
+                            }
+                        }
+                    }else{
+                        /** if the player is paused but the service is still active <<(e.g
+                         when remove the app from recent task while player is playing
+                        and this will destroy the activity by calling onDestroy and save
+                         index and progress in preferences but if we change the progress using notification
+                        slider and then pause player from notification then click notification the service is still active
+                        cuz when I removed the app from recent task the player was playing not paused.)>>
+                         then there's no need to get saved value from preferences as I did in the previous if, instead
+                         I should get values from controller that connect to mediaSessionService**/
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            while (viewModel.getPlayedSong() == null) {
+                                delay(500)
+                                withContext(Dispatchers.Main) {
+                                    viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
+                                }
+                            }
+                            Log.e(
+                                "ks",
+                                "Played song not null: ${viewModel.getPlayedSong()}"
+                            )
+                            withContext(Dispatchers.Main) {
+                                //controller!!.startProgressUpdate(viewModel)
+                                viewModel.calculateProgressValue(controller!!.currentPosition)
                             }
                         }
                     }
@@ -248,7 +278,6 @@ class MainActivity : ComponentActivity() {
 
                     val state = viewModel.state.collectAsState(PlayedSongState()).value
                     val songs = state.songs
-                    var isBottomBarClicked by remember { mutableStateOf(false) }
 
 
 
@@ -261,21 +290,40 @@ class MainActivity : ComponentActivity() {
 
 
                             composable<Home> {
+                                var isClickFromFiltered = false
+                                var isClickedFromList = false
                                 if (!songs.isEmpty()) {
                                     SongsList(
                                         songs = songs,
-                                        onSongClicked = { song ,index ->
-                                            isBottomBarClicked = false
+                                        onSongClicked = { song ,index->
+                                            isClickedFromList = true
+                                            if (isClickFromFiltered){
+                                                controller!!.setMediaItemsList(songs)
+                                                isClickFromFiltered = false
+                                            }
                                             if (controller!!.currentMediaItemIndex != index && isNewCreation){
+                                                /** if the creation for activity is new and for first time then
+                                                  set new mediaItems then reset the isNewCreation to false cuz if the
+                                                user click the item again there is no need to set mediaItems again since we did that before
+                                                and the activity is already created but if we remove the checking for new creation, then
+                                                 every time the user click the item the playing for item will start again from scratch
+                                                 instead of continue playing due to setMediaItems every click**/
                                                 controller!!.setMediaItemsList(songs)
                                                 isNewCreation = false
                                             }
                                             navController.navigate(PlayedSong(index))
                                         },
+                                        onFilteredSongClicked = { song, index, filteredSongs ->
+                                            isClickFromFiltered = true
+                                            isClickedFromList = false
+                                            controller!!.setMediaItemsList(filteredSongs)
+                                            viewModel.updateSongs(filteredSongs)
+                                            navController.navigate(PlayedSong(index))
+
+                                        },
                                         state = state,
                                         onPlayClicked = { onAction(PlayedSongAction.PlayPause) },
                                         onBottomBarClicked = {
-                                            isBottomBarClicked = true
                                             val index = if (state.playedSong != null) songs.indexOf(state.playedSong) else return@SongsList
                                             navController.navigate(PlayedSong(index))
                                         },
@@ -292,28 +340,6 @@ class MainActivity : ComponentActivity() {
                                 /*  typeMap = mapOf(
                                       typeOf<DisplayableDuration>() to CustomNavType.DisplayableDurationType
                                   )*/
-                                enterTransition = if (isBottomBarClicked){
-                                    {
-                                        slideInVertically(
-                                            animationSpec = tween(
-                                                durationMillis = 1000,
-                                                easing = FastOutSlowInEasing
-                                            ),
-                                            initialOffsetY = {it}
-                                        )
-                                    }
-                                } else null,
-                                exitTransition = if (isBottomBarClicked){
-                                    {
-                                        slideOutVertically(
-                                            animationSpec = tween(
-                                                durationMillis = 1000,
-                                                easing = FastOutSlowInEasing
-                                            ),
-                                            targetOffsetY = { it }
-                                        )
-                                    }
-                                } else null
                             ) {
 
                                 /*  val song = it.toRoute<SongUi>()
@@ -328,7 +354,6 @@ class MainActivity : ComponentActivity() {
                                     onAction = ::onAction,
                                     index = index,
                                     animatedVisibilityScope = this,
-                                    isBottomBarClicked = isBottomBarClicked
                                 )
 
                             }

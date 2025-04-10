@@ -42,6 +42,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
@@ -167,6 +168,13 @@ class PlayerSessionService : MediaSessionService() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        isAlive = false
+
+
+        scope.launch {
+            delay(2000)
+            isAlive = true
+        }
 
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -217,7 +225,7 @@ class PlayerSessionService : MediaSessionService() {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
-
+        Log.e("ks","onGetSession....")
         return mediaSession
     }
 
@@ -257,6 +265,11 @@ class PlayerSessionService : MediaSessionService() {
             scope.cancel()
             //mediaSession = null
         }
+    }
+
+
+    companion object{
+        var isAlive = false
     }
 
     /*

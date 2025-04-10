@@ -2,6 +2,10 @@ package com.k.sekiro.musico.playmusic.presenation.songs_list.component
 
 import android.util.Log
 import androidx.collection.LruCache
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -74,11 +78,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
+import com.k.sekiro.musico.core.presentaion.util.Constants
 import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun PlayedSongBottomBar(
+fun SharedTransitionScope.PlayedSongBottomBar(
     song: SongUi = mockSongs[0].toSongUi(),
     lurCache: LruCache<String, Palette> = LruCache(4 * 1024 * 1024),
     isPlaying: Boolean = false,
@@ -86,6 +92,7 @@ fun PlayedSongBottomBar(
     currentPosition: Long,
     onPlayClicked: () -> Unit = {},
     onClicked: () -> Unit = {},
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onAction: (PlayedSongAction) -> Unit = {},
 ) {
 
@@ -120,11 +127,11 @@ fun PlayedSongBottomBar(
     }
 
 
-/*    Log.e(
-        "ks",
-        "tween duration for progress :${(song.displayableDuration.durationMillis * (progress / 100f)).toInt()}"
-    )
-    Log.e("ks", "progress in 360: ${progressAnim.value * 360f / 100f}")*/
+    /*    Log.e(
+            "ks",
+            "tween duration for progress :${(song.displayableDuration.durationMillis * (progress / 100f)).toInt()}"
+        )
+        Log.e("ks", "progress in 360: ${progressAnim.value * 360f / 100f}")*/
 
 
     /*    LaunchedEffect(isPlaying,currentPosition) {
@@ -226,23 +233,33 @@ fun PlayedSongBottomBar(
                     color = Color.White,
                     fontSize = 16.sp,
                     maxLines = 1,
-                    modifier = Modifier.applyIf(
-                        song.name.length >= 30,
-                        modifier = {
-                            basicMarquee(
-                                iterations = Int.MAX_VALUE,
-                                initialDelayMillis = 0,
-                                repeatDelayMillis = 1000
-                            )
-                        }
-                    )
+                    modifier = Modifier
+                        .sharedBounds(
+                            sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${song.path}"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                        .applyIf(
+                            song.name.length >= 30,
+                            modifier = {
+                                basicMarquee(
+                                    iterations = Int.MAX_VALUE,
+                                    initialDelayMillis = 0,
+                                    repeatDelayMillis = 1000
+                                )
+                            }
+                        )
                 )
                 Text(
                     text = song.artist,
                     color = Color.White,
                     fontSize = 12.sp,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .sharedBounds(
+                            sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${song.path}"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
                 )
             }
 
@@ -295,17 +312,29 @@ fun PlayedSongBottomBar(
 
         }
 
-        SongCD(song.cover.toUri(), isPlaying = isPlaying)
+        SongCD(
+            song.cover.toUri(),
+            isPlaying = isPlaying,
+            animatedVisibilityScope = animatedVisibilityScope,
+            path = song.path
+        )
     }
 
 
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
 private fun PlayedSongBottomBarPrev() {
-    PlayedSongBottomBar(
-        progress = 180f,
-        currentPosition = 0L,
-    )
+    SharedTransitionScope {
+        AnimatedVisibility(true) {
+            PlayedSongBottomBar(
+                progress = 180f,
+                currentPosition = 0L,
+                animatedVisibilityScope = this
+            )
+        }
+    }
+
 }

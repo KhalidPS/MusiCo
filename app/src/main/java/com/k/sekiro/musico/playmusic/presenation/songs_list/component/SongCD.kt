@@ -2,6 +2,10 @@ package com.k.sekiro.musico.playmusic.presenation.songs_list.component
 
 import android.net.Uri
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.MutableTransitionState
@@ -51,12 +55,16 @@ import com.k.sekiro.musico.R
 import kotlin.random.Random
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import com.k.sekiro.musico.core.presentaion.util.Constants
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun SongCD(
+fun SharedTransitionScope.SongCD(
     cover: Uri,
+    path: String = "",
     radius: Dp = 60.dp,
-    isPlaying: Boolean = true
+    isPlaying: Boolean = true,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val painter = rememberAsyncImagePainter(cover)
     val painterState = painter.state.collectAsState()
@@ -217,6 +225,10 @@ fun SongCD(
             contentDescription = "song cover",
             contentScale = ContentScale.Crop,
             modifier = Modifier
+                .sharedBounds(
+                    sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_$path"),
+                    animatedVisibilityScope = animatedVisibilityScope
+                )
                 .size(40.dp)
                 .clip(CircleShape)
 /*                .drawWithContent {
@@ -255,8 +267,14 @@ fun SongCD(
 }
 
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
 private fun SongCDPrev() {
-    SongCD(Uri.parse(""))
+    SharedTransitionScope {
+        AnimatedVisibility(true) {
+            SongCD(Uri.parse(""), animatedVisibilityScope = this)
+
+        }
+    }
 }

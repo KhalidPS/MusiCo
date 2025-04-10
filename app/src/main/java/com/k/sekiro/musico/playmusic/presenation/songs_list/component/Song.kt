@@ -41,12 +41,10 @@ import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun SharedTransitionScope.Song(
+fun Song(
     modifier: Modifier = Modifier,
     song: SongUi,
-    animatedVisibilityScope: AnimatedVisibilityScope,
     onClick:(SongUi) -> Unit = {},
     onShareClick:() -> Unit = {},
     onMoreActionClick: () -> Unit = {}
@@ -87,10 +85,6 @@ fun SharedTransitionScope.Song(
             contentDescription = "song album cover",
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .sharedBounds(
-                    sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_${song.path}"),
-                     animatedVisibilityScope = animatedVisibilityScope
-                )
                 .clip(RoundedCornerShape(12.dp))
                 .size(70.dp)
 
@@ -105,10 +99,6 @@ fun SharedTransitionScope.Song(
                 text = song.name,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .sharedBounds(
-                        sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${song.path}"),
-                        animatedVisibilityScope = animatedVisibilityScope
-                    )
                     .widthIn(max = 165.dp)
                     .padding(bottom = 8.dp),
                 maxLines = 1,
@@ -120,10 +110,6 @@ fun SharedTransitionScope.Song(
                 color = Color.Gray,
                 maxLines = 1,
                 modifier = Modifier
-                    .sharedBounds(
-                        sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${song.path}"),
-                        animatedVisibilityScope = animatedVisibilityScope
-                    )
                     .widthIn(max = 166.dp)
 
             )
@@ -148,16 +134,7 @@ fun SharedTransitionScope.Song(
 @Preview
 @Composable
 private fun SongPrev() {
-
-    SharedTransitionLayout {
-        AnimatedVisibility(true) {
             Song(
-                song = mockSongs[1].toSongUi(),
-                animatedVisibilityScope = this
+                song = mockSongs[1].toSongUi()
             )
-        }
-    }
-
-
-
 }

@@ -88,6 +88,38 @@ fun MediaController?.setMediaItemsList(songs: List<SongUi>) {
     }
 }
 
+@OptIn(UnstableApi::class)
+fun MediaController?.setMediaItemsList(songs: List<SongUi>,startIndex: Int,startProgress: Long) {
+    try {
+        songs.map { song ->
+            MediaItem.Builder()
+                .setUri(song.dataUri)
+                .setMediaId("${song.name}_${song.dataUri}")
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setArtworkUri(song.cover.toUri())
+                        .setTitle(song.artist)
+                        .setDisplayTitle(song.name)
+                        .setAlbumTitle(song.album)
+                        .setArtist(song.artist)
+                        .build()
+                ).build()
+        }.also {
+            this!!.setMediaItems(it,startIndex,startProgress)
+            this.prepare()
+        }
+    } catch (ex: DataSourceException) {
+        Log.e("ks", "converting song to MediaItem problem :${ex}")
+    } catch (ex: FileDataSource.FileDataSourceException) {
+        Log.e("ks", "converting song to MediaItem problem :${ex}")
+    } catch (ex: Exception) {
+        Log.e("ks", "converting song to MediaItem problem :${ex}")
+
+    }
+}
+
+
+
 fun stopProgressUpdate(viewModel: PlayedSongViewModel) {
     viewModel.updateIsPlaying(false)
     scope?.cancel()

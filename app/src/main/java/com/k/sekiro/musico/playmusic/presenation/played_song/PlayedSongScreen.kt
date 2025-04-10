@@ -44,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -59,12 +60,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
@@ -83,6 +86,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 import kotlin.math.absoluteValue
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -92,7 +96,6 @@ fun SharedTransitionScope.PlayedSongScreen(
     lurCache: LruCache<String, Palette>,
     state: PlayedSongState,
     index: Int = 0,
-    isBottomBarClicked: Boolean = false,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onAction:(PlayedSongAction) -> Unit
 ) {
@@ -111,7 +114,9 @@ fun SharedTransitionScope.PlayedSongScreen(
 
     var spotColor by remember { mutableStateOf(Color.Cyan) }
 
-    var progressValue by remember { mutableFloatStateOf(0f) }
+    var sliderValue by remember { mutableFloatStateOf(0f) }
+
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     /*    val infiniteTransition = rememberInfiniteTransition(label = "")
         val colorAnimation = infiniteTransition.animateFloat(
@@ -448,12 +453,10 @@ fun SharedTransitionScope.PlayedSongScreen(
                         //bitmap = songs[it].cover.asImageBitmap(),
                         contentDescription = null,
                         modifier = Modifier
-                            .applyIfComposable(!isBottomBarClicked){
-                                sharedBounds(
+                            .sharedBounds(
                                     sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_${state.songs[it].path}"),
                                     animatedVisibilityScope = animatedVisibilityScope
                                 )
-                            }
                             .applyIf(
                                 condition = pagerState.currentPage == it && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
                                 modifier = {
@@ -505,13 +508,10 @@ fun SharedTransitionScope.PlayedSongScreen(
                     fontWeight = FontWeight.Black,
                     textAlign = TextAlign.Start,
                     modifier = Modifier
-                        .applyIfComposable(!isBottomBarClicked){
-                            sharedBounds(
+                            .sharedBounds(
                                 sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${state.songs[pagerState.currentPage].path}"),
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
-                        }
-
                         .fillMaxWidth()
                         .padding(
                             horizontal = 12.dp,
@@ -528,13 +528,10 @@ fun SharedTransitionScope.PlayedSongScreen(
                     fontSize = 20.sp,
                     textAlign = TextAlign.Start,
                     modifier = Modifier
-                        .applyIfComposable(!isBottomBarClicked){
-                            sharedBounds(
+                        .sharedBounds(
                                 sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${state.songs[pagerState.currentPage].path}"),
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
-                        }
-
                         .fillMaxWidth()
                         .padding(
                             horizontal = 12.dp,
@@ -550,11 +547,11 @@ fun SharedTransitionScope.PlayedSongScreen(
                 Slider(
                     value = state.sliderProgress,
                     onValueChange = {
-                        progressValue = it
+                        sliderValue = it
                         onAction(PlayedSongAction.UpdateProgress(it))
                     },
                     onValueChangeFinished = {
-                        onAction(PlayedSongAction.SeekTo(progressValue))
+                        onAction(PlayedSongAction.SeekTo(sliderValue))
 
                     },
                     valueRange = 0f..100f,
@@ -618,7 +615,11 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                         ) {
                         Icon(
-                            imageVector = Icons.Default.SkipPrevious,
+                            imageVector = if (isRtl){
+                                Icons.Default.SkipNext
+                            }else{
+                                Icons.Default.SkipPrevious
+                            },
                             contentDescription = null,
                             modifier = Modifier.size(30.dp),
                             tint = Color.White
@@ -658,7 +659,11 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                         ) {
                         Icon(
-                            imageVector = Icons.Default.SkipNext,
+                            imageVector = if (isRtl){
+                                Icons.Default.SkipPrevious
+                            }else{
+                                Icons.Default.SkipNext
+                            },
                             contentDescription = null,
                             modifier = Modifier.size(30.dp),
                             tint = Color.White,

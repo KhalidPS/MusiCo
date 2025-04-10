@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -69,7 +70,8 @@ fun SharedTransitionScope.SongsList(
     songs: List<SongUi>,
     state: PlayedSongState,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onSongClicked: (SongUi, index: Int) -> Unit = { _, _ -> },
+    onSongClicked: (SongUi, index: Int) -> Unit = { _, _->},
+    onFilteredSongClicked:(SongUi, Int,List<SongUi>) -> Unit = { _, _,_->},
     onPlayClicked:() -> Unit = {},
     onBottomBarClicked:() -> Unit = {},
     onAction:(PlayedSongAction) -> Unit = {}
@@ -85,6 +87,7 @@ fun SharedTransitionScope.SongsList(
                 currentPosition = state.currentPosition,
                 onClicked = onBottomBarClicked,
                 onAction = onAction,
+                animatedVisibilityScope = animatedVisibilityScope
             )
         }
     ) {
@@ -133,15 +136,13 @@ fun SharedTransitionScope.SongsList(
                     }
                     .padding(horizontal = 4.dp)
             ) {
-                val filteredSongs =
-                    mockSongs.filter { it.name.contains(value, true) }.map { it.toSongUi() }
+                val filteredSongs = songs.filter { it.name.contains(value, true) }
 
                 LazyColumn {
                     itemsIndexed(filteredSongs) { index, song ->
                         Song(
                             song = song,
-                            onClick = { onSongClicked(it, index) },
-                            animatedVisibilityScope = animatedVisibilityScope
+                            onClick = { onFilteredSongClicked(it, index,filteredSongs) }
                         )
                     }
                 }
@@ -190,8 +191,7 @@ fun SharedTransitionScope.SongsList(
                 itemsIndexed(songs) { index, song ->
                     Song(
                         song = song,
-                        onClick = { onSongClicked(it, index) },
-                        animatedVisibilityScope = animatedVisibilityScope
+                        onClick = { onSongClicked(it, index) }
                     )
                 }
 
