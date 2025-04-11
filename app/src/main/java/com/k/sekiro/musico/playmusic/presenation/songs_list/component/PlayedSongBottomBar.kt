@@ -8,16 +8,25 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FloatExponentialDecaySpec
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.repeatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.DraggableAnchors
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -28,9 +37,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.overscroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,8 +53,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,11 +91,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import com.k.sekiro.musico.core.presentaion.util.Constants
 import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.roundToInt
 
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun SharedTransitionScope.PlayedSongBottomBar(
     song: SongUi = mockSongs[0].toSongUi(),
@@ -100,6 +118,28 @@ fun SharedTransitionScope.PlayedSongBottomBar(
     // val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
 
     var bottomBarColor by remember { mutableStateOf(Color.White) }
+
+    val draggableState = remember { AnchoredDraggableState(
+        initialValue = "Reset",
+        snapAnimationSpec = tween(),
+        decayAnimationSpec = exponentialDecay(),
+        velocityThreshold = { 1f},
+        positionalThreshold = { it}
+
+    ) }
+
+    var swipeOffset by remember { mutableFloatStateOf(0f) }
+    val overScroller = ScrollableDefaults.overscrollEffect()
+
+    val density = LocalDensity.current
+    val anchors = remember(density){
+        swipeOffset = with(density){ 48.dp.toPx() }
+        DraggableAnchors {
+            "Reset" at 0f
+            "Swipe" at swipeOffset
+        }
+    }
+
 
 
     /*    val infiniteTransition = rememberInfiniteTransition("song name animation")
@@ -151,6 +191,19 @@ fun SharedTransitionScope.PlayedSongBottomBar(
 
 
         }*/
+
+    SideEffect { draggableState.updateAnchors(anchors) }
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { draggableState.settledValue }.collectLatest {
+            if (it == "Swipe"){
+                delay(300)
+                draggableState.animateTo("Reset")
+                onAction(PlayedSongAction.SeekToNext)
+
+            }
+        }
+    }
 
 
 
@@ -225,6 +278,18 @@ fun SharedTransitionScope.PlayedSongBottomBar(
             Column(
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier.weight(1f)
+                    .anchoredDraggable(
+                        state = draggableState,
+                        orientation = Orientation.Horizontal,
+                        overscrollEffect = overScroller
+                    )
+                    .offset{
+                        IntOffset(
+                            x = draggableState.requireOffset().roundToInt(),
+                            y = 0
+                        )
+                    }
+                    .overscroll(overScroller)
             ) {
 
 
