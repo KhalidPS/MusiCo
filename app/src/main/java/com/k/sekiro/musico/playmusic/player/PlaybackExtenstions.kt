@@ -32,25 +32,28 @@ fun MediaController?.addMediaItem(mediaItem: MediaItem) {
     this!!.prepare()
 }
 
-suspend fun MediaController?.playOrPause(viewModel: PlayedSongViewModel) {
+suspend fun MediaController?.playOrPause(
+    calculateProgress: (Long) -> Unit,
+    updateIsPlaying:(Boolean)-> Unit
+) {
     if (this!!.isPlaying) {
         this.pause()
-        stopProgressUpdate(viewModel)
+        stopProgressUpdate(updateIsPlaying)
     } else {
         this.play()
-        viewModel.updateIsPlaying(true)
-        startProgressUpdate(viewModel)
+        updateIsPlaying(true)
+        startProgressUpdate(calculateProgress)
     }
 }
 
-suspend fun MediaController?.startProgressUpdate(viewModel: PlayedSongViewModel) {
+suspend fun MediaController?.startProgressUpdate(calculateProgress:(Long) -> Unit) {
     scope?.cancel()
     coroutineScope {
         scope = this
         launch {
             while (isActive) {
                 delay(500)
-                viewModel.calculateProgressValue(this@startProgressUpdate!!.currentPosition)
+                calculateProgress(this@startProgressUpdate!!.currentPosition)
                 Log.e("ks","progressing..........................")
             }
         }
@@ -120,13 +123,13 @@ fun MediaController?.setMediaItemsList(songs: List<SongUi>,startIndex: Int,start
 
 
 
-fun stopProgressUpdate(viewModel: PlayedSongViewModel) {
-    viewModel.updateIsPlaying(false)
+fun stopProgressUpdate(updateIsPlaying:(Boolean) -> Unit) {
+    updateIsPlaying(false)
     scope?.cancel()
 }
 
 
-fun MediaController?.onChangPlayType(type: PlayType, viewModel: PlayedSongViewModel) {
+fun MediaController?.onChangPlayType(type: PlayType, updatePlayType:(PlayType) -> Unit) {
     when (type) {
         PlayType.RepeatAll -> {
             this!!.shuffleModeEnabled = false
@@ -151,7 +154,7 @@ fun MediaController?.onChangPlayType(type: PlayType, viewModel: PlayedSongViewMo
         }
     }
 
-    viewModel.updatePlayType(type)
+    updatePlayType(type)
 
 }
 

@@ -111,10 +111,10 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
             if (isPlaying) {
                 lifecycleScope.launch {
-                    controller!!.startProgressUpdate(viewModel)
+                    controller!!.startProgressUpdate(viewModel::calculateProgressValue)
                 }
             } else {
-                stopProgressUpdate(viewModel)
+                stopProgressUpdate(viewModel::updateIsPlaying)
             }
         }
 
@@ -206,7 +206,7 @@ class MainActivity : ComponentActivity() {
                             Log.e("ks", "Played song not null: ${viewModel.getPlayedSong()}")
 
                             withContext(Dispatchers.Main){
-                                controller!!.startProgressUpdate(viewModel)
+                                controller!!.startProgressUpdate(viewModel::calculateProgressValue)
                             }
 
 
@@ -392,24 +392,31 @@ class MainActivity : ComponentActivity() {
             PlayerEvent.Forward -> controller!!.seekForward()
             PlayerEvent.SeekToNext -> controller!!.seekToNext()
             PlayerEvent.SeekToPrevious -> controller!!.seekToPrevious()
-            PlayerEvent.PlayPause -> controller!!.playOrPause(viewModel)
+            PlayerEvent.PlayPause -> controller!!.playOrPause(
+                viewModel::calculateProgressValue,
+                viewModel::updateIsPlaying
+            )
+
             PlayerEvent.SeekTo -> controller!!.seekTo(seekPosition)
             PlayerEvent.SelectedAudioChange -> {
                 when (selectedAudioIndex) {
                     controller!!.currentMediaItemIndex -> {
-                        controller!!.playOrPause(viewModel)
+                        controller!!.playOrPause(
+                            viewModel::calculateProgressValue,
+                            viewModel::updateIsPlaying
+                            )
                     }
 
                     else -> {
                         controller!!.seekToDefaultPosition(selectedAudioIndex)
                         viewModel.updateIsPlaying(true)
                         controller!!.playWhenReady = true
-                        controller!!.startProgressUpdate(viewModel)
+                        controller!!.startProgressUpdate(viewModel::calculateProgressValue)
                     }
                 }
             }
 
-            PlayerEvent.Stop -> stopProgressUpdate(viewModel)
+            PlayerEvent.Stop -> stopProgressUpdate(viewModel::updateIsPlaying)
 
             is PlayerEvent.UpdateProgress -> {
                 viewModel.updateProgress(playerEvent.newProgress)
@@ -417,7 +424,7 @@ class MainActivity : ComponentActivity() {
             }
 
             is PlayerEvent.ChangePlayType -> {
-                controller!!.onChangPlayType(playerEvent.type,viewModel)
+                controller!!.onChangPlayType(playerEvent.type,viewModel::updatePlayType)
             }
 
             is PlayerEvent.ClickNotification -> {
