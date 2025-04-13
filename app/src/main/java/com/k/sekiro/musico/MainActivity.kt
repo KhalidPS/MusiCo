@@ -34,6 +34,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -276,7 +277,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
 
 
-                    val state = viewModel.state.collectAsState(PlayedSongState()).value
+                    val state = viewModel.state.collectAsStateWithLifecycle().value
                     val songs = state.songs
 
 
@@ -390,8 +391,22 @@ class MainActivity : ComponentActivity() {
         when (playerEvent) {
             PlayerEvent.Backward -> controller!!.seekBack()
             PlayerEvent.Forward -> controller!!.seekForward()
-            PlayerEvent.SeekToNext -> controller!!.seekToNext()
-            PlayerEvent.SeekToPrevious -> controller!!.seekToPrevious()
+            PlayerEvent.SeekToNext -> {
+                if (controller!!.repeatMode == Player.REPEAT_MODE_ONE && controller!!.currentMediaItemIndex == controller!!.mediaItemCount -1){
+                    controller!!.seekTo(0,0L)
+                }else{
+                    controller!!.seekToNextMediaItem()
+
+                }
+            }
+            PlayerEvent.SeekToPrevious -> {
+                if (controller!!.repeatMode == Player.REPEAT_MODE_ONE && controller!!.currentMediaItemIndex == 0){
+                    controller!!.seekTo(controller!!.mediaItemCount -1,0L)
+                }else{
+                    controller!!.seekToPreviousMediaItem()
+
+                }
+            }
             PlayerEvent.PlayPause -> controller!!.playOrPause(
                 viewModel::calculateProgressValue,
                 viewModel::updateIsPlaying

@@ -96,6 +96,7 @@ import androidx.compose.ui.unit.IntOffset
 import com.k.sekiro.musico.core.presentaion.util.Constants
 import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
+import com.k.sekiro.musico.playmusic.presenation.songs_list.DraggableState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.roundToInt
@@ -120,7 +121,7 @@ fun SharedTransitionScope.PlayedSongBottomBar(
     var bottomBarColor by remember { mutableStateOf(Color.White) }
 
     val draggableState = remember { AnchoredDraggableState(
-        initialValue = "Reset",
+        initialValue = DraggableState.Reset,
         snapAnimationSpec = tween(),
         decayAnimationSpec = exponentialDecay(),
         velocityThreshold = { 1f},
@@ -128,33 +129,22 @@ fun SharedTransitionScope.PlayedSongBottomBar(
 
     ) }
 
-    var swipeOffset by remember { mutableFloatStateOf(0f) }
+    var swipeRightOffset by remember { mutableFloatStateOf(0f) }
+    var swipeLeftOffset by remember { mutableFloatStateOf(0f) }
     val overScroller = ScrollableDefaults.overscrollEffect()
-
     val density = LocalDensity.current
+
     val anchors = remember(density){
-        swipeOffset = with(density){ 48.dp.toPx() }
+        swipeRightOffset = with(density){ 48.dp.toPx() }
+        swipeLeftOffset = with(density){ -48.dp.toPx() }
         DraggableAnchors {
-            "Reset" at 0f
-            "Swipe" at swipeOffset
+            DraggableState.Reset at 0f
+            DraggableState.SwipeRight at swipeRightOffset
+            DraggableState.SwipeLeft at swipeLeftOffset
         }
     }
 
 
-
-    /*    val infiniteTransition = rememberInfiniteTransition("song name animation")
-        val translationXValue by infiniteTransition.animateFloat(
-            initialValue = 1f,
-            targetValue = screenWidth,
-            animationSpec = infiniteRepeatable(
-                animation = tween(5000),
-                repeatMode = RepeatMode.Restart
-            )
-
-        )*/
-
-    //var oldAnimValue by remember { mutableStateOf(progress) }
-    //val progressAnim  = remember (isPlaying){ Animatable(progress) }
     val progressAnim = key(currentPosition) {
         animateFloatAsState(
             targetValue = progress,
@@ -167,40 +157,20 @@ fun SharedTransitionScope.PlayedSongBottomBar(
     }
 
 
-    /*    Log.e(
-            "ks",
-            "tween duration for progress :${(song.displayableDuration.durationMillis * (progress / 100f)).toInt()}"
-        )
-        Log.e("ks", "progress in 360: ${progressAnim.value * 360f / 100f}")*/
-
-
-    /*    LaunchedEffect(isPlaying,currentPosition) {
-            Log.e("ks","the current position : $currentPosition")
-            if (isPlaying){
-                progressAnim.animateTo(
-                    targetValue = progress,
-                    animationSpec = tween(
-                        //((song.displayableDuration.durationMillis - currentPosition)).toInt(),
-                        (song.displayableDuration.durationMillis * (progress/100f)).toInt(),
-                        easing = LinearEasing
-                    )
-                ){
-                   // oldAnimValue = value
-                }
-            }
-
-
-        }*/
 
     SideEffect { draggableState.updateAnchors(anchors) }
 
     LaunchedEffect(Unit) {
         snapshotFlow { draggableState.settledValue }.collectLatest {
-            if (it == "Swipe"){
+            if (it == DraggableState.SwipeRight){
                 delay(300)
-                draggableState.animateTo("Reset")
+                draggableState.animateTo(DraggableState.Reset)
                 onAction(PlayedSongAction.SeekToNext)
 
+            }else if (it == DraggableState.SwipeLeft){
+                delay(300)
+                draggableState.animateTo(DraggableState.Reset)
+                onAction(PlayedSongAction.SeekToPrevious)
             }
         }
     }
