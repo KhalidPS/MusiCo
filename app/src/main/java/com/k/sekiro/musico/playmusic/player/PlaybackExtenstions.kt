@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -78,32 +79,35 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Con
         try {
             songs.map { song ->
 
-                val uri = song.cover.toUri()
+                async(Dispatchers.Default){
+                    val uri = song.cover.toUri()
 
-                /** check if image uri is valid if not then put placeholder from drawable **/
-                val cover = async(Dispatchers.Default){
-                    if (isUriValid(context, uri)) {
-                        uri
-                    } else {
-                        getUriFromDrawable(context, R.drawable.logo_2)
-                    }
+                    /** check if image uri is valid if not then put placeholder from drawable **/
+                    val cover =
+                        if (isUriValid(context, uri)) {
+                            uri
+                        } else {
+                            getUriFromDrawable(context, R.drawable.logo_2)
+                        }
+
+
+
+                    MediaItem.Builder()
+                        .setUri(song.dataUri)
+                        .setMediaId("${song.name}_${song.dataUri}")
+                        .setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setArtworkUri(cover)
+                                .setTitle(song.artist)
+                                .setDisplayTitle(song.name)
+                                .setAlbumTitle(song.album)
+                                .setArtist(song.artist)
+                                .build()
+                        ).build()
                 }
 
-
-                MediaItem.Builder()
-                    .setUri(song.dataUri)
-                    .setMediaId("${song.name}_${song.dataUri}")
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setArtworkUri(cover.await())
-                            .setTitle(song.artist)
-                            .setDisplayTitle(song.name)
-                            .setAlbumTitle(song.album)
-                            .setArtist(song.artist)
-                            .build()
-                    ).build()
             }.also {
-                this@setMediaItemsList!!.setMediaItems(it)
+                this@setMediaItemsList!!.setMediaItems(it.awaitAll())
                 this@setMediaItemsList.prepare()
             }
         } catch (ex: DataSourceException) {
