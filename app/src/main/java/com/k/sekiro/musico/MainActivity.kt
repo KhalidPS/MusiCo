@@ -302,7 +302,10 @@ class MainActivity : ComponentActivity() {
                                                 and the activity is already created but if we remove the checking for new creation, then
                                                  every time the user click the item the playing for item will start again from scratch
                                                  instead of continue playing due to setMediaItems every click**/
-                                                controller!!.setMediaItemsList(songs)
+
+                                                lifecycleScope.launch {
+                                                    controller!!.setMediaItemsList(songs,this@MainActivity)
+                                                }
                                                 isNewCreation = false
                                             }
                                             navController.navigate(PlayedSong(index))

@@ -59,7 +59,7 @@ class PlayerSessionService : MediaSessionService() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val notificationPlayerCustomCommandButtons =
-        NotificationPlayerCustomCommand.values().map { it.commandButton }
+        NotificationPlayerCustomCommand.entries.map { it.commandButton }
 
 
     val sessionCallback = object : MediaSession.Callback {
