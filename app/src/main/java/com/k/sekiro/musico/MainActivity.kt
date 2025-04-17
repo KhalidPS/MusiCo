@@ -71,6 +71,7 @@ import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongState
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
+import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.PermissionGate
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import kotlinx.coroutines.Dispatchers
@@ -89,9 +90,7 @@ class MainActivity : ComponentActivity() {
     lateinit var controllerFuture: ListenableFuture<MediaController>
     val lruCache: LruCache<String, Palette> by inject()
     private val viewModel: PlayedSongViewModel by viewModel()
-    val dataStore: DataStore<Preferences> by inject()
     val sharedPref: SharedPreferences by inject()
-    var progressJob: Job? = null
     var isNewCreation = false
 
 
@@ -155,23 +154,6 @@ class MainActivity : ComponentActivity() {
     @ExperimentalSharedTransitionApi
     @OptIn(ExperimentalSharedTransitionApi::class, UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
-
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestPermissions(arrayOf(Manifest.permission.READ_MEDIA_AUDIO), 0)
-        } else {
-            requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 0)
-
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            requestPermissions(arrayOf(Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK), 1)
-
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2)
-        }
-
 
         super.onCreate(savedInstanceState)
 
@@ -277,78 +259,80 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
 
 
-                    val state = viewModel.state.collectAsStateWithLifecycle().value
-                    val songs = state.songs
+                    PermissionGate {
+                        SharedTransitionLayout {
 
-
-
-                    SharedTransitionLayout {
-                        NavHost(
-                            navController = navController,
-                            startDestination = Home::class,
-                            modifier = Modifier.padding(innerPadding)
-                        ) {
-
-
-                            composable<Home> {
-                                if (!songs.isEmpty()) {
-                                    SongsList(
-                                        songs = songs,
-                                        onSongClicked = { song ,index->
-                                            if (controller!!.currentMediaItemIndex != index && isNewCreation){
-                                                /** if the creation for activity is new and for first time then
-                                                  set new mediaItems then reset the isNewCreation to false cuz if the
-                                                user click the item again there is no need to set mediaItems again since we did that before
-                                                and the activity is already created but if we remove the checking for new creation, then
-                                                 every time the user click the item the playing for item will start again from scratch
-                                                 instead of continue playing due to setMediaItems every click**/
-
-                                                lifecycleScope.launch {
-                                                    controller!!.setMediaItemsList(songs,this@MainActivity)
-                                                }
-                                                isNewCreation = false
-                                            }
-                                            navController.navigate(PlayedSong(index))
-                                        },
-                                        state = state,
-                                        onPlayClicked = { onAction(PlayedSongAction.PlayPause) },
-                                        onBottomBarClicked = {
-                                            val index = if (state.playedSong != null) songs.indexOf(state.playedSong) else return@SongsList
-                                            navController.navigate(PlayedSong(index))
-                                        },
-                                        animatedVisibilityScope = this,
-                                        onAction = ::onAction
-                                    )
-                                } else {
-                                    LoadingScreen()
-                                }
-                            }
-
-
-                            composable<PlayedSong>(
-                                /*  typeMap = mapOf(
-                                      typeOf<DisplayableDuration>() to CustomNavType.DisplayableDurationType
-                                  )*/
+                            val state = viewModel.state.collectAsStateWithLifecycle().value
+                            val songs = state.songs
+                            NavHost(
+                                navController = navController,
+                                startDestination = Home::class,
+                                modifier = Modifier.padding(innerPadding)
                             ) {
 
-                                /*  val song = it.toRoute<SongUi>()
-                                  val index = state.songs.indexOf(song)*/
 
-                                val index = it.toRoute<PlayedSong>().index
+                                composable<Home> {
+                                    if (!songs.isEmpty()) {
+                                        SongsList(
+                                            songs = songs,
+                                            onSongClicked = { song ,index->
+                                                if (controller!!.currentMediaItemIndex != index && isNewCreation){
+                                                    /** if the creation for activity is new and for first time then
+                                                    set new mediaItems then reset the isNewCreation to false cuz if the
+                                                    user click the item again there is no need to set mediaItems again since we did that before
+                                                    and the activity is already created but if we remove the checking for new creation, then
+                                                    every time the user click the item the playing for item will start again from scratch
+                                                    instead of continue playing due to setMediaItems every click**/
+
+                                                    lifecycleScope.launch {
+                                                        controller!!.setMediaItemsList(songs,this@MainActivity)
+                                                    }
+                                                    isNewCreation = false
+                                                }
+                                                navController.navigate(PlayedSong(index))
+                                            },
+                                            state = state,
+                                            onPlayClicked = { onAction(PlayedSongAction.PlayPause) },
+                                            onBottomBarClicked = {
+                                                val index = if (state.playedSong != null) songs.indexOf(state.playedSong) else return@SongsList
+                                                navController.navigate(PlayedSong(index))
+                                            },
+                                            animatedVisibilityScope = this,
+                                            onAction = ::onAction
+                                        )
+                                    } else {
+                                        LoadingScreen()
+                                    }
+                                }
 
 
-                                PlayedSongScreen(
-                                    lurCache = lruCache,
-                                    state = state,
-                                    onAction = ::onAction,
-                                    index = index,
-                                    animatedVisibilityScope = this,
-                                )
+                                composable<PlayedSong>(
+                                    /*  typeMap = mapOf(
+                                          typeOf<DisplayableDuration>() to CustomNavType.DisplayableDurationType
+                                      )*/
+                                ) {
+
+                                    /*  val song = it.toRoute<SongUi>()
+                                      val index = state.songs.indexOf(song)*/
+
+                                    val index = it.toRoute<PlayedSong>().index
+
+
+                                    PlayedSongScreen(
+                                        lurCache = lruCache,
+                                        state = state,
+                                        onAction = ::onAction,
+                                        index = index,
+                                        animatedVisibilityScope = this,
+                                    )
+
+                                }
 
                             }
-
                         }
+
                     }
+
 
 
 

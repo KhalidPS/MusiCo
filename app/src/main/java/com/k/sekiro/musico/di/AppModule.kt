@@ -40,7 +40,6 @@ import com.k.sekiro.musico.playmusic.player.notification.MusiCoNotificationManag
 import com.k.sekiro.musico.playmusic.player.notification.NotificationPlayerCustomCommand
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
-import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.RequestPermissionScreenViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import org.koin.android.ext.koin.androidContext
