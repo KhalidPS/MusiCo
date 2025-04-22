@@ -125,7 +125,6 @@ class PlayedSongViewModel(
 
     private fun getAllSongsFromLocal() {
         viewModelScope.launch(Dispatchers.IO) {
-            /** First step is show all songs either from room or from local storage**/
 /*
             savedStateHandle[stateKey] = savedStateHandle.get<PlayedSongState>(stateKey)?.copy(
                 songs = songsRepository.getAllStorageSongs().map { it.toSongUi() }
@@ -138,48 +137,10 @@ class PlayedSongViewModel(
             }*/
 
             val roomSongs = songsRepository.getSongsFromRoom()
-            val roomSongsMapped = roomSongs
-                .filter { it.path.endsWith(".mp3") }.map {
-            it.toSongUi()
-        }
-
             val songsFromLocal = songsRepository.getAllStorageSongs()
-            val songsFromLocalMapped = songsFromLocal
-                .filter { it.path.endsWith(".mp3") }.map {
-                    it.toSongUi()
-                }
-
-            val songs = if (roomSongs.isNotEmpty()) {
-                Log.e("ks","room is not empty")
-                roomSongsMapped
-
-            } else {
-                Log.e("ks","room is empty")
-                songsRepository.addSongs(songsFromLocal)
-                songsFromLocalMapped
-            }
-
-            _state.update {
-                //delay(1000)
-
-                it.copy(
-                    songs = songs
-                )
-
-            }
-
-            delay(500) /** Next step is update the songs list by compare the songs in local storage with ones in room
-            to see if there are new songs added to storage by downloading them or share them from friends, etc..**/
 
             if (roomSongs.isNotEmpty()){
 
-                /** Showing the songs directly from local storage until handle changes to room**/
-                if (roomSongsMapped.toString() != songsFromLocalMapped.toString()){
-                    _state.update {
-                        it.copy(
-                            songs = songsFromLocalMapped
-                        )
-                    }
 
                     val songsToBeAdded = async { songsFromLocal.filter { it !in roomSongs } }/** which songs are new in local storage
                      and not in room to be added**/
@@ -188,20 +149,22 @@ class PlayedSongViewModel(
 
                     songsRepository.deleteSongs(songsToBeDeleted.await())
                     songsRepository.addSongs(songsToBeAdded.await())
-                }
-            }
+                }else{
+                    songsRepository.addSongs(songsFromLocal)
+                 }
+
 
             /** At the end update the state with room songs cuz all other operations would be on room
              * songs not local ones (e.g playlists and their relationships with songs ids) so the dela would
-             * with room at the end**/
+             * **/
                 _state.update {
                     it.copy(
                         songs = songsRepository.getSongsFromRoom().map { it.toSongUi() }
                     )
                 }
-
+            }
         }
-    }
+
 
 
     private suspend fun <T> SavedStateHandle.update(key: String, function: suspend (T?) -> T?) {

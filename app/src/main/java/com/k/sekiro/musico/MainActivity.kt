@@ -203,7 +203,7 @@ class MainActivity : ComponentActivity() {
                         val displayTitle = sharedPref.getString("title","")
                         var index = sharedPref.getInt("index",0)
                         /** Previously I was get the saved index from pref and then get the last played song
-                        but this would not be good solution in some scenarios (e.g if imagine pause the player
+                        but this would not be good solution in some scenarios (e.g if pause the player
                         and close the app this will save the index then u downloaded new song then u open app
                         again the problem is that the played song would be now not the song u expected to be which is the
                         last one played before u close the app, instead it would be the previous song for the song u expected to be
