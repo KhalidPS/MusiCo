@@ -28,6 +28,7 @@ import androidx.compose.material.icons.twotone.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
@@ -133,7 +134,7 @@ fun SharedTransitionScope.SongsList(
                     .onFocusChanged {
                         isExpanded = it.isFocused && value.isNotBlank()
                     }
-                    .padding(horizontal = 4.dp)
+                    .padding(horizontal = 4.dp),
             ) {
                 val filteredSongs = songs.filter { it.name.contains(value, true) }
 

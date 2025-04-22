@@ -199,22 +199,43 @@ class MainActivity : ComponentActivity() {
                     } else if (!PlayerSessionService.isAlive){
                         /** if the player is paused and the service is not active (new creation for service)
                          then get the saved value from preferences then update the state and setMediaItems **/
-                        val index = sharedPref.getInt("index",0)
                         val progress = sharedPref.getLong("progress",0)
+                        val displayTitle = sharedPref.getString("title","")
+                        var index = sharedPref.getInt("index",0)
+                        /** Previously I was get the saved index from pref and then get the last played song
+                        but this would not be good solution in some scenarios (e.g if imagine pause the player
+                        and close the app this will save the index then u downloaded new song then u open app
+                        again the problem is that the played song would be now not the song u expected to be which is the
+                        last one played before u close the app, instead it would be the previous song for the song u expected to be
+                        due to adding new songs to storage)**/
+                        var songs = viewModel.getSongs()
 
-                        lifecycleScope.launch(Dispatchers.IO) {
+
+                        lifecycleScope.launch(Dispatchers.IO){
+                            while (songs.isEmpty()){
+                                songs = viewModel.getSongs()
+                            }
+
+                            for (i in 0 until songs.size){
+                                Log.e("ks","inside for size of List: ${songs.size}")
+                                if (songs[i].name == displayTitle){
+                                    index = i
+                                    Log.e("ks","catch the index :$i")
+                                    break
+                                }
+                            }
+
+
                             while (viewModel.getPlayedSong() == null) {
                                 delay(500)
-                                withContext(Dispatchers.Main) {
                                     viewModel.updatePlayedSong(index)
-                                }
                             }
                             Log.e(
                                 "ks",
                                 "Played song not null: ${viewModel.getPlayedSong()}"
                             )
                             withContext(Dispatchers.Main) {
-                                controller!!.setMediaItemsList(viewModel.getSongs(),index,progress)
+                                controller!!.setMediaItemsList(songs,index,progress)
                                 //controller!!.startProgressUpdate(viewModel)
                                 viewModel.calculateProgressValue(progress)
                             }
@@ -324,6 +345,7 @@ class MainActivity : ComponentActivity() {
                                         onAction = ::onAction,
                                         index = index,
                                         animatedVisibilityScope = this,
+                                        onDownArrowClicked = { navController.popBackStack() }
                                     )
 
                                 }
@@ -358,6 +380,7 @@ class MainActivity : ComponentActivity() {
             sharedPref.edit().apply{
                 putInt("index",currentSong)
                 putLong("progress",currentProgress)
+                putString("title",controller!!.mediaMetadata.displayTitle.toString())
                 apply()
             }
 

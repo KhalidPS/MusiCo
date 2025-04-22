@@ -57,7 +57,25 @@ class SongsRepositoryImpl(
         songList
     }
 
-    override fun getSongsFromRoom(){
-        println(songsDao)
+    override fun getSongsFromRoom(): List<Song>{
+        return songsDao.getAllSongs()
     }
+
+    override fun addSongs(songs: List<Song>) {
+        songsDao.addSongs(songs)
+    }
+
+    override fun addSong(song: Song) {
+        songsDao.addSong(song)
+    }
+
+    override fun deleteSong(song: Song) {
+        songsDao.deleteSong(song)
+    }
+
+    override fun deleteSongs(songs: List<Song>) {
+        songsDao.deleteSongs(songs)
+    }
+
+
 }

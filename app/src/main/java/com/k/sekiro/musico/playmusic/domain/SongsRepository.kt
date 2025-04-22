@@ -8,6 +8,14 @@ interface SongsRepository {
 
    suspend fun getAllStorageSongs(): List<Song>
 
-    fun getSongsFromRoom()
+    fun getSongsFromRoom(): List<Song>
+
+    fun addSongs(songs: List<Song>)
+
+    fun addSong(song: Song)
+
+    fun deleteSong(song: Song)
+
+    fun deleteSongs(songs: List<Song>)
 
 }

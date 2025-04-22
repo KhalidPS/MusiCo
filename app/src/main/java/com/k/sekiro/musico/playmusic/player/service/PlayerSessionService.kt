@@ -205,10 +205,10 @@ class PlayerSessionService : MediaSessionService() {
             .setCustomLayout(notificationPlayerCustomCommandButtons)
             .build()
 
-        musiCoNotificationManager!!.startNotificationService(
+  /*      musiCoNotificationManager!!.startNotificationService(
             mediaSession = mediaSession!!,
             mediaSessionService = this
-        )
+        )*/
         Log.e("ks", "create service......")
     }
 
@@ -250,10 +250,11 @@ class PlayerSessionService : MediaSessionService() {
 
         val currentSong = mediaSession!!.player.currentMediaItemIndex
         val currentProgress = mediaSession!!.player.currentPosition
-
+        val currentTitle = mediaSession!!.player.mediaMetadata.displayTitle.toString()
         sharedPref.edit().apply {
             putInt("index", currentSong)
             putLong("progress", currentProgress)
+            putString("title",currentTitle)
             apply()
         }
 

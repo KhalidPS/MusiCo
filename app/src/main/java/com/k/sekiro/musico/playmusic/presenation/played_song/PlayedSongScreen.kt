@@ -97,7 +97,8 @@ fun SharedTransitionScope.PlayedSongScreen(
     state: PlayedSongState,
     index: Int = 0,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onAction:(PlayedSongAction) -> Unit
+    onAction:(PlayedSongAction) -> Unit,
+    onDownArrowClicked:() -> Unit = {}
 ) {
 
 
@@ -359,7 +360,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = { /** TODO() **/ }
+                    onClick = onDownArrowClicked
                 ) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,

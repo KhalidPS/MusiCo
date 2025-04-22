@@ -28,6 +28,7 @@ data class SongUi(
     val dataUri: String,
     val album: String = "",
     val path: String = "",
+    val addedDate: Long = 0L,
     val displayableDuration: DisplayableDuration
 )
 
@@ -46,6 +47,7 @@ fun Song.toSongUi(): SongUi {
         path = path,
         displayableDuration = duration.toDisplayableDuration(),
         cover = cover?:"",
+        addedDate = addedDate,
         dataUri = dataUri
     )
 }

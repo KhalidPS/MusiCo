@@ -56,7 +56,6 @@ val appModule = module{
 
     singleOf(::PaletteCache)
 
-    viewModelOf(::RequestPermissionScreenViewModel)
 
     single{
         Room.databaseBuilder(

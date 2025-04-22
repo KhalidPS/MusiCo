@@ -2,6 +2,7 @@ package com.k.sekiro.musico.playmusic.domain.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 
 @Entity
 data class Song(
@@ -15,6 +16,18 @@ data class Song(
     val addedDate: Long = 0L,
     val duration: Long = 0L,
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+)
+
+fun SongUi.toSong(): Song = Song(
+    name = name,
+    title = title,
+    artist = artist,
+    cover = cover,
+    dataUri= dataUri,
+    album = album,
+    path = path,
+    addedDate = addedDate,
+    duration = displayableDuration.durationMillis
 )
 
 
