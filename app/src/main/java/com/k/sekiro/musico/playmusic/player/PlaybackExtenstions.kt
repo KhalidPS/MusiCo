@@ -19,6 +19,7 @@ import com.k.sekiro.musico.R
 import com.k.sekiro.musico.core.presentaion.util.getUriFromDrawable
 import com.k.sekiro.musico.core.presentaion.util.isUriValid
 import com.k.sekiro.musico.playmusic.player.notification.NotificationPlayerCustomCommand
+import com.k.sekiro.musico.playmusic.player.setMediaItemsList
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayType
@@ -33,6 +34,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 
 
@@ -75,11 +77,13 @@ suspend fun MediaController?.startProgressUpdate(calculateProgress: (Long) -> Un
 
 @OptIn(UnstableApi::class)
 suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Context) =
-    coroutineScope {
+    supervisorScope {
+
+        val dispatcher = Dispatchers.Default
         try {
             songs.map { song ->
 
-                async(Dispatchers.Default){
+                async(dispatcher){
                     val uri = song.cover.toUri()
 
                     /** check if image uri is valid if not then put placeholder from drawable **/
@@ -94,7 +98,7 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Con
 
                     MediaItem.Builder()
                         .setUri(song.dataUri)
-                        .setMediaId("${song.name}_${song.dataUri}")
+                        .setMediaId(song.path)
                         .setMediaMetadata(
                             MediaMetadata.Builder()
                                 .setArtworkUri(cover)
@@ -121,12 +125,61 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Con
     }
 
 @OptIn(UnstableApi::class)
+suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, startIndex: Int, startProgress: Long,context: Context) = supervisorScope {
+    val dispatcher = Dispatchers.Default
+
+    try {
+            songs.map { song ->
+
+                async(dispatcher){
+                    val uri = song.cover.toUri()
+
+                    /** check if image uri is valid if not then put placeholder from drawable **/
+                    val cover =
+                        if (isUriValid(context, uri)) {
+                            uri
+                        } else {
+                            getUriFromDrawable(context, R.drawable.logo_2)
+                        }
+
+
+
+                    MediaItem.Builder()
+                        .setUri(song.dataUri)
+                        .setMediaId(song.path)
+                        .setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setArtworkUri(cover)
+                                .setTitle(song.artist)
+                                .setDisplayTitle(song.name)
+                                .setAlbumTitle(song.album)
+                                .setArtist(song.artist)
+                                .build()
+                        ).build()
+                }
+
+            }.also {
+                this@setMediaItemsList!!.setMediaItems(it.awaitAll(),startIndex,startProgress)
+                this@setMediaItemsList.prepare()
+            }
+        } catch (ex: DataSourceException) {
+            Log.e("ks", "converting song to MediaItem problem :${ex}")
+        } catch (ex: FileDataSource.FileDataSourceException) {
+            Log.e("ks", "converting song to MediaItem problem :${ex}")
+        } catch (ex: Exception) {
+            Log.e("ks", "converting song to MediaItem problem :${ex}")
+
+        }
+    }
+
+
+@OptIn(UnstableApi::class)
 fun MediaController?.setMediaItemsList(songs: List<SongUi>, startIndex: Int, startProgress: Long) {
     try {
         songs.map { song ->
             MediaItem.Builder()
                 .setUri(song.dataUri)
-                .setMediaId("${song.name}_${song.dataUri}")
+                .setMediaId(song.path)
                 .setMediaMetadata(
                     MediaMetadata.Builder()
                         .setArtworkUri(song.cover.toUri())

@@ -12,7 +12,4 @@ sealed interface PlayedSongAction {
     data class UpdateProgress(val newProgress: Float): PlayedSongAction
     object OnMoreActionClicked: PlayedSongAction
     object OnDownArrowClicked: PlayedSongAction
-    object ClickNotification: PlayedSongAction
-
-
 }

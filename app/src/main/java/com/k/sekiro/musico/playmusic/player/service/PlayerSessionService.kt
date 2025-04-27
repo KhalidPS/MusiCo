@@ -250,11 +250,15 @@ class PlayerSessionService : MediaSessionService() {
 
         val currentSong = mediaSession!!.player.currentMediaItemIndex
         val currentProgress = mediaSession!!.player.currentPosition
-        val currentTitle = mediaSession!!.player.mediaMetadata.displayTitle.toString()
+        val path = mediaSession!!.player.currentMediaItem!!.mediaId
         sharedPref.edit().apply {
             putInt("index", currentSong)
             putLong("progress", currentProgress)
-            putString("title",currentTitle)
+            putString("path",path)
+            
+            Log.e("ks","mediaId in service :${path}")
+            Log.e("ks","uri in service : ${mediaSession!!.player!!.currentMediaItem?.localConfiguration?.uri.toString()}")
+            Log.e("ks","is uri equal mediaId : ${path == mediaSession!!.player!!.currentMediaItem?.localConfiguration?.uri.toString()}")
             apply()
         }
 

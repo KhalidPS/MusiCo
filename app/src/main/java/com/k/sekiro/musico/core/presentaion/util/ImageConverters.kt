@@ -15,7 +15,7 @@ fun isUriValid(context: Context,uri: Uri): Boolean{
         context.contentResolver.openInputStream(uri)?.close()
         true
     }catch (e: Exception){
-        return false
+        false
     }
 }
 
