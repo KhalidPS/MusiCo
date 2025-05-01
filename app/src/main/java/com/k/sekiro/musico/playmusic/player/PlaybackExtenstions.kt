@@ -11,19 +11,13 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.session.MediaController
-import coil3.Image
-import coil3.ImageLoader
-import coil3.compose.ImagePainter
-import coil3.request.ImageRequest
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.core.presentaion.util.getUriFromDrawable
-import com.k.sekiro.musico.core.presentaion.util.isUriValid
+import com.k.sekiro.musico.core.presentaion.util.isValidUri
 import com.k.sekiro.musico.playmusic.player.notification.NotificationPlayerCustomCommand
-import com.k.sekiro.musico.playmusic.player.setMediaItemsList
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toUri
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayType
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -35,7 +29,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.withContext
 
 
 private var progressJob: Job? = null
@@ -79,7 +72,7 @@ suspend fun MediaController?.startProgressUpdate(calculateProgress: (Long) -> Un
 suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Context) =
     supervisorScope {
 
-        val dispatcher = Dispatchers.Default
+        val dispatcher = Dispatchers.IO
         try {
             songs.map { song ->
 
@@ -88,7 +81,7 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Con
 
                     /** check if image uri is valid if not then put placeholder from drawable **/
                     val cover =
-                        if (isUriValid(context, uri)) {
+                        if (isValidUri(context, uri)) {
                             uri
                         } else {
                             getUriFromDrawable(context, R.drawable.logo_2)
@@ -126,7 +119,7 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Con
 
 @OptIn(UnstableApi::class)
 suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, startIndex: Int, startProgress: Long,context: Context) = supervisorScope {
-    val dispatcher = Dispatchers.Default
+    val dispatcher = Dispatchers.IO
 
     try {
             songs.map { song ->
@@ -136,7 +129,7 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, startIndex: 
 
                     /** check if image uri is valid if not then put placeholder from drawable **/
                     val cover =
-                        if (isUriValid(context, uri)) {
+                        if (isValidUri(context, uri)) {
                             uri
                         } else {
                             getUriFromDrawable(context, R.drawable.logo_2)

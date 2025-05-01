@@ -152,6 +152,8 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalSharedTransitionApi::class, UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
 
+        Log.e("ks","onActivity create")
+
         super.onCreate(savedInstanceState)
 
         isNewCreation = true
@@ -171,131 +173,6 @@ class MainActivity : ComponentActivity() {
                     controller?.addListener(listener)
                     Log.e("ks", "MediaController : $controller")
                     Log.e("ks", "MediaController : $controller")
-
-                    if (controller!!.isPlaying) {
-                        viewModel.updateIsPlaying(true)
-                        val path = sharedPref.getString("path","")
-                        var songs = viewModel.getSongs()
-
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            /** The checking for getPlayedSong is important cuz at the first time it would be null
-                             * until get songs then get played song by index and this happen when whe collect
-                             * the state cuz the initial loading for data happen in onStart flow lifecycle fun
-                             * we can use an alternative approach by call initial loading data in init block inside
-                             * viewModel but this anti-pattern way **/
-                            while (viewModel.getPlayedSong() == null) {
-                                delay(500)
-                                withContext(Dispatchers.Main) {
-                                    songs = viewModel.getSongs()
-                                    if (songs.isNotEmpty()){
-                                        if (songs[controller!!.currentMediaItemIndex].path == path){
-                                            viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
-                                        }else{
-                                            viewModel.updatePlayedSong(songs.indexOf(songs.find { it.path == path }))
-                                        }
-
-                                    }
-
-                                }
-                            }
-                            Log.e("ks", "Played song not null: ${viewModel.getPlayedSong()}")
-
-                            withContext(Dispatchers.Main) {
-                                controller!!.startProgressUpdate(viewModel::calculateProgressValue)
-                            }
-
-
-                        }
-
-
-                    } else if (!PlayerSessionService.isAlive) {
-                        /** if the player is paused and the service is not active (new creation for service)
-                        then get the saved value from preferences then update the state and setMediaItems **/
-                        val progress = sharedPref.getLong("progress", 0)
-                        val path = sharedPref.getString("path", "")
-                        var index = sharedPref.getInt("index", 0)
-
-                        /** Previously I was get the saved index from pref and then get the last played song
-                        but this would not be good solution in some scenarios (e.g if pause the player
-                        and close the app this will save the index then u downloaded new song then u open app
-                        again the problem is that the played song would be now not the song u expected to be which is the
-                        last one played before u close the app, instead it would be the previous song for the song u expected to be
-                        due to adding new songs to storage)**/
-                        var songs = viewModel.getSongs()
-
-
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            while (songs.isEmpty()) {
-                                songs = viewModel.getSongs()
-                            }
-
-                            Log.e("ks", "path: $path")
-
-                            for (i in 0 until songs.size) {
-                                Log.e("ks", "inside for size of List: ${songs.size}")
-                                Log.e("ks", "path inside for loop :${songs[i].path}")
-                                if (songs[i].path == path) {
-                                    Log.e("ks", "path inside if :${songs[i].path}")
-                                    index = i
-                                    viewModel.updatePlayedSong(i)
-                                    Log.e("ks", "catch the index :$i")
-                                    Log.e("ks", "catch the index 2 :$index")
-                                    break
-                                }
-                            }
-
-
-                            while (viewModel.getPlayedSong() == null) {
-                                delay(500)
-                                viewModel.updatePlayedSong(index)
-                            }
-                            Log.e(
-                                "ks",
-                                "Played song not null: ${viewModel.getPlayedSong()}"
-                            )
-                            withContext(Dispatchers.Main) {
-                                controller!!.setMediaItemsList(songs, index, progress,this@MainActivity)
-                                //controller!!.startProgressUpdate(viewModel)
-                                viewModel.calculateProgressValue(progress)
-                            }
-                        }
-                    } else {
-                        /** if the player is paused but the service is still active <<(e.g
-                        when remove the app from recent task while player is playing
-                        and this will destroy the activity by calling onDestroy and save
-                        index and progress in preferences but if we change the progress using notification
-                        slider and then pause player from notification then click notification the service is still active
-                        cuz when I removed the app from recent task the player was playing not paused.)>>
-                        then there's no need to get saved value from preferences as I did in the previous if, instead
-                        I should get values from controller that connect to mediaSessionService**/
-
-                        val path = sharedPref.getString("path","")
-                        var songs = viewModel.getSongs()
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            while (viewModel.getPlayedSong() == null) {
-                                delay(500)
-                                withContext(Dispatchers.Main) {
-                                    songs = viewModel.getSongs()
-                                    if (songs.isNotEmpty()){
-                                        if (songs[controller!!.currentMediaItemIndex].path == path){
-                                            viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
-                                        }else{
-                                            viewModel.updatePlayedSong(songs.indexOf(songs.find { it.path == path }))
-                                        }
-
-                                    }
-                                }
-                            }
-                            Log.e(
-                                "ks",
-                                "Played song not null: ${viewModel.getPlayedSong()}"
-                            )
-                            withContext(Dispatchers.Main) {
-                                //controller!!.startProgressUpdate(viewModel)
-                                viewModel.calculateProgressValue(controller!!.currentPosition)
-                            }
-                        }
-                    }
                 }
             }, MoreExecutors.directExecutor()
         )
@@ -315,6 +192,124 @@ class MainActivity : ComponentActivity() {
 
                             val state = viewModel.state.collectAsStateWithLifecycle().value
                             val songs = state.songs
+
+
+                            LaunchedEffect(songs) {
+                                if (songs.isNotEmpty() && controller != null && isNewCreation) {
+                                    if (controller!!.isPlaying) {
+                                        viewModel.updateIsPlaying(true)
+                                        val path = sharedPref.getString("path", "")
+
+
+                                        /** The checking for getPlayedSong is important cuz at the first time it would be null
+                                         * until get songs then get played song by index and this happen when whe collect
+                                         * the state cuz the initial loading for data happen in onStart flow lifecycle fun
+                                         * we can use an alternative approach by call initial loading data in init block inside
+                                         * viewModel but this anti-pattern way **/
+
+
+                                        if (songs[controller!!.currentMediaItemIndex].path == path) {
+                                            viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
+                                        } else {
+                                            viewModel.updatePlayedSong(songs.indexOf(songs.find { it.path == path }))
+                                        }
+
+
+                                        Log.e(
+                                            "ks",
+                                            "Played song not null: ${viewModel.getPlayedSong()}"
+                                        )
+
+                                        controller!!.startProgressUpdate(viewModel::calculateProgressValue)
+
+
+                                    } else if (!PlayerSessionService.isAlive) {
+                                        /** if the player is paused and the service is not active (new creation for service)
+                                        then get the saved value from preferences then update the state and setMediaItems **/
+                                        val progress = sharedPref.getLong("progress", 0)
+                                        val path = sharedPref.getString("path", "")
+                                        var index = sharedPref.getInt("index", 0)
+
+                                        /** Previously I was get the saved index from pref and then get the last played song
+                                        but this would not be good solution in some scenarios (e.g if pause the player
+                                        and close the app this will save the index then u downloaded new song then u open app
+                                        again the problem is that the played song would be now not the song u expected to be which is the
+                                        last one played before u close the app, instead it would be the previous song for the song u expected to be
+                                        due to adding new songs to storage)**/
+
+
+                                        Log.e("ks", "path: $path")
+
+                                        withContext(Dispatchers.IO) {
+                                            for (i in 0 until songs.size) {
+                                                Log.e(
+                                                    "ks",
+                                                    "inside for size of List: ${songs.size}"
+                                                )
+                                                Log.e(
+                                                    "ks",
+                                                    "path inside for loop :${songs[i].path}"
+                                                )
+                                                if (songs[i].path == path) {
+                                                    Log.e("ks", "path inside if :${songs[i].path}")
+                                                    index = i
+                                                    viewModel.updatePlayedSong(i)
+                                                    Log.e("ks", "catch the index :$i")
+                                                    Log.e("ks", "catch the index 2 :$index")
+                                                    break
+                                                }
+                                            }
+                                        }
+
+                                        controller!!.setMediaItemsList(
+                                            songs,
+                                            index,
+                                            progress,
+                                            this@MainActivity
+                                        )
+                                        //controller!!.startProgressUpdate(viewModel)
+                                        viewModel.calculateProgressValue(progress)
+
+
+                                    } else {
+                                        /** if the player is paused but the service is still active <<(e.g
+                                        when remove the app from recent task while player is playing
+                                        and this will destroy the activity by calling onDestroy and save
+                                        index and progress in preferences but if we change the progress using notification
+                                        slider and then pause player from notification then click notification the service is still active
+                                        cuz when I removed the app from recent task the player was playing not paused.)>>
+                                        then there's no need to get saved value from preferences as I did in the previous if, instead
+                                        I should get values from controller that connect to mediaSessionService**/
+
+                                        val path = sharedPref.getString("path", "")
+                                        if (songs[controller!!.currentMediaItemIndex].path == path) {
+                                            viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
+                                        } else {
+                                            viewModel.updatePlayedSong(songs.indexOf(songs.find { it.path == path }))
+                                        }
+
+
+
+                                        Log.e(
+                                            "ks",
+                                            "Played song not null: ${viewModel.getPlayedSong()}"
+                                        )
+                                            //controller!!.startProgressUpdate(viewModel)
+                                            viewModel.calculateProgressValue(controller!!.currentPosition)
+
+                                    }
+
+                                    isNewCreation = false
+
+                                }else if (!isNewCreation && songs.isNotEmpty()){
+                                    val index = songs.indexOf(viewModel.getPlayedSong())
+                                    Log.e("ks","index for after new added songs : $index")
+                                    controller.setMediaItemsList(songs, startIndex = index, startProgress = controller!!.currentPosition)
+                                }
+                            }
+
+
+
                             NavHost(
                                 navController = navController,
                                 startDestination = Home::class,
@@ -348,7 +343,10 @@ class MainActivity : ComponentActivity() {
                                             state = state,
                                             onPlayClicked = {
                                                 onAction(PlayedSongAction.PlayPause)
-                                                Log.e("ks","PlayedSong when play clicked : ${state.playedSong}")
+                                                Log.e(
+                                                    "ks",
+                                                    "PlayedSong when play clicked : ${state.playedSong}"
+                                                )
 
                                             },
                                             onBottomBarClicked = {
@@ -404,6 +402,12 @@ class MainActivity : ComponentActivity() {
 
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.e("ks","onActivity start")
+
     }
 
     override fun onDestroy() {
