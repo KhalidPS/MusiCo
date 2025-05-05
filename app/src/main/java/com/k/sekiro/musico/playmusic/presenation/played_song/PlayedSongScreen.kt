@@ -8,8 +8,16 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.SharedTransitionScope.ResizeMode
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -440,63 +448,64 @@ fun SharedTransitionScope.PlayedSongScreen(
                     val painter = rememberAsyncImagePainter(state.songs[it].cover)
                     val painterState = painter.state.collectAsState()
 
-
-                    Image(
-                        painter = when(painterState.value){
-                            is  AsyncImagePainter.State.Empty -> {
-                                painterResource(R.drawable.logo_2)
-                            }
-                            is AsyncImagePainter.State.Error -> {
-                                painterResource(R.drawable.logo_2)
-                            }
-                            else -> {painter}
-                        },
-                        //bitmap = songs[it].cover.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .sharedBounds(
-                                    sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_${state.songs[it].path}"),
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                            .applyIf(
-                                condition = pagerState.currentPage == it && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-                                modifier = {
-                                    Modifier.shadow(
-                                        elevation = 20.dp,
-                                        ambientColor = spotColor,
-                                        spotColor = spotColor,
-                                    )
+                        Image(
+                            painter = when(painterState.value){
+                                is  AsyncImagePainter.State.Empty -> {
+                                    painterResource(R.drawable.logo_2)
                                 }
-                            )
-                            .clip(RoundedCornerShape(12.dp))
-                            .width(Dp(width))
-                            .height(Dp(high))
-                            .applyIf(
-                                condition = pagerState.settledPage == it,
-                                modifier = {
-                                    Modifier.drawWithContent {
-                                        drawContent()
-
-                                        drawImageOuterLine(
-                                            line1X = { line1X.value },
-                                            line2Y = { line2Y.value },
-                                            line3X = { line3X.value },
-                                            line4Y = { line4Y.value },
-                                            lineStroke = outerLineStroke,
-                                            outlineColor = outlineColor
-                                        )
-
-
-                                    }
+                                is AsyncImagePainter.State.Error -> {
+                                    painterResource(R.drawable.logo_2)
                                 }
-                            )
-                            .graphicsLayer {
-                                val scale = lerp(1f, 1.75f, pageOffset)
-                                scaleX *= scale
-                                scaleY *= scale
+                                else -> {painter}
                             },
-                        contentScale = ContentScale.Crop
-                    )
+                            //bitmap = songs[it].cover.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .sharedBounds(
+                                    sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_${state.songs[it].path}"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    resizeMode = ResizeMode.RemeasureToBounds,
+                                )
+                                .applyIf(
+                                    condition = pagerState.currentPage == it && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+                                    modifier = {
+                                        Modifier.shadow(
+                                            elevation = 20.dp,
+                                            ambientColor = spotColor,
+                                            spotColor = spotColor,
+                                        )
+                                    }
+                                )
+                                .clip(RoundedCornerShape(12.dp))
+                                .width(Dp(width))
+                                .height(Dp(high))
+                                .applyIf(
+                                    condition = pagerState.settledPage == it,
+                                    modifier = {
+                                        Modifier.drawWithContent {
+                                            drawContent()
+
+                                            drawImageOuterLine(
+                                                line1X = { line1X.value },
+                                                line2Y = { line2Y.value },
+                                                line3X = { line3X.value },
+                                                line4Y = { line4Y.value },
+                                                lineStroke = outerLineStroke,
+                                                outlineColor = outlineColor
+                                            )
+
+
+                                        }
+                                    }
+                                )
+                                .graphicsLayer {
+                                    val scale = lerp(1f, 1.75f, pageOffset)
+                                    scaleX *= scale
+                                    scaleY *= scale
+                                },
+                            contentScale = ContentScale.Crop
+                        )
+
 
 
                 }

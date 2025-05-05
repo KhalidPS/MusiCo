@@ -7,6 +7,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.SharedTransitionScope.ResizeMode
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FloatExponentialDecaySpec
 import androidx.compose.animation.core.LinearEasing
@@ -271,7 +272,7 @@ fun SharedTransitionScope.PlayedSongBottomBar(
                     modifier = Modifier
                         .sharedBounds(
                             sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${song.path}"),
-                            animatedVisibilityScope = animatedVisibilityScope
+                            animatedVisibilityScope = animatedVisibilityScope,
                         )
                         .applyIf(
                             song.name.length >= 30,

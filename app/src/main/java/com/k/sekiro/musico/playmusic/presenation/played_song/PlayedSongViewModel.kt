@@ -64,12 +64,13 @@ class PlayedSongViewModel(
 
 
     fun updatePlayedSong(index: Int) {
+        val validateIndex = if (index < 0) 0 else index
         _state.update {
             it.copy(
                 playedSong = if (
                     it.songs.isNotEmpty()
                 ) {
-                    it.songs[index]
+                    it.songs[validateIndex]
                 } else {
                     return
                 }
@@ -125,30 +126,38 @@ class PlayedSongViewModel(
 
     private fun getAllSongsFromLocal() {
         viewModelScope.launch(Dispatchers.IO) {
-/*
-            savedStateHandle[stateKey] = savedStateHandle.get<PlayedSongState>(stateKey)?.copy(
-                songs = songsRepository.getAllStorageSongs().map { it.toSongUi() }
-            )*/
 
-            /*            savedStateHandle.update<PlayedSongState>(stateKey){
-                it?.copy(
-                    songs = songsRepository.getAllStorageSongs().map { it.toSongUi() }
-                )
-            }*/
 
-            val roomSongs = songsRepository.getSongsFromRoom()
+            val roomSongsIdentifier = songsRepository.getSongsFromRoom().associate { it.path to it }
             val songsFromLocal = songsRepository.getAllStorageSongs()
+            val songsFromLocalIdentifier = songsFromLocal.associate { it.path to it }
 
-            if (roomSongs.isNotEmpty()){
+
+            if (roomSongsIdentifier.isNotEmpty()){
+
+                    for (song in songsFromLocal){
+                        val songByPath = roomSongsIdentifier[song.path]
+
+                        if (songByPath == null){
+                            songsRepository.addSong(song)
+                        }
+                    }
 
 
-                    val songsToBeAdded = async { songsFromLocal.filter { it !in roomSongs } }/** which songs are new in local storage
-                     and not in room to be added**/
+                    for ((path,songByPath) in roomSongsIdentifier){
+                        if (!songsFromLocalIdentifier.containsKey(path)){
+                            songsRepository.deleteSong(songByPath)
+                        }
+                    }
+
+
+/*                    val songsToBeAdded = async { songsFromLocal.filter { it !in roomSongs } }*//** which songs are new in local storage
+                     and not in room to be added **//*
 
                     val songsToBeDeleted = async { roomSongs.filter { it !in songsFromLocal } }
 
                     songsRepository.deleteSongs(songsToBeDeleted.await())
-                    songsRepository.addSongs(songsToBeAdded.await())
+                    songsRepository.addSongs(songsToBeAdded.await())*/
                 }else{
                     songsRepository.addSongs(songsFromLocal)
                  }

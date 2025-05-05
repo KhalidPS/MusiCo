@@ -29,8 +29,21 @@ data class SongUi(
     val album: String = "",
     val path: String = "",
     val addedDate: Long = 0L,
-    val displayableDuration: DisplayableDuration
-)
+    val displayableDuration: DisplayableDuration,
+    val lastModified: Long = 0L,
+    val id: Long = 0
+    ){
+
+    override fun equals(other: Any?): Boolean {
+        return if (this === other) true
+        else if (javaClass != other?.javaClass) false
+        else this.path == (other as SongUi).path
+    }
+
+    override fun hashCode(): Int {
+        return path.hashCode()
+    }
+}
 
 @Serializable
 data class DisplayableDuration(
@@ -48,7 +61,9 @@ fun Song.toSongUi(): SongUi {
         displayableDuration = duration.toDisplayableDuration(),
         cover = cover?:"",
         addedDate = addedDate,
-        dataUri = dataUri
+        dataUri = dataUri,
+        lastModified = lastModified,
+        id = id
     )
 }
 

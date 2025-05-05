@@ -19,7 +19,8 @@ fun getSongsByUri(resolver: ContentResolver,uri: Uri,songList: MutableList<Song>
         MediaStore.Audio.Media.ALBUM,
         MediaStore.Audio.Media.DATA,
         MediaStore.Audio.Media.DURATION,
-        MediaStore.Audio.Media.DATE_ADDED
+        MediaStore.Audio.Media.DATE_ADDED,
+        MediaStore.Audio.Media.DATE_MODIFIED
     )
 
     val selection = MediaStore.Audio.AudioColumns.IS_MUSIC + " = ? AND (${MediaStore.Audio.Media.DATA} LIKE ? " +
@@ -51,6 +52,7 @@ fun getSongsByUri(resolver: ContentResolver,uri: Uri,songList: MutableList<Song>
         val pathColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
         val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
         val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+        val lastModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
 
 
         while (cursor.moveToNext()) {
@@ -68,6 +70,7 @@ fun getSongsByUri(resolver: ContentResolver,uri: Uri,songList: MutableList<Song>
             val dateAdded = cursor.getLong(dateAddedColumn)
             val dataUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,id)
            // val dataUri = ContentUris.withAppendedId(Uri.parse("content://media/external/audio/media"),id)
+            val lastModified = cursor.getLong(lastModifiedColumn)
 
 
             val albumArtUri = ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"),idAlbum)
@@ -85,7 +88,9 @@ fun getSongsByUri(resolver: ContentResolver,uri: Uri,songList: MutableList<Song>
                 name = displayName,
                 addedDate = dateAdded,
                 duration = duration,
-                dataUri = dataUri.toString()
+                dataUri = dataUri.toString(),
+                lastModified = lastModified,
+                id = id
             )
 
      /*       if (path.endsWith(".mp3")){

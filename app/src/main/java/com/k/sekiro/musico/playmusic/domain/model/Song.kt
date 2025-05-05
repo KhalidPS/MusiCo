@@ -15,8 +15,19 @@ data class Song(
     val path: String = "",
     val addedDate: Long = 0L,
     val duration: Long = 0L,
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-)
+    val lastModified: Long = 0L,
+    @PrimaryKey(autoGenerate = false) val id: Long = 0,
+){
+    override fun equals(other: Any?): Boolean {
+        return if (this === other) true
+        else if (javaClass != other?.javaClass) false
+        else this.path == (other as SongUi).path
+    }
+
+    override fun hashCode(): Int {
+        return path.hashCode()
+    }
+}
 
 fun SongUi.toSong(): Song = Song(
     name = name,
@@ -27,7 +38,9 @@ fun SongUi.toSong(): Song = Song(
     album = album,
     path = path,
     addedDate = addedDate,
-    duration = displayableDuration.durationMillis
+    lastModified = lastModified,
+    duration = displayableDuration.durationMillis,
+    id = id
 )
 
 
