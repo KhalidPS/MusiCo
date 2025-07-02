@@ -1,28 +1,24 @@
-package com.k.sekiro.musico.playmusic.presenation.played_song
+package com.k.sekiro.musico.playmusic.presenation
 
-import android.util.Log
 import androidx.annotation.OptIn
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
-import com.k.sekiro.musico.playmusic.domain.model.toSong
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.collections.iterator
 
-class PlayedSongViewModel(
+class ViewModel(
     private val songsRepository: SongsRepository,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -33,10 +29,10 @@ class PlayedSongViewModel(
     var progress by savedStateHandle.saveable{ mutableFloatStateOf(0f) }
     var durationString by savedStateHandle.saveable{ mutableStateOf("00:00") }*/
 
-    private val stateKey = "playedSongState"
+    private val stateKey = "uiState"
 
 
-    private val _state = MutableStateFlow<PlayedSongState>(PlayedSongState())
+    private val _state = MutableStateFlow<UiState>(UiState())
     val state = _state
         .onStart {
             getAllSongsFromLocal()
@@ -46,11 +42,11 @@ class PlayedSongViewModel(
             started = SharingStarted.WhileSubscribed(
                 stopTimeoutMillis = 5000L
             ),
-            PlayedSongState()
+            UiState()
         )
 
 
-    /*    private val _state = savedStateHandle.getStateFlow(stateKey, PlayedSongState())
+    /*    private val _state = savedStateHandle.getStateFlow(stateKey, UiState())
     val state = _state
         .onStart {
             getAllSongsFromLocal()

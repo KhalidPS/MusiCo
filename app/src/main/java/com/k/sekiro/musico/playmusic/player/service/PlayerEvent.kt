@@ -1,6 +1,6 @@
 package com.k.sekiro.musico.playmusic.player.service
 
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayType
+import com.k.sekiro.musico.playmusic.presenation.PlayType
 
 sealed interface PlayerEvent {
     object PlayPause : PlayerEvent

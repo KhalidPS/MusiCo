@@ -1,10 +1,6 @@
 package com.k.sekiro.musico.playmusic.presenation.songs_list.component
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -36,7 +32,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import com.k.sekiro.musico.R
-import com.k.sekiro.musico.core.presentaion.util.Constants
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi

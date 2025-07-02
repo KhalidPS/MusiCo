@@ -66,6 +66,7 @@ dependencies {
     implementation(libs.compose.cloudy)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.profileinstaller)
+    implementation("androidx.compose.runtime:runtime-tracing")
     "baselineProfile"(project(":baselineprofile"))
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)

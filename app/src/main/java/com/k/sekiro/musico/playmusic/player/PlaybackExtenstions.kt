@@ -12,12 +12,12 @@ import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.session.MediaController
 import com.k.sekiro.musico.R
-import com.k.sekiro.musico.core.presentaion.util.getUriFromDrawable
-import com.k.sekiro.musico.core.presentaion.util.isValidUri
+import com.k.sekiro.musico.playmusic.presenation.util.getUriFromDrawable
+import com.k.sekiro.musico.playmusic.presenation.util.isValidUri
 import com.k.sekiro.musico.playmusic.player.notification.NotificationPlayerCustomCommand
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
-import com.k.sekiro.musico.playmusic.presenation.model.toUri
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayType
+import androidx.core.net.toUri
+import com.k.sekiro.musico.playmusic.presenation.PlayType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.core.presentaion.util
+package com.k.sekiro.musico.playmusic.presenation.util
 
 object Constants {
     const val IMAGE_KEY = "ImageKey"

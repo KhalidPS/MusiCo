@@ -1,47 +1,19 @@
 package com.k.sekiro.musico.di
 
 import android.annotation.SuppressLint
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.os.Build
-import android.os.Bundle
-import android.os.Looper
-import android.util.Log
-import android.widget.Toast
 import androidx.collection.LruCache
 import androidx.core.app.NotificationManagerCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.session.MediaController
-import androidx.media3.session.MediaSession
-import androidx.media3.session.SessionCommand
-import androidx.media3.session.SessionResult
-import androidx.media3.session.SessionToken
 import androidx.palette.graphics.Palette
 import androidx.room.Room
-import com.google.common.util.concurrent.Futures
-import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.MoreExecutors
-import com.k.sekiro.musico.MainActivity
-import com.k.sekiro.musico.MusicoApp
 import com.k.sekiro.musico.playmusic.data.local.AppDatabase
 import com.k.sekiro.musico.playmusic.data.local.PaletteCache
 import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
-import com.k.sekiro.musico.playmusic.player.notification.MusiCoNotificationManager
-import com.k.sekiro.musico.playmusic.player.notification.NotificationPlayerCustomCommand
-import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asExecutor
+import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
@@ -70,7 +42,7 @@ val appModule = module{
 
     singleOf(::SongsRepositoryImpl) bind SongsRepository::class
 
-    viewModelOf(::PlayedSongViewModel)
+    viewModelOf(::ViewModel)
 
     single{ androidContext().contentResolver }
     single{ androidContext().resources }

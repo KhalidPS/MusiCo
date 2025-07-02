@@ -1,23 +1,13 @@
 package com.k.sekiro.musico.playmusic.presenation.songs_list.component
 
-import android.util.Log
 import androidx.collection.LruCache
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.SharedTransitionScope.ResizeMode
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FloatExponentialDecaySpec
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.exponentialDecay
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.repeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
@@ -28,29 +18,20 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.overscroll
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,31 +53,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.palette.graphics.Palette
-import com.k.sekiro.musico.core.presentaion.util.applyIf
-import com.k.sekiro.musico.core.presentaion.util.getColorFromCover
+import com.k.sekiro.musico.playmusic.presenation.util.applyIf
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
-import com.k.sekiro.musico.playmusic.presenation.model.convertUriToBitmap
+import com.k.sekiro.musico.playmusic.presenation.util.convertUriToBitmap
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
-import com.k.sekiro.musico.core.presentaion.util.Constants
-import com.k.sekiro.musico.playmusic.presenation.model.toUri
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
+import com.k.sekiro.musico.playmusic.presenation.util.Constants
+import androidx.core.net.toUri
+import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.songs_list.DraggableState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -108,12 +81,12 @@ fun SharedTransitionScope.PlayedSongBottomBar(
     song: SongUi = mockSongs[0].toSongUi(),
     lurCache: LruCache<String, Palette> = LruCache(4 * 1024 * 1024),
     isPlaying: Boolean = false,
-    progress: Float,
-    currentPosition: Long,
+    progress: () -> Float,
+    currentPosition: () -> Long,
     onPlayClicked: () -> Unit = {},
     onClicked: () -> Unit = {},
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onAction: (PlayedSongAction) -> Unit = {},
+    onAction: (UiAction) -> Unit = {},
 ) {
 
     val context = LocalContext.current
@@ -146,12 +119,12 @@ fun SharedTransitionScope.PlayedSongBottomBar(
     }
 
 
-    val progressAnim = key(currentPosition) {
+    val progressAnim = key(currentPosition()) {
         animateFloatAsState(
-            targetValue = progress,
+            targetValue = progress(),
             animationSpec = tween(
                 //((song.displayableDuration.durationMillis - currentPosition)).toInt(),
-                (song.displayableDuration.durationMillis * (progress / 100f)).toInt(),
+                (song.displayableDuration.durationMillis * (progress() / 100f)).toInt(),
                 easing = LinearEasing
             )
         )
@@ -166,12 +139,12 @@ fun SharedTransitionScope.PlayedSongBottomBar(
             if (it == DraggableState.SwipeRight){
                 delay(300)
                 draggableState.animateTo(DraggableState.Reset)
-                onAction(PlayedSongAction.SeekToNext)
+                onAction(UiAction.SeekToNext)
 
             }else if (it == DraggableState.SwipeLeft){
                 delay(300)
                 draggableState.animateTo(DraggableState.Reset)
-                onAction(PlayedSongAction.SeekToPrevious)
+                onAction(UiAction.SeekToPrevious)
             }
         }
     }
@@ -180,13 +153,12 @@ fun SharedTransitionScope.PlayedSongBottomBar(
 
 
     LaunchedEffect(song) {
-        val songCover = withContext(Dispatchers.Default) {
-            convertUriToBitmap(
+        val songCover = convertUriToBitmap(
                 song.cover.toUri(),
                 context.contentResolver,
                 context.resources
             )
-        }
+
 
         val palette = if (lurCache[song.path] != null) {
             lurCache[song.path]!!
@@ -248,13 +220,14 @@ fun SharedTransitionScope.PlayedSongBottomBar(
 
             Column(
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
                     .anchoredDraggable(
                         state = draggableState,
                         orientation = Orientation.Horizontal,
                         overscrollEffect = overScroller
                     )
-                    .offset{
+                    .offset {
                         IntOffset(
                             x = draggableState.requireOffset().roundToInt(),
                             y = 0
@@ -329,7 +302,7 @@ fun SharedTransitionScope.PlayedSongBottomBar(
                             startAngle = -90f,
                             sweepAngle = progressAnim.value * 360f / 100f,
                             size = Size(size.minDimension, size.minDimension),
-                            topLeft = Offset(size.minDimension * 1.8f, 0f)
+                            topLeft = Offset(size.minDimension * 1.9f, 0f)
 
                         )
 
@@ -366,8 +339,8 @@ private fun PlayedSongBottomBarPrev() {
     SharedTransitionScope {
         AnimatedVisibility(true) {
             PlayedSongBottomBar(
-                progress = 180f,
-                currentPosition = 0L,
+                progress = { 180f },
+                currentPosition = { 0L },
                 animatedVisibilityScope = this
             )
         }

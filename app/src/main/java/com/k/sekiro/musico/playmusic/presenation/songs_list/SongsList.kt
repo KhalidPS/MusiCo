@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -28,7 +26,6 @@ import androidx.compose.material.icons.twotone.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
@@ -42,24 +39,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.k.sekiro.musico.R
-import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
-import com.k.sekiro.musico.playmusic.domain.SongsRepository
-import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongState
+import com.k.sekiro.musico.playmusic.presenation.UiAction
+import com.k.sekiro.musico.playmusic.presenation.UiState
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayListBox
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayedSongBottomBar
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
 import com.k.sekiro.musico.ui.theme.Green2
-import com.k.sekiro.musico.ui.theme.Orange
-import com.k.sekiro.musico.ui.theme.Orange1
-import com.k.sekiro.musico.ui.theme.PlayListColor
-import com.k.sekiro.musico.ui.theme.Purple40
-import com.k.sekiro.musico.ui.theme.Purple80
-import com.k.sekiro.musico.ui.theme.RecentPlayListColor
 import com.k.sekiro.musico.ui.theme.Red2
 import com.k.sekiro.musico.ui.theme.SkyBlue
 
@@ -67,24 +55,27 @@ import com.k.sekiro.musico.ui.theme.SkyBlue
 @Composable
 fun SharedTransitionScope.SongsList(
     modifier: Modifier = Modifier,
-    //repositoryImpl: SongsRepository
     songs: List<SongUi>,
-    state: PlayedSongState,
+    //state: UiState,
+    song: SongUi = songs[0],
+    isPlaying: Boolean = false,
+    progress:() -> Float = {180f},
+    currentPosition: () -> Long = {0L},
     animatedVisibilityScope: AnimatedVisibilityScope,
     onSongClicked: (SongUi, index: Int) -> Unit = { _, _->},
     onPlayClicked:() -> Unit = {},
     onBottomBarClicked:() -> Unit = {},
-    onAction:(PlayedSongAction) -> Unit = {}
+    onAction:(UiAction) -> Unit = {}
 ) {
 
     Scaffold(
         bottomBar = {
             PlayedSongBottomBar(
-                song = state.playedSong ?:songs[0],
-                isPlaying = state.isPlaying,
+                song = song,
+                isPlaying = isPlaying,
                 onPlayClicked = onPlayClicked,
-                progress = state.sliderProgress,
-                currentPosition = state.currentPosition,
+                progress = progress,
+                currentPosition = currentPosition,
                 onClicked = onBottomBarClicked,
                 onAction = onAction,
                 animatedVisibilityScope = animatedVisibilityScope
@@ -99,7 +90,6 @@ fun SharedTransitionScope.SongsList(
 
             var isExpanded by remember { mutableStateOf(false) }
             var value by remember { mutableStateOf("") }
-            val context = LocalContext.current
 
 
             SearchBar(
@@ -213,7 +203,7 @@ fun SharedTransitionScope.SongsList(
 private fun SongsListPrev() {
     SharedTransitionLayout {
         AnimatedVisibility(true) {
-            SongsList(songs = mockSongs.map { it.toSongUi() }, state = PlayedSongState(), animatedVisibilityScope = this)
+            SongsList(songs = mockSongs.map { it.toSongUi() }, animatedVisibilityScope = this)
 
         }
     }

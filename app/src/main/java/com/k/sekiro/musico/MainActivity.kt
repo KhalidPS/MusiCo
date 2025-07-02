@@ -1,10 +1,7 @@
 package com.k.sekiro.musico
 
-import android.Manifest
 import android.content.ComponentName
-import android.content.Context
 import android.content.SharedPreferences
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -14,37 +11,23 @@ import androidx.annotation.OptIn
 import androidx.collection.LruCache
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DataSourceException
-import androidx.media3.datasource.FileDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -55,13 +38,9 @@ import androidx.navigation.toRoute
 import androidx.palette.graphics.Palette
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
-import com.k.sekiro.musico.MainActivity
-import com.k.sekiro.musico.playmusic.player.getSongPlayedInBackground
 import com.k.sekiro.musico.playmusic.player.onChangPlayType
 import com.k.sekiro.musico.playmusic.player.playOrPause
-import com.k.sekiro.musico.playmusic.player.service.PlayerEvent
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
-import com.k.sekiro.musico.playmusic.player.service.PlayerState
 import com.k.sekiro.musico.playmusic.player.setMediaItemsList
 import com.k.sekiro.musico.playmusic.player.startProgressUpdate
 import com.k.sekiro.musico.playmusic.player.stopProgressUpdate
@@ -69,26 +48,18 @@ import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
 import com.k.sekiro.musico.playmusic.presenation.model.Home
 import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
-import com.k.sekiro.musico.playmusic.presenation.model.toUri
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayType
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongAction
+import com.k.sekiro.musico.playmusic.presenation.PlayType
+import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongState
-import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel
+import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.PermissionGate
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
-import org.koin.androidx.compose.koinViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
-import kotlin.properties.ReadOnlyProperty
-import kotlin.text.get
 import kotlin.text.isNotBlank
 import kotlin.text.isNotEmpty
 
@@ -96,7 +67,7 @@ class MainActivity : ComponentActivity() {
     var controller: MediaController? = null
     lateinit var controllerFuture: ListenableFuture<MediaController>
     val lruCache: LruCache<String, Palette> by inject()
-    private val viewModel: PlayedSongViewModel by viewModel()
+    private val viewModel: ViewModel by viewModel()
     val sharedPref: SharedPreferences by inject()
     var isNewCreation = false
 
@@ -197,8 +168,11 @@ class MainActivity : ComponentActivity() {
                     PermissionGate {
                         SharedTransitionLayout {
 
+
                             val state = viewModel.state.collectAsStateWithLifecycle().value
-                            val songs = state.songs
+                            val rememberedState by rememberUpdatedState(state)
+                            val progress by rememberUpdatedState(rememberedState.sliderProgress)
+                            val songs = rememberedState.songs
 
 
                             LaunchedEffect(songs) {
@@ -241,24 +215,28 @@ class MainActivity : ComponentActivity() {
                                                 }
                                                 navController.navigate(PlayedSong(index))
                                             },
-                                            state = state,
+                                            progress = {progress},
+                                            isPlaying = rememberedState.isPlaying,
+                                            currentPosition = {rememberedState.currentPosition},
+                                            song = rememberedState.playedSong?:songs[0],
+
                                             onPlayClicked = {
-                                                onAction(PlayedSongAction.PlayPause)
+                                                onAction(UiAction.PlayPause)
                                                 Log.e(
                                                     "ks",
-                                                    "PlayedSong when play clicked : ${state.playedSong}"
+                                                    "PlayedSong when play clicked : ${rememberedState.playedSong}"
                                                 )
 
                                             },
                                             onBottomBarClicked = {
                                                 val index =
-                                                    if (state.playedSong != null) songs.indexOf(
-                                                        state.playedSong
+                                                    if (rememberedState.playedSong != null) songs.indexOf(
+                                                        rememberedState.playedSong
                                                     ) else return@SongsList
                                                 navController.navigate(PlayedSong(index))
                                             },
                                             animatedVisibilityScope = this,
-                                            onAction = ::onAction
+                                            onAction = ::onAction,
                                         )
                                     } else {
                                         LoadingScreen()
@@ -285,14 +263,19 @@ class MainActivity : ComponentActivity() {
                                 ) {
 
                                     /*  val song = it.toRoute<SongUi>()
-                                      val index = state.songs.indexOf(song)*/
+                                      val index = rememberedState.songs.indexOf(song)*/
 
                                     val index = it.toRoute<PlayedSong>().index
 
 
                                     PlayedSongScreen(
                                         lurCache = lruCache,
-                                        state = state,
+                                        sliderProgress = { progress },
+                                        isPlaying = rememberedState.isPlaying,
+                                        playType = rememberedState.playType,
+                                        passedTimeDuration = rememberedState.passedTimeDuration,
+                                        playedSong = rememberedState.playedSong,
+                                        songs = rememberedState.songs,
                                         onAction = ::onAction,
                                         index = index,
                                         animatedVisibilityScope = this,
@@ -351,16 +334,16 @@ class MainActivity : ComponentActivity() {
 
 
     @OptIn(UnstableApi::class)
-    fun onAction(action: PlayedSongAction) {
+    fun onAction(action: UiAction) {
         lifecycleScope.launch {
             when (action) {
-                is PlayedSongAction.ChangePlayType -> {
+                is UiAction.ChangePlayType -> {
 
                     controller!!.onChangPlayType(action.playType, viewModel::updatePlayType)
 
                 }
 
-                is PlayedSongAction.ChangeToOtherSong -> {
+                is UiAction.ChangeToOtherSong -> {
 
                     when (action.index) {
                         controller!!.currentMediaItemIndex -> {
@@ -381,16 +364,16 @@ class MainActivity : ComponentActivity() {
 
                 }
 
-                PlayedSongAction.OnDownArrowClicked -> TODO()
-                PlayedSongAction.OnMoreActionClicked -> TODO()
-                PlayedSongAction.PlayPause -> controller!!.playOrPause(
+                UiAction.OnDownArrowClicked -> TODO()
+                UiAction.OnMoreActionClicked -> TODO()
+                UiAction.PlayPause -> controller!!.playOrPause(
                     viewModel::calculateProgressValue,
                     viewModel::updateIsPlaying
                 )
 
-                PlayedSongAction.SeekBackward -> controller!!.seekBack()
-                PlayedSongAction.SeekForward -> controller!!.seekForward()
-                is PlayedSongAction.SeekTo -> {
+                UiAction.SeekBackward -> controller!!.seekBack()
+                UiAction.SeekForward -> controller!!.seekForward()
+                is UiAction.SeekTo -> {
 
                     val seekPosition =
                         ((viewModel.getPlayedSong()!!.displayableDuration.durationMillis * action.position / 100f)).toLong()
@@ -398,7 +381,7 @@ class MainActivity : ComponentActivity() {
                     controller!!.seekTo(seekPosition)
                 }
 
-                PlayedSongAction.SeekToNext -> {
+                UiAction.SeekToNext -> {
                     if (controller!!.repeatMode == Player.REPEAT_MODE_ONE && controller!!.currentMediaItemIndex == controller!!.mediaItemCount - 1) {
                         controller!!.seekTo(0, 0L)
                     } else {
@@ -407,7 +390,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                PlayedSongAction.SeekToPrevious -> {
+                UiAction.SeekToPrevious -> {
                     if (controller!!.repeatMode == Player.REPEAT_MODE_ONE && controller!!.currentMediaItemIndex == 0) {
                         controller!!.seekTo(controller!!.mediaItemCount - 1, 0L)
                     } else {
@@ -416,7 +399,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                is PlayedSongAction.UpdateProgress -> {
+                is UiAction.UpdateProgress -> {
                     viewModel.updateProgress(action.newProgress)
                 }
 

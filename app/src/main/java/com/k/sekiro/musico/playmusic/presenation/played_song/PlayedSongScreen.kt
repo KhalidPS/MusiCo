@@ -10,14 +10,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.SharedTransitionScope.ResizeMode
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,7 +45,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -83,18 +75,22 @@ import androidx.palette.graphics.Palette
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import com.k.sekiro.musico.R
-import com.k.sekiro.musico.core.presentaion.util.Constants
-import com.k.sekiro.musico.core.presentaion.util.applyIf
-import com.k.sekiro.musico.core.presentaion.util.applyIfComposable
-import com.k.sekiro.musico.core.presentaion.util.toPx
-import com.k.sekiro.musico.playmusic.presenation.model.convertUriToBitmap
-import com.k.sekiro.musico.playmusic.presenation.model.toUri
+import com.k.sekiro.musico.playmusic.presenation.util.Constants
+import com.k.sekiro.musico.playmusic.presenation.util.applyIf
+import com.k.sekiro.musico.playmusic.presenation.util.toPx
+import com.k.sekiro.musico.playmusic.presenation.util.convertUriToBitmap
+import androidx.core.net.toUri
+import com.k.sekiro.musico.playmusic.domain.model.mockSongs
+import com.k.sekiro.musico.playmusic.presenation.PlayType
+import com.k.sekiro.musico.playmusic.presenation.UiAction
+import com.k.sekiro.musico.playmusic.presenation.UiState
+import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
+import com.k.sekiro.musico.playmusic.presenation.model.SongUi
+import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 import kotlin.math.absoluteValue
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -102,23 +98,28 @@ import kotlin.math.absoluteValue
 fun SharedTransitionScope.PlayedSongScreen(
     modifier: Modifier = Modifier,
     lurCache: LruCache<String, Palette>,
-    state: PlayedSongState,
+    //state: UiState,
+    songs: List<SongUi>,
+    playedSong: SongUi?,
+    sliderProgress: () -> Float,
+    passedTimeDuration: String,
+    playType: PlayType,
+    isPlaying: Boolean,
     index: Int = 0,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onAction:(PlayedSongAction) -> Unit,
-    onDownArrowClicked:() -> Unit = {}
+    onAction: (UiAction) -> Unit,
+    onDownArrowClicked: () -> Unit = {}
 ) {
 
 
     val context = LocalContext.current
     val density = LocalDensity.current.density
     val pagerState = rememberPagerState(
-        pageCount = { state.songs.size },
+        pageCount = { songs.size },
         initialPage = index
     )
-   // var indexState = index
+    // var indexState = index
     val scope = rememberCoroutineScope()
-
 
 
     var spotColor by remember { mutableStateOf(Color.Cyan) }
@@ -150,68 +151,72 @@ fun SharedTransitionScope.PlayedSongScreen(
     val outerLineStroke =
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) 30f else 20f
 
-    val coilPainter = rememberAsyncImagePainter(state.songs[pagerState.currentPage].cover)
+    val coilPainter = rememberAsyncImagePainter(songs[pagerState.currentPage].cover)
     val painterState = coilPainter.state.collectAsState()
 
-    val painter = when(painterState.value){
-        is  AsyncImagePainter.State.Empty -> {
+    val painter = when (painterState.value) {
+        is AsyncImagePainter.State.Empty -> {
             painterResource(R.drawable.logo_2)
         }
+
         is AsyncImagePainter.State.Error -> {
             painterResource(R.drawable.logo_2)
         }
-        else -> {coilPainter}
+
+        else -> {
+            coilPainter
+        }
     }
 
     LaunchedEffect(Unit) {
-        Log.e("ks","index state 1: $index")
+        Log.e("ks", "index state 1: $index")
 
-        if (state.songs[index] != state.playedSong){
-            launch{
-                onAction(PlayedSongAction.PlayPause)
+        if (songs[index] != playedSong) {
+            launch {
+                onAction(UiAction.PlayPause)
 
             }
         }
-/*        launch{
-            Log.e("ks","index state 2: $indexState")
-            pagerState.scrollToPage(indexState)
-            delay(100)
-            indexState = if (indexState == 0) {
-                1
-            }else if (indexState == state.songs.lastIndex) state.songs.lastIndex -1
+        /*        launch{
+                    Log.e("ks","index state 2: $indexState")
+                    pagerState.scrollToPage(indexState)
+                    delay(100)
+                    indexState = if (indexState == 0) {
+                        1
+                    }else if (indexState == songs.lastIndex) songs.lastIndex -1
 
-            else 0
+                    else 0
 
-        }*/
-
+                }*/
 
 
     }
 
 
-    LaunchedEffect(state.playedSong) {//this code to sync the pager with notification when seek to
+    LaunchedEffect(playedSong) {//this code to sync the pager with notification when seek to
         // other song from notification
-        delay(500) /** this delay to prevent the pager random choose for songs with lag,
-         without this delay if you choose song from list thr lag will start in pager so
-         we make the check  if the current song match the settled one after 200 millis second this will
-         ensure that the selected song is settled then we can check for current playing song that match the
-         pager if we change song from notification**/
-        if (state.playedSong != null && state.playedSong != state.songs[pagerState.settledPage]){
-            pagerState.animateScrollToPage(state.songs.indexOf(state.playedSong))
+        /*delay(500)*/
+        /** this delay to prevent the pager random choose for songs with lag,
+        without this delay if you choose song from list thr lag will start in pager so
+        we make the check  if the current song match the settled one after 200 millis second this will
+        ensure that the selected song is settled then we can check for current playing song that match the
+        pager if we change song from notification**/
+        if (playedSong != null && playedSong != songs[pagerState.settledPage]) {
+            pagerState.animateScrollToPage(songs.indexOf(playedSong))
         }
     }
 
 
     LaunchedEffect(pagerState) {
 
-        Log.e("ks","index state 3: $index")
+        Log.e("ks", "index state 3: $index")
 
         snapshotFlow { pagerState.settledPage }.collect {
 
-           // if (state.songs[indexState] != state.playedSong){
-                onAction(PlayedSongAction.ChangeToOtherSong(it))
-                //onStart()
-                onAction(PlayedSongAction.PlayPause)
+            // if (songs[indexState] != state.playedSong){
+            onAction(UiAction.ChangeToOtherSong(it))
+            //onStart()
+            onAction(UiAction.PlayPause)
             //}
 
             val job1 = launch { line1X.snapTo(0f) }
@@ -250,7 +255,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                 )
             }
 
-            /*         val song = state.songs[it]
+            /*         val song = songs[it]
 
                      outlineColor = getColorFromCover(
                          lurCache = lurCache,
@@ -260,42 +265,40 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                      spotColor = outlineColor*/
 
-            launch(Dispatchers.Default) {
+            val song = songs[it]
+            val songCover =
+                convertUriToBitmap(song.cover.toUri(), context.contentResolver, context.resources)
 
-                val song = state.songs[it]
-                val songCover = convertUriToBitmap(song.cover.toUri(),context.contentResolver,context.resources)
-
-                val palette = if (lurCache[song.path] != null) {
-                    Log.e("ks", "$it :${lurCache[song.path]}")
-                    lurCache[song.path]!!
-                } else {
-                    Palette.from(songCover).generate().apply {
-                        lurCache.put(song.path, this)
-                    }
+            val palette = if (lurCache[song.path] != null) {
+                Log.e("ks", "$it :${lurCache[song.path]}")
+                lurCache[song.path]!!
+            } else {
+                Palette.from(songCover).generate().apply {
+                    lurCache.put(song.path, this)
                 }
+            }
 
 
-                withContext(Dispatchers.Main.immediate) {
-                    outlineColor =
-                        if (palette.vibrantSwatch != null) Color(
-                            palette.vibrantSwatch!!.rgb
-                        ) else if(palette.lightVibrantSwatch != null){
-                            Color(palette.lightVibrantSwatch!!.rgb)
-                        }else if (palette.darkVibrantSwatch != null){
-                            Color(palette.darkVibrantSwatch!!.rgb)
-                        }else if (palette.lightMutedSwatch != null){
-                            Color(palette.lightMutedSwatch!!.rgb)
-                        }else if (palette.mutedSwatch != null){
-                            Color(palette.mutedSwatch!!.rgb)
-                        }else if (palette.darkMutedSwatch != null){
-                            Color(palette.darkMutedSwatch!!.rgb)
-                        } else Color.Cyan
-                    spotColor = outlineColor
-
-                }
-
+            withContext(Dispatchers.Main.immediate) {
+                outlineColor =
+                    if (palette.vibrantSwatch != null) Color(
+                        palette.vibrantSwatch!!.rgb
+                    ) else if (palette.lightVibrantSwatch != null) {
+                        Color(palette.lightVibrantSwatch!!.rgb)
+                    } else if (palette.darkVibrantSwatch != null) {
+                        Color(palette.darkVibrantSwatch!!.rgb)
+                    } else if (palette.lightMutedSwatch != null) {
+                        Color(palette.lightMutedSwatch!!.rgb)
+                    } else if (palette.mutedSwatch != null) {
+                        Color(palette.mutedSwatch!!.rgb)
+                    } else if (palette.darkMutedSwatch != null) {
+                        Color(palette.darkMutedSwatch!!.rgb)
+                    } else Color.Cyan
+                spotColor = outlineColor
 
             }
+
+
             /*.join()
             snapshotFlow { colorAnimation.value }.collect { value ->
                 spotColor = lerp(outlineColor, Color.White, value)
@@ -311,9 +314,6 @@ fun SharedTransitionScope.PlayedSongScreen(
         /** Main container for all composables**/
         modifier = modifier.fillMaxSize()
     ) {
-
-
-
 
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
@@ -442,70 +442,72 @@ fun SharedTransitionScope.PlayedSongScreen(
                                         }*/
 
 
-
                     //  val songCover = songs[it].cover?:convertResToBitmap(context,R.drawable.logo_2)
 
-                    val painter = rememberAsyncImagePainter(state.songs[it].cover)
+                    val painter = rememberAsyncImagePainter(songs[it].cover)
                     val painterState = painter.state.collectAsState()
 
-                        Image(
-                            painter = when(painterState.value){
-                                is  AsyncImagePainter.State.Empty -> {
-                                    painterResource(R.drawable.logo_2)
+                    Image(
+                        painter = when (painterState.value) {
+                            is AsyncImagePainter.State.Empty -> {
+                                painterResource(R.drawable.logo_2)
+                            }
+
+                            is AsyncImagePainter.State.Error -> {
+                                painterResource(R.drawable.logo_2)
+                            }
+
+                            else -> {
+                                painter
+                            }
+                        },
+                        //bitmap = songs[it].cover.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .sharedBounds(
+                                sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_${songs[it].path}"),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                resizeMode = ResizeMode.RemeasureToBounds,
+                            )
+                            .applyIf(
+                                condition = pagerState.currentPage == it && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+                                modifier = {
+                                    Modifier.shadow(
+                                        elevation = 20.dp,
+                                        ambientColor = spotColor,
+                                        spotColor = spotColor,
+                                    )
                                 }
-                                is AsyncImagePainter.State.Error -> {
-                                    painterResource(R.drawable.logo_2)
-                                }
-                                else -> {painter}
-                            },
-                            //bitmap = songs[it].cover.asImageBitmap(),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .sharedBounds(
-                                    sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_${state.songs[it].path}"),
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    resizeMode = ResizeMode.RemeasureToBounds,
-                                )
-                                .applyIf(
-                                    condition = pagerState.currentPage == it && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-                                    modifier = {
-                                        Modifier.shadow(
-                                            elevation = 20.dp,
-                                            ambientColor = spotColor,
-                                            spotColor = spotColor,
+                            )
+                            .clip(RoundedCornerShape(12.dp))
+                            .width(Dp(width))
+                            .height(Dp(high))
+                            .applyIf(
+                                condition = pagerState.settledPage == it,
+                                modifier = {
+                                    Modifier.drawWithContent {
+                                        drawContent()
+
+                                        drawImageOuterLine(
+                                            line1X = { line1X.value },
+                                            line2Y = { line2Y.value },
+                                            line3X = { line3X.value },
+                                            line4Y = { line4Y.value },
+                                            lineStroke = outerLineStroke,
+                                            outlineColor = outlineColor
                                         )
+
+
                                     }
-                                )
-                                .clip(RoundedCornerShape(12.dp))
-                                .width(Dp(width))
-                                .height(Dp(high))
-                                .applyIf(
-                                    condition = pagerState.settledPage == it,
-                                    modifier = {
-                                        Modifier.drawWithContent {
-                                            drawContent()
-
-                                            drawImageOuterLine(
-                                                line1X = { line1X.value },
-                                                line2Y = { line2Y.value },
-                                                line3X = { line3X.value },
-                                                line4Y = { line4Y.value },
-                                                lineStroke = outerLineStroke,
-                                                outlineColor = outlineColor
-                                            )
-
-
-                                        }
-                                    }
-                                )
-                                .graphicsLayer {
-                                    val scale = lerp(1f, 1.75f, pageOffset)
-                                    scaleX *= scale
-                                    scaleY *= scale
-                                },
-                            contentScale = ContentScale.Crop
-                        )
-
+                                }
+                            )
+                            .graphicsLayer {
+                                val scale = lerp(1f, 1.75f, pageOffset)
+                                scaleX *= scale
+                                scaleY *= scale
+                            },
+                        contentScale = ContentScale.Crop
+                    )
 
 
                 }
@@ -513,15 +515,15 @@ fun SharedTransitionScope.PlayedSongScreen(
                 Spacer(Modifier.weight(1f))
 
                 Text(
-                    state.songs[pagerState.currentPage].title,
+                    songs[pagerState.currentPage].title,
                     fontSize = 30.sp,
                     fontWeight = FontWeight.Black,
                     textAlign = TextAlign.Start,
                     modifier = Modifier
-                            .sharedBounds(
-                                sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${state.songs[pagerState.currentPage].path}"),
-                                animatedVisibilityScope = animatedVisibilityScope
-                            )
+                        .sharedBounds(
+                            sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${songs[pagerState.currentPage].path}"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
                         .fillMaxWidth()
                         .padding(
                             horizontal = 12.dp,
@@ -534,14 +536,14 @@ fun SharedTransitionScope.PlayedSongScreen(
                 )
 
                 Text(
-                    state.songs[pagerState.currentPage].artist,
+                    songs[pagerState.currentPage].artist,
                     fontSize = 20.sp,
                     textAlign = TextAlign.Start,
                     modifier = Modifier
                         .sharedBounds(
-                                sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${state.songs[pagerState.currentPage].path}"),
-                                animatedVisibilityScope = animatedVisibilityScope
-                            )
+                            sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${songs[pagerState.currentPage].path}"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
                         .fillMaxWidth()
                         .padding(
                             horizontal = 12.dp,
@@ -555,13 +557,13 @@ fun SharedTransitionScope.PlayedSongScreen(
 
 
                 Slider(
-                    value = state.sliderProgress,
+                    value = sliderProgress(),
                     onValueChange = {
                         sliderValue = it
-                        onAction(PlayedSongAction.UpdateProgress(it))
+                        onAction(UiAction.UpdateProgress(it))
                     },
                     onValueChangeFinished = {
-                        onAction(PlayedSongAction.SeekTo(sliderValue))
+                        onAction(UiAction.SeekTo(sliderValue))
 
                     },
                     valueRange = 0f..100f,
@@ -574,10 +576,10 @@ fun SharedTransitionScope.PlayedSongScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
                 ) {
-                    Text(text = state.passedTimeDuration, color = Color.White.copy(alpha = .7f))
+                    Text(text = passedTimeDuration, color = Color.White.copy(alpha = .7f))
 
                     Text(
-                        text = state.songs[pagerState.currentPage].displayableDuration.formatted,
+                        text = songs[pagerState.currentPage].displayableDuration.formatted,
                         color = Color.White.copy(alpha = .7f)
                     )
                 }
@@ -592,16 +594,30 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                     IconButton(
                         onClick = {
-                            when(state.playType){
-                                PlayType.Shuffle -> onAction(PlayedSongAction.ChangePlayType(PlayType.RepeatAll))
-                                PlayType.RepeatOne -> onAction(PlayedSongAction.ChangePlayType(PlayType.Shuffle))
-                                PlayType.RepeatAll -> onAction(PlayedSongAction.ChangePlayType(PlayType.RepeatOne))
+                            when (playType) {
+                                PlayType.Shuffle -> onAction(
+                                    UiAction.ChangePlayType(
+                                        PlayType.RepeatAll
+                                    )
+                                )
+
+                                PlayType.RepeatOne -> onAction(
+                                    UiAction.ChangePlayType(
+                                        PlayType.Shuffle
+                                    )
+                                )
+
+                                PlayType.RepeatAll -> onAction(
+                                    UiAction.ChangePlayType(
+                                        PlayType.RepeatOne
+                                    )
+                                )
                             }
                         },
 
                         ) {
                         Icon(
-                            imageVector = when(state.playType){
+                            imageVector = when (playType) {
                                 PlayType.Shuffle -> Icons.Default.Shuffle
                                 PlayType.RepeatOne -> Icons.Default.RepeatOne
                                 PlayType.RepeatAll -> Icons.Default.Repeat
@@ -614,20 +630,20 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                     IconButton(
                         onClick = {
-                            onAction(PlayedSongAction.SeekToPrevious)
-                            scope.launch{
-                                if (pagerState.settledPage > 0){
-                                    pagerState.animateScrollToPage(pagerState.settledPage-1)
+                            onAction(UiAction.SeekToPrevious)
+                            scope.launch {
+                                if (pagerState.settledPage > 0) {
+                                    pagerState.animateScrollToPage(pagerState.settledPage - 1)
 
                                 }
                             }
-                                  },
+                        },
 
                         ) {
                         Icon(
-                            imageVector = if (isRtl){
+                            imageVector = if (isRtl) {
                                 Icons.Default.SkipNext
-                            }else{
+                            } else {
                                 Icons.Default.SkipPrevious
                             },
                             contentDescription = null,
@@ -643,14 +659,14 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                     ) {
                         Icon(
-                            imageVector = if (state.isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
+                            imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
                             contentDescription = null,
                             modifier = Modifier
                                 .size(70.dp)
                                 .clickable(
                                     enabled = true,
                                     onClick = {
-                                        onAction(PlayedSongAction.PlayPause)
+                                        onAction(UiAction.PlayPause)
                                     },
                                 ),
                             tint = Color.White
@@ -659,19 +675,19 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                     IconButton(
                         onClick = {
-                            onAction(PlayedSongAction.SeekToNext)
-                            scope.launch{
-                                if (pagerState.settledPage < state.songs.lastIndex)
-                                pagerState.animateScrollToPage(pagerState.settledPage+1)
+                            onAction(UiAction.SeekToNext)
+                            scope.launch {
+                                if (pagerState.settledPage < songs.lastIndex)
+                                    pagerState.animateScrollToPage(pagerState.settledPage + 1)
                             }
 
                         },
 
                         ) {
                         Icon(
-                            imageVector = if (isRtl){
+                            imageVector = if (isRtl) {
                                 Icons.Default.SkipPrevious
-                            }else{
+                            } else {
                                 Icons.Default.SkipNext
                             },
                             contentDescription = null,
@@ -707,9 +723,14 @@ private fun PlayedSongScreenPrev() {
         AnimatedVisibility(true) {
             PlayedSongScreen(
                 lurCache = LruCache(4),
-                state = PlayedSongState(),
-                onAction = {},
-                animatedVisibilityScope = this
+                onAction = { },
+                animatedVisibilityScope = this,
+                passedTimeDuration = "",
+                songs = mockSongs.map { it.toSongUi() },
+                playedSong = mockSongs[0].toSongUi(),
+                playType = PlayType.RepeatAll,
+                isPlaying = true,
+                sliderProgress = { 0f }
             )
         }
     }

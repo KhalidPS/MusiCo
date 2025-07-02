@@ -1,21 +1,13 @@
 package com.k.sekiro.musico.playmusic.data.repository
 
-import android.content.ContentUris
 import android.content.Context
-import android.database.Cursor
-import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
-import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.util.Log
-import com.k.sekiro.musico.core.data.util.getSongsByUri
+import com.k.sekiro.musico.playmusic.data.util.getSongsByUri
 import com.k.sekiro.musico.playmusic.data.local.SongsDao
 import com.k.sekiro.musico.playmusic.domain.SongsRepository
 import com.k.sekiro.musico.playmusic.domain.model.Song
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -27,7 +19,9 @@ class SongsRepositoryImpl(
 
         val resolver = context.contentResolver
         val songList = ArrayList<Song>()
-
+        /* prevent shared state problem using limitedParallelism or we can use mutex.withLock when adding new song
+               to songList*/
+        val dispatcher = Dispatchers.IO.limitedParallelism(1)
 
         //Songs from Internal storage (device storage)
         val internalAudioUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -48,8 +42,8 @@ class SongsRepositoryImpl(
         }
 
 
-        launch{ getSongsByUri(resolver,internalAudioUri,songList) }
-        launch{ getSongsByUri(resolver,externalAudioUri,songList) }
+        launch(dispatcher){ getSongsByUri(resolver,internalAudioUri,songList) }
+        launch(dispatcher){ getSongsByUri(resolver,externalAudioUri,songList) }
 
 
        // Log.e("ks","the song list inside fun \n ${songList.filter { it.cover != null }}")
