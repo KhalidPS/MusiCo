@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,6 +64,9 @@ import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import kotlin.text.isNotBlank
 import kotlin.text.isNotEmpty
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
     var controller: MediaController? = null
@@ -164,21 +169,17 @@ class MainActivity : ComponentActivity() {
 
                     val navController = rememberNavController()
 
-
                     PermissionGate {
                         SharedTransitionLayout {
-
 
                             val state = viewModel.state.collectAsStateWithLifecycle().value
                             val rememberedState by rememberUpdatedState(state)
                             val progress by rememberUpdatedState(rememberedState.sliderProgress)
                             val songs = rememberedState.songs
 
-
                             LaunchedEffect(songs) {
                                 controllerAndLastPlayedSongSetup(songs)
                             }
-
 
 
                             NavHost(
@@ -188,7 +189,9 @@ class MainActivity : ComponentActivity() {
                             ) {
 
 
+
                                 composable<Home> {
+
                                     if (!songs.isEmpty()) {
                                         SongsList(
                                             songs = songs,
@@ -267,6 +270,10 @@ class MainActivity : ComponentActivity() {
 
                                     val index = it.toRoute<PlayedSong>().index
 
+                                    val state = viewModel.state.collectAsStateWithLifecycle().value
+                                    val rememberedState by rememberUpdatedState(state)
+                                    val progress by rememberUpdatedState(rememberedState.sliderProgress)
+                                    val songs = rememberedState.songs
 
                                     PlayedSongScreen(
                                         lurCache = lruCache,

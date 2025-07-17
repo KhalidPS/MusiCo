@@ -50,36 +50,7 @@ fun SharedTransitionScope.SongCD(
 ) {
     val painter = rememberAsyncImagePainter(cover)
     val painterState = painter.state.collectAsState()
-    //var clicked by remember { mutableStateOf(false) }
 
-
-
-/*    val baseColor = Color(0xFF9A9A9A)
-    val highlightAlpha = .5f
-    val highlightColor = lerp(baseColor, Color.White,.5f)
-        .copy(alpha = highlightAlpha)
-    val highlightColors: List<Color> = buildList {
-        add(highlightColor)
-        repeat(3){
-            add(highlightColor.copy(alpha = 0f))
-            if (it < 2) add(highlightColor)
-        }
-        add(highlightColor)
-    }*/
-
-/*    val infiniteTransition = rememberInfiniteTransition()
-
-    val rotateValue = infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                5000,
-                easing = LinearEasing
-            ),
-            repeatMode = RepeatMode.Restart,
-        )
-    )*/
 
     var lastAnimValue by rememberSaveable { mutableStateOf(0f) }
     val rotateAnim = remember(isPlaying) { Animatable(lastAnimValue) }
@@ -100,9 +71,28 @@ fun SharedTransitionScope.SongCD(
                 ){
                     lastAnimValue = value
                 }
-
         }
     }
+
+/*    LaunchedEffect(isPlaying) {
+        if (isPlaying){
+            rotateAnim.snapTo(lastAnimValue)
+            rotateAnim.animateTo(
+                360f + lastAnimValue,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(
+                        durationMillis = 5000,
+                        easing = LinearEasing,
+                    ),
+                    repeatMode = RepeatMode.Restart
+                )
+            )
+
+        }else{
+            rotateAnim.stop()
+            lastAnimValue = rotateAnim.value % 360
+        }
+    }*/
 
 
 
@@ -147,35 +137,6 @@ fun SharedTransitionScope.SongCD(
                 )
                 .size(40.dp)
                 .clip(CircleShape)
-       /*                .drawWithContent {
-
-                                    drawContent()
-
-                                    drawRect(
-                                        brush = Brush.radialGradient(
-                                            colors = ringColors,
-                                            tileMode = TileMode.Repeated,
-                                        ),
-                                        blendMode = BlendMode.Overlay
-                                    )
-
-                                    drawRect(
-                                        brush = Brush.sweepGradient(
-                                            colors = highlightColors
-                                        )
-                                    )
-
-                                    drawCircle(
-                                        brush = Brush.sweepGradient(
-                                            colors = highlightColors
-                                        ),
-                                        radius = size.width * size.height
-                                    )
-
-                                }*/
-                .clickable(
-                    onClick = {/*clicked = !clicked*/}
-                )
         )
 
 
