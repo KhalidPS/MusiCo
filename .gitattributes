@@ -1,0 +1,8 @@
+# Ignore build artifacts and generated files
+build/                       linguist-language=Java linguist-detectable=false
+.gradle/                     linguist-detectable=false
+gradle/                      linguist-detectable=false
+*.iml                        linguist-detectable=false
+local.properties             linguist-detectable=false
+*.jks                        linguist-detectable=false
+.idea/                       linguist-detectable=false
