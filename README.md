@@ -20,9 +20,9 @@ I used the latest Android technologies :
     <th>dynamic card border</th>
   </tr>
   <tr>
-    <td><img src = "screenshots/home1.png" width=1440></td> 
-    <td><img src = "screenshots/home2.png" width=1440></td>
-    <td><img src = "screenshots/played_song.png" width=1440></td> 
+    <td><img src = "screenshots/home1.png" width=300></td> 
+    <td><img src = "screenshots/home2.png" width=300></td>
+    <td><img src = "screenshots/played_song.png" width=300></td> 
   </tr>
   <tr>
     <th>dynamic card border2</th>
@@ -30,9 +30,9 @@ I used the latest Android technologies :
     <th>draggable bar</th>
   </tr>
   <tr>
-    <td><img src = "screenshots/played_song2.png" width=1440></td>
-    <td><img src = "screenshots/pager.gif" width=1440></td>
-    <td><img src = "screenshots/drag.gif" width=1440></td>
+    <td><img src = "screenshots/played_song2.png" width=300></td>
+    <td><img src = "screenshots/pager.gif" width=300></td>
+    <td><img src = "screenshots/drag.gif" width=300></td>
 
   </tr>
 
