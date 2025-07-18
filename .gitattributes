@@ -6,3 +6,6 @@ gradle/                      linguist-detectable=false
 local.properties             linguist-detectable=false
 *.jks                        linguist-detectable=false
 .idea/                       linguist-detectable=false
+*.html                       linguist-detectable=false
+*.kt                         linguist-detectable=true
+*.java                       linguist-detectable=false
