@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
@@ -80,6 +81,7 @@ import com.k.sekiro.musico.playmusic.presenation.util.applyIf
 import com.k.sekiro.musico.playmusic.presenation.util.toPx
 import com.k.sekiro.musico.playmusic.presenation.util.convertUriToBitmap
 import androidx.core.net.toUri
+import coil3.compose.AsyncImage
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.UiAction
@@ -151,7 +153,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     val outerLineStroke =
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) 30f else 20f
 
-    val coilPainter = rememberAsyncImagePainter(songs[pagerState.currentPage].cover)
+/*    val coilPainter = rememberAsyncImagePainter(songs[pagerState.currentPage].cover)
     val painterState = coilPainter.state.collectAsState()
 
     val painter = when (painterState.value) {
@@ -166,7 +168,7 @@ fun SharedTransitionScope.PlayedSongScreen(
         else -> {
             coilPainter
         }
-    }
+    }*/
 
     LaunchedEffect(Unit) {
         Log.e("ks", "index state 1: $index")
@@ -319,8 +321,10 @@ fun SharedTransitionScope.PlayedSongScreen(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             /** background for screen if the system is less than 12 then make the background
              * the image itself with alpha for it else the image with blur*/
-            Image(
-                painter = painter,
+            AsyncImage(
+                model = songs[pagerState.currentPage].cover,
+                error = painterResource(R.drawable.logo_2),
+                placeholder = painterResource(R.drawable.logo_2),
                 //bitmap = songs[pagerState.currentPage].cover.asImageBitmap(),
                 contentDescription = null,
                 modifier = Modifier
@@ -343,9 +347,11 @@ fun SharedTransitionScope.PlayedSongScreen(
 
         } else {
 
-            Image(
-                painter = painter,
+            AsyncImage(
+                model = songs[pagerState.currentPage].cover,
                 //bitmap = songs[pagerState.currentPage].cover.asImageBitmap(),
+                error = painterResource(R.drawable.logo_2),
+                placeholder = painterResource(R.drawable.logo_2),
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
@@ -444,24 +450,13 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                     //  val songCover = songs[it].cover?:convertResToBitmap(context,R.drawable.logo_2)
 
-                    val painter = rememberAsyncImagePainter(songs[it].cover)
-                    val painterState = painter.state.collectAsState()
 
-                    Image(
-                        painter = when (painterState.value) {
-                            is AsyncImagePainter.State.Empty -> {
-                                painterResource(R.drawable.logo_2)
-                            }
 
-                            is AsyncImagePainter.State.Error -> {
-                                painterResource(R.drawable.logo_2)
-                            }
-
-                            else -> {
-                                painter
-                            }
-                        },
+                    AsyncImage(
+                        model = songs[it].cover,
                         //bitmap = songs[it].cover.asImageBitmap(),
+                        error = painterResource(R.drawable.logo_2),
+                        placeholder = painterResource(R.drawable.logo_2),
                         contentDescription = null,
                         modifier = Modifier
                             .sharedBounds(
@@ -567,7 +562,11 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                     },
                     valueRange = 0f..100f,
-                    modifier = Modifier.padding(horizontal = 12.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = outlineColor,
+                        thumbColor = outlineColor
+                    )
                 )
 
                 Row(

@@ -12,10 +12,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
+import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.gestures.TargetedFlingBehavior
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +30,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.overscroll
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
@@ -94,18 +98,11 @@ fun SharedTransitionScope.PlayedSongBottomBar(
 
     var bottomBarColor by remember { mutableStateOf(Color.White) }
 
-    val draggableState = remember { AnchoredDraggableState(
-        initialValue = DraggableState.Reset,
-        snapAnimationSpec = tween(),
-        decayAnimationSpec = exponentialDecay(),
-        velocityThreshold = { 1f},
-        positionalThreshold = { it}
-
-    ) }
+    val draggableState = remember { AnchoredDraggableState(initialValue = DraggableState.Reset) }
 
     var swipeRightOffset by remember { mutableFloatStateOf(0f) }
     var swipeLeftOffset by remember { mutableFloatStateOf(0f) }
-    val overScroller = ScrollableDefaults.overscrollEffect()
+    val overScroller = rememberOverscrollEffect()
     val density = LocalDensity.current
 
     val anchors = remember(density){

@@ -29,6 +29,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.trace
+import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import com.k.sekiro.musico.R
@@ -61,29 +63,23 @@ fun Song(
         verticalAlignment = Alignment.CenterVertically
     ) {
        // val song = song.toSongUi(context.contentResolver,context.resources)
-        val songCover = song.cover
-        val painter = rememberAsyncImagePainter(song.cover)
-        val painterState = painter.state.collectAsState()
 
+        trace("song Image"){
+            AsyncImage(
+                model = song.cover,
+                error = painterResource(R.drawable.logo_2),
+                placeholder = painterResource(R.drawable.logo_2),
 
-        Image(
-            painter = when(painterState.value){
-                is  AsyncImagePainter.State.Empty -> {
-                    painterResource(R.drawable.logo_2)
-                }
-                is AsyncImagePainter.State.Error -> {
-                    painterResource(R.drawable.logo_2)
-                }
-                else -> {painter}
-            },
-           // bitmap = songCover.asImageBitmap(),
-            contentDescription = "song album cover",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .size(70.dp)
+                // bitmap = songCover.asImageBitmap(),
+                contentDescription = "song album cover",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .size(70.dp)
 
-        )
+            )
+        }
+
 
         Column(
             modifier = modifier

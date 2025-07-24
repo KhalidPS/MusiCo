@@ -37,6 +37,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.util.trace
+import coil3.compose.AsyncImage
 import com.k.sekiro.musico.playmusic.presenation.util.Constants
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -48,8 +50,8 @@ fun SharedTransitionScope.SongCD(
     isPlaying: Boolean = true,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    val painter = rememberAsyncImagePainter(cover)
-    val painterState = painter.state.collectAsState()
+
+
 
 
     var lastAnimValue by rememberSaveable { mutableStateOf(0f) }
@@ -113,31 +115,24 @@ fun SharedTransitionScope.SongCD(
         CircularRing(size = radius - 18.dp)
 
 
-        Image(
-            painter = when (painterState.value) {
-                is AsyncImagePainter.State.Empty -> {
-                    painterResource(R.drawable.logo_2)
-                }
+        trace("CD Image"){
+            AsyncImage(
+                model = cover,
+                error = painterResource(R.drawable.logo_2),
+                placeholder = painterResource(R.drawable.logo_2),
+                contentDescription = "song cover",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .sharedBounds(
+                        sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_$path"),
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        resizeMode = ResizeMode.ScaleToBounds(),
+                    )
+                    .size(40.dp)
+                    .clip(CircleShape)
+            )
+        }
 
-                is AsyncImagePainter.State.Error -> {
-                    painterResource(R.drawable.logo_2)
-                }
-
-                else -> {
-                    painter
-                }
-            },
-            contentDescription = "song cover",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .sharedBounds(
-                    sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_$path"),
-                    animatedVisibilityScope = animatedVisibilityScope,
-                    resizeMode = ResizeMode.ScaleToBounds(),
-                )
-                .size(40.dp)
-                .clip(CircleShape)
-        )
 
 
     }
