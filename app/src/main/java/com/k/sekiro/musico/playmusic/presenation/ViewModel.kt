@@ -60,7 +60,8 @@ class ViewModel(
 
 
     fun updatePlayedSong(index: Int) {
-        val validateIndex = if (index < 0) 0 else index
+        val size = state.value.songs.size
+        val validateIndex = if (index < 0) 0 else if (index >= size) size-1  else index
         _state.update {
             it.copy(
                 playedSong = if (

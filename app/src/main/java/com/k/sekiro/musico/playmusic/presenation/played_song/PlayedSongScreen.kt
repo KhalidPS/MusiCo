@@ -89,8 +89,11 @@ import com.k.sekiro.musico.playmusic.presenation.UiState
 import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
+import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTimeText
+import com.k.sekiro.musico.playmusic.presenation.played_song.component.SongSlider
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.absoluteValue
@@ -104,7 +107,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     songs: List<SongUi>,
     playedSong: SongUi?,
     sliderProgress: () -> Float,
-    passedTimeDuration: String,
+    passedTimeDuration: () -> String,
     playType: PlayType,
     isPlaying: Boolean,
     index: Int = 0,
@@ -126,7 +129,7 @@ fun SharedTransitionScope.PlayedSongScreen(
 
     var spotColor by remember { mutableStateOf(Color.Cyan) }
 
-    var sliderValue by remember { mutableFloatStateOf(0f) }
+
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
@@ -179,25 +182,13 @@ fun SharedTransitionScope.PlayedSongScreen(
 
             }
         }
-        /*        launch{
-                    Log.e("ks","index state 2: $indexState")
-                    pagerState.scrollToPage(indexState)
-                    delay(100)
-                    indexState = if (indexState == 0) {
-                        1
-                    }else if (indexState == songs.lastIndex) songs.lastIndex -1
-
-                    else 0
-
-                }*/
-
 
     }
 
 
     LaunchedEffect(playedSong) {//this code to sync the pager with notification when seek to
         // other song from notification
-        /*delay(500)*/
+        delay(500)
         /** this delay to prevent the pager random choose for songs with lag,
         without this delay if you choose song from list thr lag will start in pager so
         we make the check  if the current song match the settled one after 200 millis second this will
@@ -206,6 +197,9 @@ fun SharedTransitionScope.PlayedSongScreen(
         if (playedSong != null && playedSong != songs[pagerState.settledPage]) {
             pagerState.animateScrollToPage(songs.indexOf(playedSong))
         }
+        Log.e("ks","the played one : $playedSong")
+        Log.e("ks","the index one :${songs.indexOf(playedSong)}")
+        Log.e("ks","index state 4 :$index")
     }
 
 
@@ -257,15 +251,6 @@ fun SharedTransitionScope.PlayedSongScreen(
                 )
             }
 
-            /*         val song = songs[it]
-
-                     outlineColor = getColorFromCover(
-                         lurCache = lurCache,
-                         context = context,
-                         song = song
-                     )
-
-                     spotColor = outlineColor*/
 
             val song = songs[it]
             val songCover =
@@ -299,12 +284,6 @@ fun SharedTransitionScope.PlayedSongScreen(
                 spotColor = outlineColor
 
             }
-
-
-            /*.join()
-            snapshotFlow { colorAnimation.value }.collect { value ->
-                spotColor = lerp(outlineColor, Color.White, value)
-            }*/
 
         }
 
@@ -551,22 +530,10 @@ fun SharedTransitionScope.PlayedSongScreen(
 
 
 
-                Slider(
-                    value = sliderProgress(),
-                    onValueChange = {
-                        sliderValue = it
-                        onAction(UiAction.UpdateProgress(it))
-                    },
-                    onValueChangeFinished = {
-                        onAction(UiAction.SeekTo(sliderValue))
-
-                    },
-                    valueRange = 0f..100f,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                    colors = SliderDefaults.colors(
-                        activeTrackColor = outlineColor,
-                        thumbColor = outlineColor
-                    )
+                SongSlider(
+                    sliderProgress = sliderProgress,
+                    outlineColor = outlineColor,
+                    onAction = onAction
                 )
 
                 Row(
@@ -575,7 +542,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
                 ) {
-                    Text(text = passedTimeDuration, color = Color.White.copy(alpha = .7f))
+                    PassedTimeText(passedTime = passedTimeDuration , color = Color.White.copy(alpha = .7f))
 
                     Text(
                         text = songs[pagerState.currentPage].displayableDuration.formatted,
@@ -724,7 +691,7 @@ private fun PlayedSongScreenPrev() {
                 lurCache = LruCache(4),
                 onAction = { },
                 animatedVisibilityScope = this,
-                passedTimeDuration = "",
+                passedTimeDuration = { "" },
                 songs = mockSongs.map { it.toSongUi() },
                 playedSong = mockSongs[0].toSongUi(),
                 playType = PlayType.RepeatAll,
