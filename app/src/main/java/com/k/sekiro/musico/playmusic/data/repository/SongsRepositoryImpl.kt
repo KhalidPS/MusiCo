@@ -5,8 +5,9 @@ import android.os.Build
 import android.provider.MediaStore
 import com.k.sekiro.musico.playmusic.data.util.getSongsByUri
 import com.k.sekiro.musico.playmusic.data.local.SongsDao
-import com.k.sekiro.musico.playmusic.domain.SongsRepository
+import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
 import com.k.sekiro.musico.playmusic.domain.model.Song
+import com.k.sekiro.musico.playmusic.domain.model.SongWithPlaylists
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -69,6 +70,18 @@ class SongsRepositoryImpl(
 
     override fun deleteSongs(songs: List<Song>) {
         songsDao.deleteSongs(songs)
+    }
+
+    override suspend fun getSong(songId: Long): Song? {
+        return songsDao.getSong(songId)
+    }
+
+    override suspend fun getSongsWithPlaylist(): List<SongWithPlaylists> {
+        return songsDao.getSongsWithPlaylist()
+    }
+
+    override suspend fun getSongsWithPlaylist(songId: Long): SongWithPlaylists? {
+        return songsDao.getSongsWithPlaylist(songId)
     }
 
 

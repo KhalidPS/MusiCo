@@ -1,8 +1,11 @@
 package com.k.sekiro.musico.playmusic.presenation.songs_list.component
 
+import android.util.Log
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,8 +46,11 @@ fun Song(
     modifier: Modifier = Modifier,
     song: SongUi,
     onClick:(SongUi) -> Unit = {},
+    onLongClicked:(SongUi) -> Unit = {},
     onShareClick:() -> Unit = {},
-    onMoreActionClick: () -> Unit = {}
+    onMoreActionClick: () -> Unit = {},
+    selectModeEnabled: Boolean = false,
+    selectedSongs: List<SongUi> = emptyList()
 ) {
 
     val artist =
@@ -55,10 +61,21 @@ fun Song(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
+            .combinedClickable(
                 enabled = true,
-                onClick = { onClick(song) }
+                onClick = {
+                    onClick(song)
+                },
+                onLongClick =   {
+                    Log.e("ks","long clicked")
+                    Log.e("ks","in long enabled $selectModeEnabled")
+                    if (!selectModeEnabled){
+                        Log.e("ks","inside if")
+                        onLongClicked(song)
+                    }
+                }
             )
+            .background(if (selectedSongs.contains(song)) Color.Gray else Color.Unspecified)
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

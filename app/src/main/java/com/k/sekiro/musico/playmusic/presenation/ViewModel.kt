@@ -1,17 +1,25 @@
 package com.k.sekiro.musico.playmusic.presenation
 
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
-import com.k.sekiro.musico.playmusic.domain.SongsRepository
+import com.k.sekiro.musico.playmusic.domain.model.Playlist
+import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
+import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
+import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
+import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -20,6 +28,8 @@ import kotlin.collections.iterator
 
 class ViewModel(
     private val songsRepository: SongsRepository,
+    private val playlistRepository: PlaylistRepository,
+    private val playlistSongRepository: PlaylistSongRepository,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -36,6 +46,7 @@ class ViewModel(
     val state = _state
         .onStart {
             getAllSongsFromLocal()
+            getPlayLists()
         }
         .stateIn(
             viewModelScope,
@@ -44,7 +55,6 @@ class ViewModel(
             ),
             UiState()
         )
-
 
     /*    private val _state = savedStateHandle.getStateFlow(stateKey, UiState())
     val state = _state
@@ -120,6 +130,32 @@ class ViewModel(
         }
     }
 
+    fun onSelectSong(song: SongUi){
+        Log.e("ks","onSelectedSong")
+        _state.update {
+            it.copy(
+                selectedSongs = it.selectedSongs.toMutableList().apply {
+                    if (contains(song)){
+                        remove(song)
+                    }else{
+                        add(song)
+                    }
+                }
+            )
+        }
+
+        _state.update { it.copy(selectModeEnabled = it.selectedSongs.isNotEmpty()) }
+    }
+
+
+    fun onCancelAllSelectedSongs(){
+        _state.update {
+            it.copy(
+                selectedSongs = emptyList(),
+                selectModeEnabled = false
+            )
+        }
+    }
 
     private fun getAllSongsFromLocal() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -170,6 +206,48 @@ class ViewModel(
                 }
             }
         }
+
+
+    private fun getPlayLists(){
+        viewModelScope.launch(Dispatchers.IO) {
+            val list  = playlistRepository.getAllPlaylists()
+            Log.e("ks","listSiz : ${list.size}")
+            _state.update {
+                it.copy(
+                    playlists = list
+                )
+            }
+        }
+    }
+    
+    fun onAddPlaylist(playlistName: String){
+        viewModelScope.launch(Dispatchers.IO){
+            val playlistId = playlistRepository.addPlaylist(Playlist(name = playlistName))
+            Log.e("ks","onAddPlaylist id: $playlistId")
+            for (song in _state.value.selectedSongs){
+                playlistSongRepository.addPlaylistSongRef(
+                    playlistSongRef = PlaylistSong(
+                        playlistId = playlistId,
+                        songId = song.id
+                    )
+                )
+            }
+
+            onCancelAllSelectedSongs()
+
+            getPlayLists()
+        }
+    }
+
+    fun getPlaylistsWithSongs(){
+        viewModelScope.launch(Dispatchers.IO){
+           val playlistWithSongs = playlistRepository.getPlaylistWithSongs()
+            for (playlist in playlistWithSongs){
+                Log.e("ks","${playlist.playlist} =>> ${playlist.songs}")
+
+            }
+        }
+    }
 
 
 

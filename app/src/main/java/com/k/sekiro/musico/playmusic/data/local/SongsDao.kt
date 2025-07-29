@@ -5,7 +5,9 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.k.sekiro.musico.playmusic.domain.model.Song
+import com.k.sekiro.musico.playmusic.domain.model.SongWithPlaylists
 
 @Dao
 interface SongsDao {
@@ -24,6 +26,16 @@ interface SongsDao {
 
     @Delete
     fun deleteSongs(songs: List<Song>)
+
+    @Query("SELECT * FROM Song WHERE id = :songId")
+    suspend fun getSong(songId: Long): Song?
+
+    @Transaction
+    @Query("SELECT * FROM Song")
+    suspend fun getSongsWithPlaylist(): List<SongWithPlaylists>
+
+    @Query("SELECT * FROM Song WHERE id = :songId")
+    suspend fun getSongsWithPlaylist(songId: Long): SongWithPlaylists?
 }
 
 /** !! don't forget to solve index problem for (continue playing last song)

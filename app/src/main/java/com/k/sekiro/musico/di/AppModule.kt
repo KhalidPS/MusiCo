@@ -11,8 +11,12 @@ import androidx.palette.graphics.Palette
 import androidx.room.Room
 import com.k.sekiro.musico.playmusic.data.local.AppDatabase
 import com.k.sekiro.musico.playmusic.data.local.PaletteCache
+import com.k.sekiro.musico.playmusic.data.repository.PlaylistRepositoryImpl
+import com.k.sekiro.musico.playmusic.data.repository.PlaylistSongRepositoryImpl
 import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
-import com.k.sekiro.musico.playmusic.domain.SongsRepository
+import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
+import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
+import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.singleOf
@@ -38,9 +42,12 @@ val appModule = module{
     }
 
     single{ get<AppDatabase>().songsDao }
-
+    single { get<AppDatabase>().playlistDao }
+    single { get<AppDatabase>().playlistSongDao }
 
     singleOf(::SongsRepositoryImpl) bind SongsRepository::class
+    singleOf(::PlaylistRepositoryImpl) bind PlaylistRepository::class
+    singleOf(::PlaylistSongRepositoryImpl) bind PlaylistSongRepository::class
 
     viewModelOf(::ViewModel)
 

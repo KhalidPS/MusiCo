@@ -1,10 +1,15 @@
 package com.k.sekiro.musico.playmusic.presenation.songs_list
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +44,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.k.sekiro.musico.R
+import com.k.sekiro.musico.playmusic.domain.model.Playlist
+import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
@@ -46,7 +53,9 @@ import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.UiState
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayListBox
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayedSongBottomBar
+import com.k.sekiro.musico.playmusic.presenation.songs_list.component.SelectedSongsBar
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
+import com.k.sekiro.musico.playmusic.presenation.songs_list.component.SongsSearchBar
 import com.k.sekiro.musico.ui.theme.Green2
 import com.k.sekiro.musico.ui.theme.Red2
 import com.k.sekiro.musico.ui.theme.SkyBlue
@@ -59,13 +68,19 @@ fun SharedTransitionScope.SongsList(
     //state: UiState,
     song: SongUi = songs[0],
     isPlaying: Boolean = false,
-    progress:() -> Float = {180f},
-    currentPosition: () -> Long = {0L},
+    progress: () -> Float = { 180f },
+    currentPosition: () -> Long = { 0L },
+    selectModeEnabled: Boolean = false,
+    selectedSongs: List<SongUi> = emptyList(),
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onSongClicked: (SongUi, index: Int) -> Unit = { _, _->},
-    onPlayClicked:() -> Unit = {},
-    onBottomBarClicked:() -> Unit = {},
-    onAction:(UiAction) -> Unit = {}
+    onSongClicked: (SongUi, index: Int) -> Unit = { _, _ -> },
+    onSelectSong: (SongUi) -> Unit = {},
+    onPlayClicked: () -> Unit = {},
+    onBottomBarClicked: () -> Unit = {},
+    onCancelSelectedSongs: () -> Unit = {},
+    onAction: (UiAction) -> Unit = {},
+    onAddPlaylist:(String) -> Unit = {},
+    playlists: List<Playlist> = emptyList()
 ) {
 
     Scaffold(
@@ -88,59 +103,34 @@ fun SharedTransitionScope.SongsList(
                 .padding(it)
         ) {
 
-            var isExpanded by remember { mutableStateOf(false) }
-            var value by remember { mutableStateOf("") }
 
-
-            SearchBar(
-                inputField = {
-                    BasicTextField(
-                        value = value,
-                        onValueChange = {
-                            value = it
-                            isExpanded = it.isNotBlank() || it.isNotEmpty()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(30.dp))
-                            .padding(20.dp),
-                        decorationBox = {
-                            Box {
-                                if (value.isEmpty() || value.isBlank()) {
-                                    Text(
-                                        text = "Search",
-                                        color = Color.Gray
-                                    )
-                                }
-                                it()
-                            }
-                        }
+            AnimatedVisibility(
+                selectModeEnabled,
+                enter = slideInVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioHighBouncy,
+                        stiffness = Spring.StiffnessLow
                     )
-                },
-                expanded = isExpanded,
-                onExpandedChange = {},
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged {
-                        isExpanded = it.isFocused && value.isNotBlank()
-                    }
-                    .padding(horizontal = 4.dp),
+                )
             ) {
-                val filteredSongs = songs.filter { it.name.contains(value, true) }
-
-                LazyColumn {
-                    itemsIndexed(filteredSongs) { index, song ->
-                        Song(
-                            song = song,
-                            onClick = {
-                                val index2 = songs.indexOf(it)
-                                onSongClicked(it, index2)
-                            }
-                        )
-                    }
-                }
-
+                SelectedSongsBar(
+                    onCancel = onCancelSelectedSongs,
+                    playlists = playlists,
+                    onAddPlaylist = onAddPlaylist
+                )
             }
+
+            AnimatedVisibility(
+                !selectModeEnabled,
+                exit = shrinkVertically()
+            ) {
+                SongsSearchBar(
+                    songs = songs,
+                    onSongClicked = onSongClicked
+                )
+            }
+
+
 
             Spacer(Modifier.height(16.dp))
 
@@ -184,7 +174,17 @@ fun SharedTransitionScope.SongsList(
                 itemsIndexed(songs) { index, song ->
                     Song(
                         song = song,
-                        onClick = { onSongClicked(it, index) }
+                        onClick = {
+                            if (selectModeEnabled) {
+                                onSelectSong(song)
+                            } else {
+                                val index2 = songs.indexOf(it)
+                                onSongClicked(it, index2)
+                            }
+                        },
+                        onLongClicked = onSelectSong,
+                        selectedSongs = selectedSongs,
+                        selectModeEnabled = selectModeEnabled
                     )
                 }
 

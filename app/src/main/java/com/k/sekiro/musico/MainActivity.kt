@@ -19,10 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,29 +44,24 @@ import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.player.setMediaItemsList
 import com.k.sekiro.musico.playmusic.player.startProgressUpdate
 import com.k.sekiro.musico.playmusic.player.stopProgressUpdate
+import com.k.sekiro.musico.playmusic.presenation.PlayType
+import com.k.sekiro.musico.playmusic.presenation.UiAction
+import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
 import com.k.sekiro.musico.playmusic.presenation.model.Home
 import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
-import com.k.sekiro.musico.playmusic.presenation.PlayType
-import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
-import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.PermissionGate
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
-import kotlin.text.isNotBlank
-import kotlin.text.isNotEmpty
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 
 class MainActivity : ComponentActivity() {
     var controller: MediaController? = null
@@ -206,6 +198,9 @@ class MainActivity : ComponentActivity() {
                                     val songs = state.value.songs
                                     val isPlaying = state.value.isPlaying
                                     val playedSong = state.value.playedSong
+                                    val selectModeEnabled = state.value.selectModeEnabled
+                                    val selectedSongs = state.value.selectedSongs
+                                    val playlists = state.value.playlists
                                     if (!songs.isEmpty()) {
                                         SongsList(
                                             songs = songs,
@@ -236,7 +231,7 @@ class MainActivity : ComponentActivity() {
                                             isPlaying = isPlaying,
                                             currentPosition = {currentPosition},
                                             song = playedSong?:songs[0],
-
+                                            selectModeEnabled = selectModeEnabled,
                                             onPlayClicked = {
                                                 onAction(UiAction.PlayPause)
                                                 Log.e(
@@ -245,6 +240,9 @@ class MainActivity : ComponentActivity() {
                                                 )
 
                                             },
+                                            onSelectSong = viewModel::onSelectSong,
+                                            selectedSongs = selectedSongs,
+                                            onCancelSelectedSongs = viewModel::onCancelAllSelectedSongs,
                                             onBottomBarClicked = {
                                                 val index =
                                                     if (playedSong != null) songs.indexOf(
@@ -254,6 +252,8 @@ class MainActivity : ComponentActivity() {
                                             },
                                             animatedVisibilityScope = this,
                                             onAction = ::onAction,
+                                            playlists = playlists,
+                                            onAddPlaylist = viewModel::onAddPlaylist
                                         )
                                     } else {
                                         LoadingScreen()

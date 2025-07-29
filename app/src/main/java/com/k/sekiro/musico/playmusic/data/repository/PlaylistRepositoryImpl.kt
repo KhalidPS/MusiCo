@@ -1,0 +1,29 @@
+package com.k.sekiro.musico.playmusic.data.repository
+
+import com.k.sekiro.musico.playmusic.data.local.PlaylistDao
+import com.k.sekiro.musico.playmusic.domain.model.Playlist
+import com.k.sekiro.musico.playmusic.domain.model.PlaylistWithSongs
+import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
+
+class PlaylistRepositoryImpl(private val playlistDao: PlaylistDao): PlaylistRepository {
+    override suspend fun addPlaylist(playlist: Playlist): Long {
+        return playlistDao.insert(playlist)
+    }
+
+    override suspend fun getPlaylist(playlistId: Long): Playlist? {
+        return playlistDao.getPlaylist(playlistId)
+    }
+
+    override suspend fun getPlaylistWithSongs(): List<PlaylistWithSongs> {
+        return playlistDao.getPlaylistWithSongs()
+    }
+
+    override suspend fun getPlaylistWithSongs(playlistId: Long): PlaylistWithSongs? {
+        return playlistDao.getPlaylistWithSongs(playlistId)
+    }
+
+    override suspend fun getAllPlaylists(): List<Playlist> {
+        return playlistDao.getAllPlaylists()
+    }
+
+}

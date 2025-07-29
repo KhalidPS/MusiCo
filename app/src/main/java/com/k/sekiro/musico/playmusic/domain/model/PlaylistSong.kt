@@ -23,6 +23,6 @@ import androidx.room.ForeignKey
     ]
 )
 data class PlaylistSong(
-    val playlistId: Int,
-    val songId:Int
+    val playlistId: Long,
+    val songId: Long
 )
