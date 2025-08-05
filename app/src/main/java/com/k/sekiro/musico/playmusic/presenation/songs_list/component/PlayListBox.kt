@@ -3,6 +3,7 @@ package com.k.sekiro.musico.playmusic.presenation.songs_list.component
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +37,7 @@ fun PlayListBox(
     @DrawableRes latestSongImagePerPlayList: Int,
     playListIcon: ImageVector,
     playListIconTint: Color = LocalContentColor.current,
+    onClick:() -> Unit = {},
     playListName: String
 ) {
 
@@ -44,6 +46,7 @@ fun PlayListBox(
             .width(120.dp)
             .height(100.dp)
             .clip(RoundedCornerShape(12.dp))
+            .clickable(true, onClick = onClick)
 
     ){
         Image(

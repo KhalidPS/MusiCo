@@ -1,6 +1,7 @@
 package com.k.sekiro.musico.playmusic.presenation
 
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
+import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 
 data class UiState(
@@ -14,7 +15,8 @@ data class UiState(
     val isPlaying: Boolean = false,
     val selectedSongs: List<SongUi> = emptyList(),
     val selectModeEnabled: Boolean = false,
-    val playlists: List<Playlist> = emptyList()
+    val playlists: List<Playlist> = emptyList(),
+    val playlistsWithSongs: List<PlaylistWithSongsUi> = emptyList()
 )
 
 

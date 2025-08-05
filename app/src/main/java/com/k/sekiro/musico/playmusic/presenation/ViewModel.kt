@@ -13,14 +13,17 @@ import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
+import com.k.sekiro.musico.playmusic.presenation.model.toPlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -55,6 +58,9 @@ class ViewModel(
             ),
             UiState()
         )
+
+    private val _events = Channel<UiEvents>()
+    val events = _events.receiveAsFlow()
 
     /*    private val _state = savedStateHandle.getStateFlow(stateKey, UiState())
     val state = _state
@@ -220,7 +226,7 @@ class ViewModel(
         }
     }
     
-    fun onAddPlaylist(playlistName: String){
+    fun onAddToNewPlaylist(playlistName: String){
         viewModelScope.launch(Dispatchers.IO){
             val playlistId = playlistRepository.addPlaylist(Playlist(name = playlistName))
             Log.e("ks","onAddPlaylist id: $playlistId")
@@ -234,17 +240,56 @@ class ViewModel(
             }
 
             onCancelAllSelectedSongs()
-
+            _events.send(UiEvents.Message("added successfully to $playlistName playlist"))
             getPlayLists()
         }
     }
 
+    fun addNewPlaylist(playlistName: String){
+        viewModelScope.launch(Dispatchers.IO){
+            playlistRepository.addPlaylist(Playlist(name = playlistName))
+            _events.send(UiEvents.Message("$playlistName has been added successfully"))
+            val playlistsWithSongs = playlistRepository.getPlaylistWithSongs().map {
+                it.toPlaylistWithSongsUi()
+            }
+            _state.update {
+                it.copy(
+                    playlistsWithSongs = playlistsWithSongs,
+                    playlists = playlistsWithSongs.map { it.playlist }
+                )
+            }
+        }
+    }
+
+
+    fun onAddToExistPlaylist(playlist: Playlist){
+
+        viewModelScope.launch(Dispatchers.IO) {
+            for (song in _state.value.selectedSongs){
+                playlistSongRepository.addPlaylistSongRef(
+                    playlistSongRef = PlaylistSong(
+                        playlistId = playlist.id,
+                        songId = song.id
+                    )
+                )
+            }
+
+            onCancelAllSelectedSongs()
+            _events.send(UiEvents.Message("added successfully to ${playlist.name} playlist"))
+            getPlayLists()
+        }
+
+    }
+
     fun getPlaylistsWithSongs(){
         viewModelScope.launch(Dispatchers.IO){
-           val playlistWithSongs = playlistRepository.getPlaylistWithSongs()
-            for (playlist in playlistWithSongs){
-                Log.e("ks","${playlist.playlist} =>> ${playlist.songs}")
-
+           val playlistsWithSongs = playlistRepository.getPlaylistWithSongs().map {
+               it.toPlaylistWithSongsUi()
+           }
+            _state.update {
+                it.copy(
+                    playlistsWithSongs = playlistsWithSongs
+                )
             }
         }
     }

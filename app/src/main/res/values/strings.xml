@@ -5,4 +5,5 @@
     <string name="notify_permission_msg_title">Notification permission is needed</string>
     <string name="storage_permission_msg">the app need to access the device storage\nto get the songs on it.</string>
     <string name="notify_permission_msg_content">The app need notification permission to\nallow playing music when the app in the\nbackground.</string>
+    <string name="added_playlist">Added successfully to</string>
 </resources>

@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -46,14 +47,20 @@ import com.k.sekiro.musico.playmusic.player.startProgressUpdate
 import com.k.sekiro.musico.playmusic.player.stopProgressUpdate
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.UiAction
+import com.k.sekiro.musico.playmusic.presenation.UiEvents
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
 import com.k.sekiro.musico.playmusic.presenation.model.Home
 import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
+import com.k.sekiro.musico.playmusic.presenation.model.PlaylistScreen
+import com.k.sekiro.musico.playmusic.presenation.model.PlaylistShowcase
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
+import com.k.sekiro.musico.playmusic.presenation.playlist.PlaylistCollapsingScreen
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.PermissionGate
+import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.ShowcasePlaylists
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
+import com.k.sekiro.musico.playmusic.presenation.util.ObserveAsEvent
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -163,6 +170,25 @@ class MainActivity : ComponentActivity() {
             MusiCoTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
+
+                    ObserveAsEvent(viewModel.events) { event ->
+                        when(event){
+                            is UiEvents.Message -> {
+                                Toast.makeText(
+                                    this,event.msg, Toast.LENGTH_SHORT
+                                ).show()
+                            }
+
+
+                            is UiEvents.Error -> {
+                                Toast.makeText(
+                                    this,event.error.message, Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+
+
                     val navController = rememberNavController()
 
                     PermissionGate {
@@ -253,7 +279,12 @@ class MainActivity : ComponentActivity() {
                                             animatedVisibilityScope = this,
                                             onAction = ::onAction,
                                             playlists = playlists,
-                                            onAddPlaylist = viewModel::onAddPlaylist
+                                            onAddToNewPlaylist = viewModel::onAddToNewPlaylist,
+                                            onAddToExistPlaylist = viewModel::onAddToExistPlaylist,
+                                            onShowcasePlaylists = {
+                                                viewModel.getPlaylistsWithSongs()
+                                                navController.navigate(PlaylistShowcase)
+                                            }
                                         )
                                     } else {
                                         LoadingScreen()
@@ -302,6 +333,29 @@ class MainActivity : ComponentActivity() {
                                         index = index,
                                         animatedVisibilityScope = this,
                                         onDownArrowClicked = { navController.popBackStack() }
+                                    )
+
+                                }
+
+                                composable<PlaylistShowcase>{
+                                    val playlistsWithSongs = state.value.playlistsWithSongs
+                                    ShowcasePlaylists(
+                                        playlists = playlistsWithSongs,
+                                        onBackButtonClicked = { navController.popBackStack() },
+                                        onAddPlaylistClicked = viewModel::addNewPlaylist,
+                                        onPlaylistItemClicked = {
+                                            navController.navigate(PlaylistScreen(it))
+                                        }
+                                    )
+                                }
+
+
+                                composable<PlaylistScreen> {
+                                    val playlistId = it.toRoute<PlaylistScreen>().id
+                                    val playlist = state.value.playlistsWithSongs.find { it.playlist.id == playlistId }?: return@composable
+
+                                    PlaylistCollapsingScreen(
+                                        playlistWithSongsUi = playlist,
                                     )
 
                                 }

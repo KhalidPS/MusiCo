@@ -93,6 +93,7 @@ import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTim
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.SongSlider
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -253,14 +254,14 @@ fun SharedTransitionScope.PlayedSongScreen(
 
 
             val song = songs[it]
-            val songCover =
-                convertUriToBitmap(song.cover.toUri(), context.contentResolver, context.resources)
+            val songCover = async { convertUriToBitmap(song.cover.toUri(), context.contentResolver, context.resources) }
+
 
             val palette = if (lurCache[song.path] != null) {
                 Log.e("ks", "$it :${lurCache[song.path]}")
                 lurCache[song.path]!!
             } else {
-                Palette.from(songCover).generate().apply {
+                Palette.from(songCover.await()).generate().apply {
                     lurCache.put(song.path, this)
                 }
             }

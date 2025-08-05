@@ -79,7 +79,9 @@ fun SharedTransitionScope.SongsList(
     onBottomBarClicked: () -> Unit = {},
     onCancelSelectedSongs: () -> Unit = {},
     onAction: (UiAction) -> Unit = {},
-    onAddPlaylist:(String) -> Unit = {},
+    onAddToNewPlaylist:(String) -> Unit = {},
+    onAddToExistPlaylist:(Playlist) -> Unit = {},
+    onShowcasePlaylists:() -> Unit = {},
     playlists: List<Playlist> = emptyList()
 ) {
 
@@ -116,7 +118,8 @@ fun SharedTransitionScope.SongsList(
                 SelectedSongsBar(
                     onCancel = onCancelSelectedSongs,
                     playlists = playlists,
-                    onAddPlaylist = onAddPlaylist
+                    onAddToNewPlaylist = onAddToNewPlaylist,
+                    onAddToExistPlaylist = onAddToExistPlaylist
                 )
             }
 
@@ -151,15 +154,16 @@ fun SharedTransitionScope.SongsList(
 
                 PlayListBox(
                     boxColor = Red2,
-                    latestSongImagePerPlayList = R.drawable.song_cover,
+                    latestSongImagePerPlayList = R.drawable.logo_2,
                     playListIcon = Icons.AutoMirrored.Default.List,
-                    playListName = "Playlists"
+                    playListName = "Playlists",
+                    onClick = onShowcasePlaylists
                 )
 
 
                 PlayListBox(
                     boxColor = Green2,
-                    latestSongImagePerPlayList = R.drawable.logo_1,
+                    latestSongImagePerPlayList = R.drawable.funk,
                     playListIcon = Icons.TwoTone.Refresh,
                     playListName = "Recent"
                 )
