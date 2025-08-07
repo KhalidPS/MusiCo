@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.k.sekiro.musico" />
+                  <option name="mobileSdkAppId" value="1:658638628353:android:9a3d76a2f78f32296b4200" />
+                  <option name="projectId" value="musico-5011d" />
+                  <option name="projectNumber" value="658638628353" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

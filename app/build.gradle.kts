@@ -6,12 +6,18 @@ plugins {
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.baselineprofile)
+    id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.k.sekiro.musico"
     compileSdk = 35
 
+   /* lint {
+        disable.add("NullSafeMutableLiveData")
+
+    }
+*/
     defaultConfig {
         applicationId = "com.k.sekiro.musico"
         minSdk = 24
@@ -75,4 +81,6 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
+    implementation("com.google.firebase:firebase-analytics")
 }

@@ -13,4 +13,8 @@
 /baselineProfile
 .externalNativeBuild
 .cxx
+.lock
+.bin
+*.xml
+!AndroidManifest.xml
 local.properties
