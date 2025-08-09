@@ -13,11 +13,11 @@ android {
     namespace = "com.k.sekiro.musico"
     compileSdk = 35
 
-   /* lint {
+    lint {
         disable.add("NullSafeMutableLiveData")
 
     }
-*/
+
     defaultConfig {
         applicationId = "com.k.sekiro.musico"
         minSdk = 24

@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,18 +14,22 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import com.k.sekiro.musico.R
@@ -45,6 +50,8 @@ fun PlaylistCollapsingScreen(
     playlistWithSongsUi: PlaylistWithSongsUi,
     onAction:(UiAction) -> Unit = {}
 ) {
+
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     // --- Define Dimensions ---
     val expandedImageHeight = 250.dp
@@ -75,6 +82,8 @@ fun PlaylistCollapsingScreen(
         }
     }
 
+    val isBackEnabled by remember { derivedStateOf { scrollProgress >= 1f } }
+
 
     // --- Title Animation Properties ---
     val titleFontSizeExpanded = 30.sp
@@ -93,14 +102,14 @@ fun PlaylistCollapsingScreen(
     val titleIconGap = 8.dp // A small gap between the icon and the title
     val titleCollapsedX = with(density) { (startPadding + iconButtonWidth + titleIconGap).toPx() }
     // --- Toolbar Color Animation ---
-    val toolbarBackgroundColor by animateColorAsState(
+/*    val toolbarBackgroundColor by animateColorAsState(
         targetValue =   if (scrollProgress < 1f) Color.Transparent else MaterialTheme.colorScheme.surface
-        /* lerp(
+        *//* lerp(
             Color.Transparent,
             MaterialTheme.colorScheme.surface,
             scrollProgress
-        )*/
-    )
+        )*//*
+    )*/
 
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -116,6 +125,7 @@ fun PlaylistCollapsingScreen(
                 .graphicsLayer {
                     // Parallax effect: image moves up slower than the list
                     translationY = -scrollProgress * (expandedHeightPx - collapsedHeightPx)
+                    alpha = if (scrollProgress < 1f) 1f else 0f
                 }
         )
 
@@ -141,16 +151,16 @@ fun PlaylistCollapsingScreen(
             modifier = Modifier
                 .graphicsLayer {
                     // Animate the vertical position of the title
-                    translationY = androidx.compose.ui.util.lerp(
+                    translationY = lerp(
                         titleExpandedY,
                         titleCollapsedY,
                         scrollProgress
                     )
 
                     // Animate the horizontal position from center to start
-                    translationX = androidx.compose.ui.util.lerp(
-                        titleExpandedX,
-                        titleCollapsedX,
+                    translationX = lerp(
+                        if (isRtl) -titleExpandedX else titleExpandedX,
+                        if (isRtl) -titleCollapsedX else titleCollapsedX,
                         scrollProgress
                     )
 
@@ -162,27 +172,31 @@ fun PlaylistCollapsingScreen(
         )
 
         // --- TopAppBar (The final, fixed toolbar) ---
-        TopAppBar(
-            title = { }, // Title is handled by the animated Text composable above
-            navigationIcon = {
-                IconButton(
-                    onClick = { /* Handle back click */ },
-                    modifier = Modifier.padding(vertical = 8.dp)
-                ) {
+            TopAppBar(
+                title = { }, // Title is handled by the animated Text composable above
+                navigationIcon = {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
+                        modifier = Modifier.padding(start = 8.dp)
+                            .clickable(
+                                enabled = isBackEnabled,
+                                onClick = { }
+                            )
                     )
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = toolbarBackgroundColor,
-                scrolledContainerColor = toolbarBackgroundColor
-            ),
-            modifier = Modifier
-                .height(collapsedToolbarHeight)
-                .zIndex(2f) // Make sure it's above the scrollable content
-        )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    /* containerColor = toolbarBackgroundColor,
+                     scrolledContainerColor = toolbarBackgroundColor*/
+                ),
+                modifier = Modifier
+                    .height(collapsedToolbarHeight)
+                    .zIndex(2f) // Make sure it's above the scrollable content
+                    .graphicsLayer{
+                        alpha = if (scrollProgress < 1f) 0f else 1f
+                    }
+            )
+
     }
 }
 

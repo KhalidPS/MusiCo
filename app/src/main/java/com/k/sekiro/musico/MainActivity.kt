@@ -227,6 +227,7 @@ class MainActivity : ComponentActivity() {
                                     val selectModeEnabled = state.value.selectModeEnabled
                                     val selectedSongs = state.value.selectedSongs
                                     val playlists = state.value.playlists
+                                    val playlistWithSongs = state.value.playlistsWithSongs
                                     if (!songs.isEmpty()) {
                                         SongsList(
                                             songs = songs,

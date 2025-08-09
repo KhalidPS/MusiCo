@@ -124,6 +124,7 @@ fun ShowcasePlaylists(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(playlists) { playlist ->
+                    if (playlist.playlist.name != "Favorite" && playlist.playlist.name != "Recent")
                     PlaylistItem(
                         playlist = playlist,
                         onClick = onPlaylistItemClicked
@@ -150,23 +151,23 @@ private fun ShowcasePlaylistsPrev() {
 
 val mockPlaylists = listOf(
     PlaylistWithSongsUi(
-        playlist = Playlist("Gym", R.drawable.funk, id = 0), songs = listOf(
+        playlist = Playlist("Gym",id = 0), songs = listOf(
             mockSongs[0].toSongUi()
         )
     ), PlaylistWithSongsUi(
-        playlist = Playlist("Study", R.drawable.logo_2, id = 1), songs = listOf(
+        playlist = Playlist("Study",id = 1), songs = listOf(
             mockSongs[0].toSongUi()
         )
     ), PlaylistWithSongsUi(
-        playlist = Playlist("Favorite", R.drawable.favorite, id = 2), songs = listOf(
+        playlist = Playlist("Favorite", id = 2), songs = listOf(
             mockSongs[0].toSongUi()
         )
     ), PlaylistWithSongsUi(
-        playlist = Playlist("Mode", R.drawable.funk, id = 3), songs = listOf(
+        playlist = Playlist("Mode",id = 3), songs = listOf(
             mockSongs[0].toSongUi()
         )
     ), PlaylistWithSongsUi(
-        playlist = Playlist("Motivation", R.drawable.funk, id = 4), songs = listOf(
+        playlist = Playlist("Motivation",id = 4), songs = listOf(
             mockSongs[0].toSongUi()
         )
     )

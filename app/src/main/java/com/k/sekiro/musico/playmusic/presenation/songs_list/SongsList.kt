@@ -148,7 +148,7 @@ fun SharedTransitionScope.SongsList(
                     latestSongImagePerPlayList = R.drawable.funk,
                     playListIconTint = Color.Red,
                     playListIcon = Icons.Default.Favorite,
-                    playListName = "Favorite"
+                    playListName = "Favorite",
                 )
 
 
@@ -157,7 +157,7 @@ fun SharedTransitionScope.SongsList(
                     latestSongImagePerPlayList = R.drawable.logo_2,
                     playListIcon = Icons.AutoMirrored.Default.List,
                     playListName = "Playlists",
-                    onClick = onShowcasePlaylists
+                    onClick = onShowcasePlaylists,
                 )
 
 
@@ -165,7 +165,7 @@ fun SharedTransitionScope.SongsList(
                     boxColor = Green2,
                     latestSongImagePerPlayList = R.drawable.funk,
                     playListIcon = Icons.TwoTone.Refresh,
-                    playListName = "Recent"
+                    playListName = "Recent",
                 )
 
             }
