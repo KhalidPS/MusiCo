@@ -53,6 +53,8 @@ fun PlaylistCollapsingScreen(
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
+    val songs = remember(playlistWithSongsUi) { if (playlistWithSongsUi.playlist.name == "Recent") playlistWithSongsUi.songs.reversed() else playlistWithSongsUi.songs }
+
     // --- Define Dimensions ---
     val expandedImageHeight = 250.dp
     val collapsedToolbarHeight = 60.dp
@@ -115,7 +117,7 @@ fun PlaylistCollapsingScreen(
 
         // --- Collapsing Image ---
         AsyncImage(
-            model = if (playlistWithSongsUi.songs.isNotEmpty())playlistWithSongsUi.songs[0].cover else "",
+            model = if (songs.isNotEmpty())songs[0].cover else "",
             error = painterResource(id = R.drawable.logo_2),
             contentDescription = "playlist Image",
             contentScale = ContentScale.Crop,
@@ -138,7 +140,7 @@ fun PlaylistCollapsingScreen(
                 Spacer(modifier = Modifier.height(expandedImageHeight))
             }
 
-            items(playlistWithSongsUi.songs) { song ->
+            items(songs) { song ->
                 Song(song = song)
             }
         }

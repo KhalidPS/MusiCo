@@ -27,18 +27,21 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.k.sekiro.musico.R
+import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
+import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
 import com.k.sekiro.musico.ui.theme.PlayListColor
 
 @Composable
 fun PlayListBox(
     modifier: Modifier = Modifier,
     boxColor: Color,
-    @DrawableRes latestSongImagePerPlayList: Int,
     playListIcon: ImageVector,
     playListIconTint: Color = LocalContentColor.current,
-    onClick:() -> Unit = {},
-    playListName: String
+    onClick:(Long) -> Unit = {},
+    playlist: PlaylistWithSongsUi,
+    playlistName: String = ""
 ) {
 
     Box(
@@ -46,11 +49,17 @@ fun PlayListBox(
             .width(120.dp)
             .height(100.dp)
             .clip(RoundedCornerShape(12.dp))
-            .clickable(true, onClick = onClick)
+            .clickable(true, onClick = { onClick(playlist.playlist.id) })
 
     ){
-        Image(
-            painter = painterResource(latestSongImagePerPlayList),
+        val cover = if (playlist.songs.isNotEmpty()){
+            if (playlist.playlist.name == "Recent") playlist.songs[playlist.songs.size -1].cover
+            else playlist.songs[0].cover
+        }else ""
+
+        AsyncImage(
+            model = cover,
+            error = painterResource(R.drawable.logo_2),
             contentScale = ContentScale.Crop,
             contentDescription = "playlist recent song's image",
         )
@@ -74,7 +83,7 @@ fun PlayListBox(
             )
 
             Text(
-               text =  playListName,
+               text = playlistName.ifEmpty { playlist.playlist.name },
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -88,9 +97,8 @@ fun PlayListBox(
 private fun PlayListBoxPrev() {
     PlayListBox(
         boxColor = Color.Cyan,
-        latestSongImagePerPlayList = R.drawable.funk,
         playListIcon = Icons.Default.Favorite,
-        playListName = "Favorite",
-        playListIconTint = Color.Red
+        playListIconTint = Color.Red,
+        playlist = mockPlaylists[0]
         )
 }

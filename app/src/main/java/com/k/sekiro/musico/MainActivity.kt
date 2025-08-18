@@ -252,6 +252,7 @@ class MainActivity : ComponentActivity() {
                                                 if (controller!!.currentMediaItemIndex != index){
                                                     viewModel.updatePlayedSong(index)
                                                 }
+                                                viewModel.addToRecent(song.id)
                                                 navController.navigate(PlayedSong(index))
                                             },
                                             progress = {progress},
@@ -282,10 +283,12 @@ class MainActivity : ComponentActivity() {
                                             playlists = playlists,
                                             onAddToNewPlaylist = viewModel::onAddToNewPlaylist,
                                             onAddToExistPlaylist = viewModel::onAddToExistPlaylist,
+                                            playlistWithSongs = playlistWithSongs,
                                             onShowcasePlaylists = {
-                                                viewModel.getPlaylistsWithSongs()
+                                                //viewModel.getPlaylistsWithSongs()
                                                 navController.navigate(PlaylistShowcase)
-                                            }
+                                            },
+                                            onClickFavOrRecent = { navController.navigate(PlaylistScreen(it)) }
                                         )
                                     } else {
                                         LoadingScreen()

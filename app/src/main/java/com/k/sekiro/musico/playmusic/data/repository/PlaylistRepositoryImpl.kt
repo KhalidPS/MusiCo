@@ -4,6 +4,7 @@ import com.k.sekiro.musico.playmusic.data.local.PlaylistDao
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistWithSongs
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
+import kotlinx.coroutines.flow.Flow
 
 class PlaylistRepositoryImpl(private val playlistDao: PlaylistDao): PlaylistRepository {
     override suspend fun addPlaylist(playlist: Playlist): Long {
@@ -14,7 +15,7 @@ class PlaylistRepositoryImpl(private val playlistDao: PlaylistDao): PlaylistRepo
         return playlistDao.getPlaylist(playlistId)
     }
 
-    override suspend fun getPlaylistWithSongs(): List<PlaylistWithSongs> {
+    override suspend fun getPlaylistWithSongs(): Flow<List<PlaylistWithSongs>> {
         return playlistDao.getPlaylistWithSongs()
     }
 
@@ -22,7 +23,7 @@ class PlaylistRepositoryImpl(private val playlistDao: PlaylistDao): PlaylistRepo
         return playlistDao.getPlaylistWithSongs(playlistId)
     }
 
-    override suspend fun getAllPlaylists(): List<Playlist> {
+    override suspend fun getAllPlaylists(): Flow<List<Playlist>> {
         return playlistDao.getAllPlaylists()
     }
 

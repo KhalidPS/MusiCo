@@ -2,6 +2,7 @@ package com.k.sekiro.musico.playmusic.domain.repositroy
 
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistWithSongs
+import kotlinx.coroutines.flow.Flow
 
 interface PlaylistRepository {
 
@@ -9,9 +10,9 @@ interface PlaylistRepository {
 
     suspend fun getPlaylist(playlistId: Long): Playlist?
 
-    suspend fun getPlaylistWithSongs(): List<PlaylistWithSongs>
+    suspend fun getPlaylistWithSongs(): Flow<List<PlaylistWithSongs>>
 
     suspend fun getPlaylistWithSongs(playlistId: Long): PlaylistWithSongs?
 
-    suspend fun getAllPlaylists(): List<Playlist>
+    suspend fun getAllPlaylists(): Flow<List<Playlist>>
 }

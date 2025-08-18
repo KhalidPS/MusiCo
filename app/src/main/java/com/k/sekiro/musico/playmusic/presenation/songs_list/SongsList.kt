@@ -45,12 +45,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
+import com.k.sekiro.musico.playmusic.domain.model.PlaylistWithSongs
 import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.UiState
+import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
+import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayListBox
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayedSongBottomBar
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.SelectedSongsBar
@@ -79,12 +82,13 @@ fun SharedTransitionScope.SongsList(
     onBottomBarClicked: () -> Unit = {},
     onCancelSelectedSongs: () -> Unit = {},
     onAction: (UiAction) -> Unit = {},
-    onAddToNewPlaylist:(String) -> Unit = {},
-    onAddToExistPlaylist:(Playlist) -> Unit = {},
-    onShowcasePlaylists:() -> Unit = {},
-    playlists: List<Playlist> = emptyList()
+    onAddToNewPlaylist: (String) -> Unit = {},
+    onAddToExistPlaylist: (Playlist) -> Unit = {},
+    onShowcasePlaylists: () -> Unit = {},
+    onClickFavOrRecent: (Long) -> Unit = {},
+    playlists: List<Playlist> = emptyList(),
+    playlistWithSongs: List<PlaylistWithSongsUi> = emptyList()
 ) {
-
     Scaffold(
         bottomBar = {
             PlayedSongBottomBar(
@@ -143,29 +147,46 @@ fun SharedTransitionScope.SongsList(
                 modifier = Modifier.fillMaxWidth()
             ) {
 
+              //  val filteredPlaylists = remember(playlistWithSongs) { playlistWithSongs.filter { it.playlist.name == "Favorite" || it.playlist.name == "Recent" } }
+/*                Log.e("ks", "Non filtered : $playlistWithSongs")
+                Log.e("ks", "filtered : $filteredPlaylists")
+                Log.e("ks","Non filtered size  : ${playlistWithSongs.size}")*/
+
+                val playlist = remember(playlistWithSongs) {
+                    if (playlistWithSongs.isNotEmpty())  {
+                        if (playlistWithSongs.size > 2) playlistWithSongs.first { it.playlist.name != "Favorite" && it.playlist.name != "Recent" }
+                        else playlistWithSongs[0]
+                    } else mockPlaylists[0]
+                }
+                
+                Log.e("ks","$playlist")
+
                 PlayListBox(
                     boxColor = SkyBlue,
-                    latestSongImagePerPlayList = R.drawable.funk,
                     playListIconTint = Color.Red,
                     playListIcon = Icons.Default.Favorite,
-                    playListName = "Favorite",
+
+                    playlist = playlistWithSongs[0]
+                        ?: mockPlaylists[0],
+                    onClick = { onClickFavOrRecent(it) }
                 )
 
 
                 PlayListBox(
                     boxColor = Red2,
-                    latestSongImagePerPlayList = R.drawable.logo_2,
                     playListIcon = Icons.AutoMirrored.Default.List,
-                    playListName = "Playlists",
-                    onClick = onShowcasePlaylists,
+                    onClick = { onShowcasePlaylists() },
+                    playlist = playlist,
+                    playlistName = "Playlists"
                 )
 
 
                 PlayListBox(
                     boxColor = Green2,
-                    latestSongImagePerPlayList = R.drawable.funk,
                     playListIcon = Icons.TwoTone.Refresh,
-                    playListName = "Recent",
+                    onClick = onClickFavOrRecent,
+                    playlist = playlistWithSongs[1]
+                        ?: mockPlaylists[0]
                 )
 
             }
