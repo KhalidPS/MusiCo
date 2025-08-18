@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -11,7 +13,7 @@ plugins {
 
 android {
     namespace = "com.k.sekiro.musico"
-    compileSdk = 35
+    compileSdk = 36
 
     lint {
         disable.add("NullSafeMutableLiveData")
@@ -38,11 +40,17 @@ android {
         }
     }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
+    /*kotlinOptions {
         jvmTarget = "11"
+    }*/
+    kotlin {
+        compilerOptions { 
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
     }
     buildFeatures {
         compose = true
@@ -73,6 +81,8 @@ dependencies {
     implementation(libs.androidx.profileinstaller)
     implementation("androidx.compose.runtime:runtime-tracing")
     "baselineProfile"(project(":baselineprofile"))
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
