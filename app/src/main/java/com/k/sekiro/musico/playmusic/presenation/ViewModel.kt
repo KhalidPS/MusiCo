@@ -18,6 +18,7 @@ import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.ZonedDateTime
 import kotlin.collections.iterator
 
 class ViewModel(
@@ -50,6 +53,7 @@ class ViewModel(
         .onStart {
             getAllSongsFromLocal()
             getPlayLists()
+            getPlaylistsWithSongs()
         }
         .stateIn(
             viewModelScope,
@@ -216,16 +220,18 @@ class ViewModel(
 
     private fun getPlayLists(){
         viewModelScope.launch(Dispatchers.IO) {
-            val list  = playlistRepository.getAllPlaylists()
-            Log.e("ks","listSiz : ${list.size}")
-            _state.update {
-                it.copy(
-                    playlists = list
-                )
+            playlistRepository.getAllPlaylists().collect { list ->
+                Log.e("ks","listSiz : ${list.size}")
+                _state.update {
+                    it.copy(
+                        playlists = list
+                    )
+                }
             }
+
         }
     }
-    
+
     fun onAddToNewPlaylist(playlistName: String){
         viewModelScope.launch(Dispatchers.IO){
             val playlistId = playlistRepository.addPlaylist(Playlist(name = playlistName))
@@ -241,7 +247,7 @@ class ViewModel(
 
             onCancelAllSelectedSongs()
             _events.send(UiEvents.Message("added successfully to $playlistName playlist"))
-            getPlayLists()
+           // getPlayLists()
         }
     }
 
@@ -249,7 +255,7 @@ class ViewModel(
         viewModelScope.launch(Dispatchers.IO){
             playlistRepository.addPlaylist(Playlist(name = playlistName))
             _events.send(UiEvents.Message("$playlistName has been added successfully"))
-            val playlistsWithSongs = playlistRepository.getPlaylistWithSongs().map {
+/*            val playlistsWithSongs = playlistRepository.getPlaylistWithSongs().map {
                 it.toPlaylistWithSongsUi()
             }
             _state.update {
@@ -257,7 +263,7 @@ class ViewModel(
                     playlistsWithSongs = playlistsWithSongs,
                     playlists = playlistsWithSongs.map { it.playlist }
                 )
-            }
+            }*/
         }
     }
 
@@ -276,22 +282,43 @@ class ViewModel(
 
             onCancelAllSelectedSongs()
             _events.send(UiEvents.Message("added successfully to ${playlist.name} playlist"))
-            getPlayLists()
+           // getPlayLists()
         }
 
     }
 
     fun getPlaylistsWithSongs(){
         viewModelScope.launch(Dispatchers.IO){
-           val playlistsWithSongs = playlistRepository.getPlaylistWithSongs().map {
-               it.toPlaylistWithSongsUi()
+           playlistRepository.getPlaylistWithSongs().collect { playlistsWithSongs ->
+               _state.update {
+                   it.copy(
+                       playlistsWithSongs = playlistsWithSongs.map { it.toPlaylistWithSongsUi() }
+                   )
+               }
            }
-            _state.update {
-                it.copy(
-                    playlistsWithSongs = playlistsWithSongs
-                )
+
+        }
+    }
+
+    fun addToRecent(songId: Long){
+       val playlist =  _state.value.playlistsWithSongs.find { it.playlist.name == "Recent" }!!
+        val song = playlist.songs.find { it.id == songId }
+        val playlistSong = PlaylistSong(songId = songId, playlistId = 2)
+        viewModelScope.launch(Dispatchers.IO){
+            if (song == null) {
+                playlistSongRepository.addPlaylistSongRef(playlistSong)
+                Log.e("ks","song in in null check : $song")
+            }else{
+                Log.e("ks","song in in else null check : $song")
+
+                playlistSongRepository.deletePlaylistSongRef(playlistSong)
+                playlistSongRepository.addPlaylistSongRef(playlistSong)
+                //ZonedDateTime.now()
+                //LocalDateTime.now()
+                // kotlinX datetime
             }
         }
+
     }
 
 

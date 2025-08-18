@@ -34,6 +34,7 @@ interface SongsDao {
     @Query("SELECT * FROM Song")
     suspend fun getSongsWithPlaylist(): List<SongWithPlaylists>
 
+    @Transaction
     @Query("SELECT * FROM Song WHERE id = :songId")
     suspend fun getSongsWithPlaylist(songId: Long): SongWithPlaylists?
 }

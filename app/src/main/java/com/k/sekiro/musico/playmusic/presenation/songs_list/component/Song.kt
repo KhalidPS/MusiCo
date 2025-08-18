@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.MoreVert
 import androidx.compose.material.icons.twotone.Share
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -123,17 +124,27 @@ fun Song(
             )
         }
 
-        Icon(
-            imageVector = Icons.TwoTone.Share,
-            contentDescription = "sharing song icon"
-        )
+
+        IconButton(
+            onClick = {}
+        ) {
+            Icon(
+                imageVector = Icons.TwoTone.Share,
+                contentDescription = "sharing song icon"
+            )
+        }
+
 
         Spacer(Modifier.width(16.dp))
 
-        Icon(
-            imageVector = Icons.TwoTone.MoreVert,
-            contentDescription = "more action to do for song icon"
-        )
+        IconButton(
+            onClick = {}
+        ) {
+            Icon(
+                imageVector = Icons.TwoTone.MoreVert,
+                contentDescription = "more action to do for song icon"
+            )
+        }
 
     }
 }

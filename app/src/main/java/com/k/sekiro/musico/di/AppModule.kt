@@ -9,8 +9,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.palette.graphics.Palette
 import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.k.sekiro.musico.playmusic.data.local.AppDatabase
 import com.k.sekiro.musico.playmusic.data.local.PaletteCache
+import com.k.sekiro.musico.playmusic.data.local.RoomCallback
 import com.k.sekiro.musico.playmusic.data.repository.PlaylistRepositoryImpl
 import com.k.sekiro.musico.playmusic.data.repository.PlaylistSongRepositoryImpl
 import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
@@ -18,6 +21,9 @@ import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
@@ -32,13 +38,17 @@ val appModule = module{
 
     singleOf(::PaletteCache)
 
+    
+    singleOf(::RoomCallback) bind RoomDatabase.Callback::class
 
     single{
         Room.databaseBuilder(
             androidContext(),
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
-            ).build()
+            )
+            .addCallback(get())
+            .build()
     }
 
     single{ get<AppDatabase>().songsDao }

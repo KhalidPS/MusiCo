@@ -1085,23 +1085,6 @@
             </list>
           </option>
           <option name="api" value="34" />
-          <option name="brand" value="Redmi" />
-          <option name="codename" value="xiaomi_lab_citrine" />
-          <option name="id" value="xiaomi_lab_citrine" />
-          <option name="labId" value="xiaomi" />
-          <option name="manufacturer" value="Xiaomi" />
-          <option name="name" value="Redmi Note 14 5G" />
-          <option name="screenDensity" value="450" />
-          <option name="screenX" value="1080" />
-          <option name="screenY" value="2400" />
-        </PersistentDeviceSelectionData>
-        <PersistentDeviceSelectionData>
-          <option name="accessStatus">
-            <list>
-              <option value="EULA_NOT_ACCEPTED" />
-            </list>
-          </option>
-          <option name="api" value="34" />
           <option name="brand" value="Xiaomi" />
           <option name="codename" value="xiaomi_lab_garnet" />
           <option name="id" value="xiaomi_lab_garnet" />
