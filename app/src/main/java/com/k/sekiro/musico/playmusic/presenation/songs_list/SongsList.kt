@@ -87,7 +87,8 @@ fun SharedTransitionScope.SongsList(
     onShowcasePlaylists: () -> Unit = {},
     onClickFavOrRecent: (Long) -> Unit = {},
     playlists: List<Playlist> = emptyList(),
-    playlistWithSongs: List<PlaylistWithSongsUi> = emptyList()
+    playlistWithSongs: List<PlaylistWithSongsUi> = emptyList(),
+    recentPlaylistSongs: List<SongUi> = emptyList()
 ) {
     Scaffold(
         bottomBar = {
@@ -185,7 +186,7 @@ fun SharedTransitionScope.SongsList(
                     boxColor = Green2,
                     playListIcon = Icons.TwoTone.Refresh,
                     onClick = onClickFavOrRecent,
-                    playlist = playlistWithSongs[1]
+                    playlist = playlistWithSongs[1].copy(songs = recentPlaylistSongs)
                         ?: mockPlaylists[0]
                 )
 
@@ -196,7 +197,10 @@ fun SharedTransitionScope.SongsList(
                 modifier = Modifier.fillMaxSize()
             ) {
 
-                itemsIndexed(songs) { index, song ->
+                itemsIndexed(
+                    songs,
+                    key = { index , item -> item.id}
+                ) { index, song ->
                     Song(
                         song = song,
                         onClick = {

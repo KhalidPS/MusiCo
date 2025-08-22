@@ -18,6 +18,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingSimpleBasePlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -34,6 +35,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.k.sekiro.musico.MainActivity
 import com.k.sekiro.musico.MusicoApp
 import com.k.sekiro.musico.R
+import com.k.sekiro.musico.playmusic.ServiceViewModelEventBus
 import com.k.sekiro.musico.playmusic.player.notification.CUSTOM_COMMAND_REPEAT_ALL_ACTION
 import com.k.sekiro.musico.playmusic.player.notification.CUSTOM_COMMAND_REPEAT_ONE_ACTION
 import com.k.sekiro.musico.playmusic.player.notification.MusiCoNotificationManager
@@ -158,8 +160,9 @@ class PlayerSessionService : MediaSessionService() {
                     session.player.repeatMode = Player.REPEAT_MODE_ALL
                 }
 
-
             }
+
+            Log.e("ks","custom Action is ${customCommand.customAction}")
 
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
@@ -197,9 +200,35 @@ class PlayerSessionService : MediaSessionService() {
             .setTrackSelector(DefaultTrackSelector(this))
             .build()
 
-        musiCoNotificationManager = MusiCoNotificationManager(this, player)
+        val forwardingPlayer = object : ForwardingSimpleBasePlayer(player){
+            override fun handleSeek(
+                mediaItemIndex: Int,
+                positionMs: Long,
+                seekCommand: Int
+            ): ListenableFuture<*> {
 
-        mediaSession = MediaSession.Builder(this, player)
+                var internalSeekCommand = seekCommand
+
+                when(seekCommand){
+
+                    COMMAND_SEEK_TO_PREVIOUS -> {
+                        internalSeekCommand = COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM
+                        eventBus?.onSeekListener(nextMediaItemIndex)
+                    }
+
+                    COMMAND_SEEK_TO_NEXT -> {
+                        internalSeekCommand = COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
+                        eventBus?.onSeekListener(nextMediaItemIndex)
+
+                    }
+                }
+                return super.handleSeek(mediaItemIndex, positionMs, internalSeekCommand)
+            }
+        }
+
+        musiCoNotificationManager = MusiCoNotificationManager(this, forwardingPlayer)
+
+        mediaSession = MediaSession.Builder(this, forwardingPlayer)
             .setSessionActivity(pendingIntent)
             .setCallback(sessionCallback)
             .setCustomLayout(notificationPlayerCustomCommandButtons)
@@ -275,6 +304,11 @@ class PlayerSessionService : MediaSessionService() {
 
     companion object{
         var isAlive = false
+       private var eventBus: ServiceViewModelEventBus? = null
+
+        fun setEventBus(eventBus: ServiceViewModelEventBus){
+            this.eventBus = eventBus
+        }
     }
 
     /*

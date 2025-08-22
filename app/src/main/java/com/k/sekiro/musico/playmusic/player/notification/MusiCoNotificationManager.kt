@@ -7,6 +7,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
@@ -20,7 +21,7 @@ import org.koin.core.component.inject
 
 class MusiCoNotificationManager(
     private val context: Context,
-    private val player: ExoPlayer
+    private val player: Player
 ): KoinComponent {
 
     @UnstableApi

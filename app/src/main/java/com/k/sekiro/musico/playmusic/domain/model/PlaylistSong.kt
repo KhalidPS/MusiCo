@@ -25,5 +25,5 @@ import androidx.room.ForeignKey
 data class PlaylistSong(
     val playlistId: Long,
     val songId: Long,
-    val dateTime: String = ""
+    val millis: Long = System.currentTimeMillis()
 )

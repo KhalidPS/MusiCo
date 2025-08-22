@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,6 +36,7 @@ import coil3.compose.AsyncImage
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
+import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
 
@@ -48,12 +50,13 @@ import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
 @Composable
 fun PlaylistCollapsingScreen(
     playlistWithSongsUi: PlaylistWithSongsUi,
-    onAction:(UiAction) -> Unit = {}
+    onAction:(UiAction) -> Unit = {},
+    onBackButtonClicked:() -> Unit = {},
+    onSongClicked:(Int, SongUi) -> Unit = {_,_ ->}
 ) {
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    val songs = remember(playlistWithSongsUi) { if (playlistWithSongsUi.playlist.name == "Recent") playlistWithSongsUi.songs.reversed() else playlistWithSongsUi.songs }
 
     // --- Define Dimensions ---
     val expandedImageHeight = 250.dp
@@ -117,7 +120,7 @@ fun PlaylistCollapsingScreen(
 
         // --- Collapsing Image ---
         AsyncImage(
-            model = if (songs.isNotEmpty())songs[0].cover else "",
+            model = if (playlistWithSongsUi.songs.isNotEmpty()) playlistWithSongsUi.songs[0].cover else "",
             error = painterResource(id = R.drawable.logo_2),
             contentDescription = "playlist Image",
             contentScale = ContentScale.Crop,
@@ -140,8 +143,16 @@ fun PlaylistCollapsingScreen(
                 Spacer(modifier = Modifier.height(expandedImageHeight))
             }
 
-            items(songs) { song ->
-                Song(song = song)
+            itemsIndexed(
+                playlistWithSongsUi.songs,
+                key = { index, item -> item.id}
+            ) { index, song ->
+                Song(
+                    song = song,
+                    onClick = {
+                        onSongClicked(index,it)
+                    }
+                )
             }
         }
 
@@ -183,7 +194,7 @@ fun PlaylistCollapsingScreen(
                         modifier = Modifier.padding(start = 8.dp)
                             .clickable(
                                 enabled = isBackEnabled,
-                                onClick = { }
+                                onClick = onBackButtonClicked
                             )
                     )
                 },

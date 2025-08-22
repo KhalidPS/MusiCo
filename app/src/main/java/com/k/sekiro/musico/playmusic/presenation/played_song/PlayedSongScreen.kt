@@ -114,7 +114,8 @@ fun SharedTransitionScope.PlayedSongScreen(
     index: Int = 0,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onAction: (UiAction) -> Unit,
-    onDownArrowClicked: () -> Unit = {}
+    onDownArrowClicked: () -> Unit = {},
+    onSettledPageChanged:(Long) -> Unit = {}
 ) {
 
 
@@ -200,7 +201,7 @@ fun SharedTransitionScope.PlayedSongScreen(
         }
         Log.e("ks","the played one : $playedSong")
         Log.e("ks","the index one :${songs.indexOf(playedSong)}")
-        Log.e("ks","index state 4 :$index")
+        Log.e("ks","the settled one ${songs[pagerState.settledPage]}")
     }
 
 
@@ -213,6 +214,7 @@ fun SharedTransitionScope.PlayedSongScreen(
             // if (songs[indexState] != state.playedSong){
             onAction(UiAction.ChangeToOtherSong(it))
             //onStart()
+            onSettledPageChanged(songs[it].id)
             onAction(UiAction.PlayPause)
             //}
 

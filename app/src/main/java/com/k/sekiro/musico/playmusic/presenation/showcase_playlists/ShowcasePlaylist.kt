@@ -123,7 +123,10 @@ fun ShowcasePlaylists(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(playlists) { playlist ->
+                items(
+                    playlists,
+                    key =  { it.playlist.id}
+                ) { playlist ->
                     if (playlist.playlist.name != "Favorite" && playlist.playlist.name != "Recent")
                     PlaylistItem(
                         playlist = playlist,

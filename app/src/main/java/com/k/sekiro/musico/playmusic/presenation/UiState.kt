@@ -16,7 +16,8 @@ data class UiState(
     val selectedSongs: List<SongUi> = emptyList(),
     val selectModeEnabled: Boolean = false,
     val playlists: List<Playlist> = emptyList(),
-    val playlistsWithSongs: List<PlaylistWithSongsUi> = emptyList()
+    val playlistsWithSongs: List<PlaylistWithSongsUi> = emptyList(),
+    val recentPlaylistSongs: List<SongUi> = emptyList()
 )
 
 

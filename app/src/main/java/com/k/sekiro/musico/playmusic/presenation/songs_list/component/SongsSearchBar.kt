@@ -68,7 +68,10 @@ fun SongsSearchBar(
         val filteredSongs = songs.filter { it.name.contains(value, true) }
 
         LazyColumn {
-            itemsIndexed(filteredSongs) { index, song ->
+            itemsIndexed(
+                filteredSongs,
+                key = { index, item -> item.id}
+            ) { index, song ->
                 Song(
                     song = song,
                     onClick = {

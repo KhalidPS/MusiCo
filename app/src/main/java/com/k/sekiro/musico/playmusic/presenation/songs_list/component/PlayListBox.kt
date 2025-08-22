@@ -52,13 +52,9 @@ fun PlayListBox(
             .clickable(true, onClick = { onClick(playlist.playlist.id) })
 
     ){
-        val cover = if (playlist.songs.isNotEmpty()){
-            if (playlist.playlist.name == "Recent") playlist.songs[playlist.songs.size -1].cover
-            else playlist.songs[0].cover
-        }else ""
 
         AsyncImage(
-            model = cover,
+            model = if (playlist.songs.isNotEmpty()) playlist.songs[0].cover else "",
             error = painterResource(R.drawable.logo_2),
             contentScale = ContentScale.Crop,
             contentDescription = "playlist recent song's image",

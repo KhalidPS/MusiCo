@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,6 +40,7 @@ import androidx.navigation.toRoute
 import androidx.palette.graphics.Palette
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.player.onChangPlayType
 import com.k.sekiro.musico.playmusic.player.playOrPause
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
@@ -54,11 +56,13 @@ import com.k.sekiro.musico.playmusic.presenation.model.Home
 import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistScreen
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistShowcase
+import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
 import com.k.sekiro.musico.playmusic.presenation.playlist.PlaylistCollapsingScreen
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.PermissionGate
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.ShowcasePlaylists
+import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.playmusic.presenation.util.ObserveAsEvent
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
@@ -105,7 +109,7 @@ class MainActivity : ComponentActivity() {
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             super.onMediaMetadataChanged(mediaMetadata)
 
-            Log.e("ks","indx onMediaMetadataChanged :${controller!!.currentMediaItemIndex}")
+            Log.e("ks", "indx onMediaMetadataChanged :${controller!!.currentMediaItemIndex}")
             viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
         }
 
@@ -138,7 +142,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalSharedTransitionApi::class, UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
 
-        Log.e("ks","onActivity create")
+        Log.e("ks", "onActivity create")
 
         super.onCreate(savedInstanceState)
 
@@ -172,17 +176,17 @@ class MainActivity : ComponentActivity() {
 
 
                     ObserveAsEvent(viewModel.events) { event ->
-                        when(event){
+                        when (event) {
                             is UiEvents.Message -> {
                                 Toast.makeText(
-                                    this,event.msg, Toast.LENGTH_SHORT
+                                    this, event.msg, Toast.LENGTH_SHORT
                                 ).show()
                             }
 
 
                             is UiEvents.Error -> {
                                 Toast.makeText(
-                                    this,event.error.message, Toast.LENGTH_SHORT
+                                    this, event.error.message, Toast.LENGTH_SHORT
                                 ).show()
                             }
                         }
@@ -198,14 +202,14 @@ class MainActivity : ComponentActivity() {
 
 
                             LaunchedEffect(Unit) {
-                              viewModel.state
-                                  .map { it.songs }
-                                  .distinctUntilChanged { old, new -> old == new } // to ensure that the content of
-                                  // new collecting songs list is different from previous collecting songs list if not then
-                                  //eliminates the new songs list and as a result the collect body won't execute
-                                  .collect {
-                                  controllerAndLastPlayedSongSetup(it)
-                              }
+                                viewModel.state
+                                    .map { it.songs }
+                                    .distinctUntilChanged { old, new -> old == new } // to ensure that the content of
+                                    // new collecting songs list is different from previous collecting songs list if not then
+                                    //eliminates the new songs list and as a result the collect body won't execute
+                                    .collect {
+                                        controllerAndLastPlayedSongSetup(it)
+                                    }
                             }
 
 
@@ -214,7 +218,6 @@ class MainActivity : ComponentActivity() {
                                 startDestination = Home::class,
                                 modifier = Modifier.padding(innerPadding)
                             ) {
-
 
 
                                 composable<Home> {
@@ -228,6 +231,7 @@ class MainActivity : ComponentActivity() {
                                     val selectedSongs = state.value.selectedSongs
                                     val playlists = state.value.playlists
                                     val playlistWithSongs = state.value.playlistsWithSongs
+                                    val recentPlaylistSongs = state.value.recentPlaylistSongs
                                     if (!songs.isEmpty()) {
                                         SongsList(
                                             songs = songs,
@@ -249,34 +253,54 @@ class MainActivity : ComponentActivity() {
                                                     isNewCreation = false
                                                 }
 
-                                                if (controller!!.currentMediaItemIndex != index){
+                                                if (!viewModel.isSelectedSongFromPlaylist() && controller!!.currentMediaItemIndex != index) {
+                                                    viewModel.updatePlayedSong(index)
+                                                } else if (viewModel.isSelectedSongFromPlaylist()) {
+                                                    lifecycleScope.launch {
+                                                        controller!!.setMediaItemsList(
+                                                            songs,
+                                                            startIndex = index,
+                                                            startProgress = 0L,
+                                                            this@MainActivity
+                                                        )
+                                                    }
                                                     viewModel.updatePlayedSong(index)
                                                 }
                                                 viewModel.addToRecent(song.id)
+                                                viewModel.updateIsSelectedSongFromPlaylist(value = false, songs = songs)
                                                 navController.navigate(PlayedSong(index))
                                             },
-                                            progress = {progress},
+                                            progress = { progress },
                                             isPlaying = isPlaying,
-                                            currentPosition = {currentPosition},
-                                            song = playedSong?:songs[0],
+                                            currentPosition = { currentPosition },
+                                            song = playedSong ?: songs[0],
                                             selectModeEnabled = selectModeEnabled,
                                             onPlayClicked = {
                                                 onAction(UiAction.PlayPause)
-                                                Log.e(
-                                                    "ks",
-                                                    "PlayedSong when play clicked : ${playedSong}"
-                                                )
-
                                             },
                                             onSelectSong = viewModel::onSelectSong,
                                             selectedSongs = selectedSongs,
                                             onCancelSelectedSongs = viewModel::onCancelAllSelectedSongs,
                                             onBottomBarClicked = {
                                                 val index =
-                                                    if (playedSong != null) songs.indexOf(
-                                                        playedSong
-                                                    ) else return@SongsList
-                                                navController.navigate(PlayedSong(index))
+                                                    if (playedSong != null && !viewModel.isSelectedSongFromPlaylist()) {
+                                                        songs.indexOf(playedSong)
+                                                    } else if (playedSong != null && viewModel.isSelectedSongFromPlaylist()) {
+                                                        viewModel.currentPlaylistSongs().indexOf(playedSong)
+                                                    } else return@SongsList
+                                                navController.navigate(
+                                                    PlayedSong(
+                                                        index = index,
+                                                        isFromPlaylist = viewModel.isSelectedSongFromPlaylist(),
+                                                        playlistId = viewModel.currentPlaylistId()
+                                                    )
+                                                )
+
+
+                                                Log.e(
+                                                    "ks",
+                                                    "index : $index, isFromPlaylist: ${viewModel.isSelectedSongFromPlaylist()}, playlistId: ${viewModel.currentPlaylistId()}"
+                                                )
                                             },
                                             animatedVisibilityScope = this,
                                             onAction = ::onAction,
@@ -285,10 +309,14 @@ class MainActivity : ComponentActivity() {
                                             onAddToExistPlaylist = viewModel::onAddToExistPlaylist,
                                             playlistWithSongs = playlistWithSongs,
                                             onShowcasePlaylists = {
-                                                //viewModel.getPlaylistsWithSongs()
                                                 navController.navigate(PlaylistShowcase)
                                             },
-                                            onClickFavOrRecent = { navController.navigate(PlaylistScreen(it)) }
+                                            onClickFavOrRecent = {
+                                                navController.navigate(
+                                                    PlaylistScreen(it)
+                                                )
+                                            },
+                                            recentPlaylistSongs = recentPlaylistSongs
                                         )
                                     } else {
                                         LoadingScreen()
@@ -318,10 +346,22 @@ class MainActivity : ComponentActivity() {
                                       val index = rememberedState.songs.indexOf(song)*/
 
                                     val index = it.toRoute<PlayedSong>().index
+                                    val isFromPlaylist = it.toRoute<PlayedSong>().isFromPlaylist
+                                    val playlistId = it.toRoute<PlayedSong>().playlistId
 
                                     val progress by rememberUpdatedState(state.value.sliderProgress)
                                     val passedTime by rememberUpdatedState(state.value.passedTimeDuration)
-                                    val songs = state.value.songs
+                                    val songs = remember(isFromPlaylist) {
+                                        if (isFromPlaylist) {
+                                            /*if (playlistId == 2L) state.value.recentPlaylistSongs
+                                            else state.value.playlistsWithSongs.find { it.playlist.id == playlistId }!!.songs*/
+                                            viewModel.currentPlaylistSongs()
+                                        } else {
+                                            state.value.songs
+                                        }
+                                    }
+
+
                                     val isPlaying = state.value.isPlaying
                                     val playedSong = state.value.playedSong
 
@@ -336,12 +376,13 @@ class MainActivity : ComponentActivity() {
                                         onAction = ::onAction,
                                         index = index,
                                         animatedVisibilityScope = this,
-                                        onDownArrowClicked = { navController.popBackStack() }
+                                        onDownArrowClicked = { navController.popBackStack() },
+                                        onSettledPageChanged = viewModel::addToRecent
                                     )
 
                                 }
 
-                                composable<PlaylistShowcase>{
+                                composable<PlaylistShowcase> {
                                     val playlistsWithSongs = state.value.playlistsWithSongs
                                     ShowcasePlaylists(
                                         playlists = playlistsWithSongs,
@@ -356,10 +397,48 @@ class MainActivity : ComponentActivity() {
 
                                 composable<PlaylistScreen> {
                                     val playlistId = it.toRoute<PlaylistScreen>().id
-                                    val playlist = state.value.playlistsWithSongs.find { it.playlist.id == playlistId }?: return@composable
+                                    val playlist = remember(
+                                        state.value.recentPlaylistSongs,
+                                        state.value.playlistsWithSongs
+                                    ) {
+                                        if (playlistId != 2L) {
+                                            state.value.playlistsWithSongs.find { it.playlist.id == playlistId }
+                                        } else {
+                                            PlaylistWithSongsUi(
+                                                playlist = Playlist("Recent", 2L),
+                                                songs = state.value.recentPlaylistSongs
+                                            )
+                                        }
+                                    }
 
                                     PlaylistCollapsingScreen(
-                                        playlistWithSongsUi = playlist,
+                                        playlistWithSongsUi = playlist ?: return@composable,
+                                        onBackButtonClicked = { navController.popBackStack() },
+                                        onSongClicked = { index, song ->
+                                            //val currentPlayedIndex = playlist.songs.indexOf(state.value.playedSong)
+                                            if (index != controller!!.currentMediaItemIndex) {
+                                                viewModel.updateIsSelectedSongFromPlaylist(
+                                                    true,
+                                                    playlist.songs,
+                                                    playlistId
+                                                )
+                                                lifecycleScope.launch {
+                                                    controller?.setMediaItemsList(
+                                                        startIndex = index,
+                                                        songs = playlist.songs,
+                                                        context = this@MainActivity,
+                                                        startProgress = 0L
+                                                    )
+                                                }
+                                            }
+                                            navController.navigate(
+                                                PlayedSong(
+                                                    index,
+                                                    isFromPlaylist = true,
+                                                    playlistId = playlist.playlist.id
+                                                )
+                                            )
+                                        }
                                     )
 
                                 }
@@ -382,14 +461,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        Log.e("ks","onActivity start")
+        Log.e("ks", "onActivity start")
 
     }
 
     override fun onDestroy() {
         super.onDestroy()
 
-        if (controller!= null){
+        if (controller != null) {
             val currentSong = controller!!.currentMediaItemIndex
             val currentProgress = controller!!.currentPosition
 
@@ -489,7 +568,7 @@ class MainActivity : ComponentActivity() {
     }
 
 
-   suspend fun controllerAndLastPlayedSongSetup(songs: List<SongUi>){
+    suspend fun controllerAndLastPlayedSongSetup(songs: List<SongUi>) {
         if (songs.isNotEmpty() && controller != null && isNewCreation) {
 
             val path = sharedPref.getString("path", "")
@@ -499,7 +578,8 @@ class MainActivity : ComponentActivity() {
 
                 val currentPath = controller!!.currentMediaItem!!.mediaId
                 val currentPlayedSong = songs.find { it.path == currentPath }
-                val index = if (currentPlayedSong != null) songs.indexOf(currentPlayedSong) else controller!!.currentMediaItemIndex
+                val index =
+                    if (currentPlayedSong != null) songs.indexOf(currentPlayedSong) else controller!!.currentMediaItemIndex
                 viewModel.updatePlayedSong(index)
 
                 /** May need to add the whole songs list to controller **/
@@ -583,8 +663,8 @@ class MainActivity : ComponentActivity() {
                     but in case the permissions are already granted no permission screen to appear
                     so the app is opened for first time and no service active(isActive flag is false  until passing 2 seconds we set it true) so the
                     last else block would be executed **/
-                    if (controller!!.mediaItemCount == 0){
-                        controller!!.setMediaItemsList(songs,this@MainActivity)
+                    if (controller!!.mediaItemCount == 0) {
+                        controller!!.setMediaItemsList(songs, this@MainActivity)
                     }
                 }
 
@@ -597,21 +677,25 @@ class MainActivity : ComponentActivity() {
                 //controller!!.startProgressUpdate(viewModel)
                 viewModel.calculateProgressValue(controller!!.currentPosition)
 
-            }else{
+            } else {
                 /** Here the app is opened for first time**/
                 viewModel.updatePlayedSong(0)
-                controller.setMediaItemsList(songs,this@MainActivity)
+                controller.setMediaItemsList(songs, this@MainActivity)
 
             }
 
             isNewCreation = false
 
-        }else if (!isNewCreation && songs.isNotEmpty() && controller!!.mediaItemCount != songs.size){
+        } else if (!isNewCreation && songs.isNotEmpty() && controller!!.mediaItemCount != songs.size) {
             /** This in case the player is playing and the user new songs are coming either by downloading them
             or by received them from other device using share apps **/
             val index = songs.indexOf(viewModel.getPlayedSong())
-            Log.e("ks","index for after new added songs : $index")
-            controller.setMediaItemsList(songs, startIndex = index, startProgress = controller!!.currentPosition)
+            Log.e("ks", "index for after new added songs : $index")
+            controller.setMediaItemsList(
+                songs,
+                startIndex = index,
+                startProgress = controller!!.currentPosition
+            )
         }
     }
 
