@@ -1,12 +1,12 @@
 package com.k.sekiro.musico.playmusic.presenation
 
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
-import com.k.sekiro.musico.playmusic.ServiceViewModelEventBus
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
@@ -27,15 +27,14 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
 class ViewModel(
     private val songsRepository: SongsRepository,
     private val playlistRepository: PlaylistRepository,
     private val playlistSongRepository: PlaylistSongRepository,
+    private val sharedPref: SharedPreferences,
     private val savedStateHandle: SavedStateHandle,
-) : ViewModel(), ServiceViewModelEventBus {
+) : ViewModel() {
 
 
     /* @OptIn(SavedStateHandleSaveableApi::class)
@@ -62,10 +61,6 @@ class ViewModel(
             UiState()
         )
 
-    init {
-        PlayerSessionService.setEventBus(this)
-    }
-
     private val _events = Channel<UiEvents>()
     val events = _events.receiveAsFlow()
 
@@ -73,6 +68,10 @@ class ViewModel(
     private val currentPlayedPlaylistSong = MutableStateFlow(emptyList<SongUi>())
 
     private val currentPlayedPlaylistId = MutableStateFlow(-1L)
+
+    init {
+        isSelectedSongFromPlaylist.update { sharedPref.getBoolean("isSelectedFromPlaylist",false) }
+    }
 
     /*    private val _state = savedStateHandle.getStateFlow(stateKey, UiState())
     val state = _state
@@ -354,6 +353,11 @@ class ViewModel(
         isSelectedSongFromPlaylist.update { value }
         currentPlayedPlaylistSong.update { songs }
         currentPlayedPlaylistId.update { playlistId }
+        PlayerSessionService.setCurrentPlaylistSong(songs)
+        sharedPref.edit().apply{
+            putBoolean("isSelectedFromPlaylist",value)
+            apply()
+        }
     }
 
     fun isSelectedSongFromPlaylist(): Boolean = isSelectedSongFromPlaylist.value
@@ -361,6 +365,10 @@ class ViewModel(
     fun currentPlaylistId() = currentPlayedPlaylistId.value
 
     fun currentPlaylistSongs() = currentPlayedPlaylistSong.value
+
+    fun updateCurrentPlaylist(song: List<SongUi>) {
+        currentPlayedPlaylistSong.update { song }
+    }
 
 
     private suspend fun <T> SavedStateHandle.update(key: String, function: suspend (T?) -> T?) {
@@ -392,19 +400,6 @@ class ViewModel(
     override fun onCleared() {
 
         super.onCleared()
-    }
-
-    override fun onSeekListener(mediaItemId: String) {
-        val song = _state.value.songs.find { it.path == mediaItemId }
-        addToRecent(song!!.id)
-    }
-
-    override fun onSeekListener(mediaItemIndex: Int) {
-        /* val song = currentPlayedPlaylistSong.value[mediaItemIndex]
-         addToRecent(song.id)*/
-        val validIndex = if (mediaItemIndex > 0 && mediaItemIndex < currentPlayedPlaylistSong.value.size) mediaItemIndex else return
-        val song = if (currentPlayedPlaylistSong.value.isNotEmpty()) currentPlayedPlaylistSong.value[validIndex] else return
-        addToRecent(song.id)
     }
 
 

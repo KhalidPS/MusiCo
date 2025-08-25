@@ -251,10 +251,12 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     }
                                                     isNewCreation = false
+                                                    viewModel.addToRecent(song.id)
                                                 }
 
                                                 if (!viewModel.isSelectedSongFromPlaylist() && controller!!.currentMediaItemIndex != index) {
                                                     viewModel.updatePlayedSong(index)
+                                                    viewModel.addToRecent(song.id)
                                                 } else if (viewModel.isSelectedSongFromPlaylist()) {
                                                     lifecycleScope.launch {
                                                         controller!!.setMediaItemsList(
@@ -265,8 +267,8 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     }
                                                     viewModel.updatePlayedSong(index)
+                                                    viewModel.addToRecent(song.id)
                                                 }
-                                                viewModel.addToRecent(song.id)
                                                 viewModel.updateIsSelectedSongFromPlaylist(value = false, songs = songs)
                                                 navController.navigate(PlayedSong(index))
                                             },
@@ -474,7 +476,7 @@ class MainActivity : ComponentActivity() {
 
             Log.e("ks", "currentSong >>>>>>>> $currentSong")
             Log.e("ks", "currentProgress >>>>>>>> $currentProgress")
-
+            Log.e("ks","onActivity Destroy")
             sharedPref.edit().apply {
                 putInt("index", currentSong)
                 putLong("progress", currentProgress)
@@ -677,7 +679,14 @@ class MainActivity : ComponentActivity() {
                 //controller!!.startProgressUpdate(viewModel)
                 viewModel.calculateProgressValue(controller!!.currentPosition)
 
-            } else {
+            } else if (PlayerSessionService.isAlive && controller!!.isPlaying){
+                Log.e("ks","here!!!!!!!!!!!1")
+
+                if (viewModel.isSelectedSongFromPlaylist()){
+                    viewModel.updateCurrentPlaylist(PlayerSessionService.getCurrentPlaylistSongs()!!)
+                    viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
+                }
+            }else {
                 /** Here the app is opened for first time**/
                 viewModel.updatePlayedSong(0)
                 controller.setMediaItemsList(songs, this@MainActivity)

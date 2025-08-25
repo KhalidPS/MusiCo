@@ -35,11 +35,13 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.k.sekiro.musico.MainActivity
 import com.k.sekiro.musico.MusicoApp
 import com.k.sekiro.musico.R
-import com.k.sekiro.musico.playmusic.ServiceViewModelEventBus
+import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
+import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.player.notification.CUSTOM_COMMAND_REPEAT_ALL_ACTION
 import com.k.sekiro.musico.playmusic.player.notification.CUSTOM_COMMAND_REPEAT_ONE_ACTION
 import com.k.sekiro.musico.playmusic.player.notification.MusiCoNotificationManager
 import com.k.sekiro.musico.playmusic.player.notification.NotificationPlayerCustomCommand
+import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,6 +59,8 @@ class PlayerSessionService : MediaSessionService() {
     var mediaSession: MediaSession? = null
     var musiCoNotificationManager: MusiCoNotificationManager? = null
     val sharedPref: SharedPreferences by inject()
+
+    val playlistSongRepo: PlaylistSongRepository by inject()
 
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -208,20 +212,23 @@ class PlayerSessionService : MediaSessionService() {
             ): ListenableFuture<*> {
 
                 var internalSeekCommand = seekCommand
+                val mediaItem = getMediaItemAt(mediaItemIndex)
+                val songId = mediaItem.mediaMetadata.discNumber!!.toLong()
 
                 when(seekCommand){
 
                     COMMAND_SEEK_TO_PREVIOUS -> {
                         internalSeekCommand = COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM
-                        eventBus?.onSeekListener(nextMediaItemIndex)
                     }
 
                     COMMAND_SEEK_TO_NEXT -> {
                         internalSeekCommand = COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
-                        eventBus?.onSeekListener(nextMediaItemIndex)
 
                     }
                 }
+
+                scope.launch { playlistSongRepo.addPlaylistSongRef(PlaylistSong(2,songId)) }
+
                 return super.handleSeek(mediaItemIndex, positionMs, internalSeekCommand)
             }
         }
@@ -304,11 +311,14 @@ class PlayerSessionService : MediaSessionService() {
 
     companion object{
         var isAlive = false
-       private var eventBus: ServiceViewModelEventBus? = null
+        private var currentPlaylistSongs: List<SongUi>? = null
 
-        fun setEventBus(eventBus: ServiceViewModelEventBus){
-            this.eventBus = eventBus
+        fun setCurrentPlaylistSong(songs: List<SongUi>){
+            currentPlaylistSongs = songs
         }
+
+
+        fun getCurrentPlaylistSongs() = currentPlaylistSongs
     }
 
     /*

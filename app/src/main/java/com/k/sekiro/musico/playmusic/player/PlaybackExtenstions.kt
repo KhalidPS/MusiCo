@@ -99,6 +99,7 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Con
                                 .setDisplayTitle(song.name)
                                 .setAlbumTitle(song.album)
                                 .setArtist(song.artist)
+                                .setDiscNumber(song.id.toInt())
                                 .build()
                         ).build()
                 }
@@ -147,6 +148,7 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, startIndex: 
                                 .setDisplayTitle(song.name)
                                 .setAlbumTitle(song.album)
                                 .setArtist(song.artist)
+                                .setDiscNumber(song.id.toInt())
                                 .build()
                         ).build()
                 }
@@ -180,6 +182,7 @@ fun MediaController?.setMediaItemsList(songs: List<SongUi>, startIndex: Int, sta
                         .setDisplayTitle(song.name)
                         .setAlbumTitle(song.album)
                         .setArtist(song.artist)
+                        .setDiscNumber(song.id.toInt())
                         .build()
                 ).build()
         }.also {
