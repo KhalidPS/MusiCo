@@ -18,15 +18,19 @@ import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toPlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
 class ViewModel(
     private val songsRepository: SongsRepository,
@@ -52,6 +56,8 @@ class ViewModel(
             getPlayLists()
             getRecentPlaylistSongs()
             getPlaylistsWithSongs()
+            getSavedRecentPlaylistSongs()
+
         }
         .stateIn(
             viewModelScope,
@@ -84,6 +90,7 @@ class ViewModel(
                 stopTimeoutMillis = 5000
             )
         )*/
+
 
 
     fun updatePlayedSong(index: Int) {
@@ -353,7 +360,6 @@ class ViewModel(
         isSelectedSongFromPlaylist.update { value }
         currentPlayedPlaylistSong.update { songs }
         currentPlayedPlaylistId.update { playlistId }
-        PlayerSessionService.setCurrentPlaylistSong(songs)
         sharedPref.edit().apply{
             putBoolean("isSelectedFromPlaylist",value)
             apply()
@@ -371,10 +377,16 @@ class ViewModel(
     }
 
 
-    private suspend fun <T> SavedStateHandle.update(key: String, function: suspend (T?) -> T?) {
+    private suspend fun <T> SavedStateHandle.updateSuspended(key: String, function: suspend (T?) -> T?) {
 
         this[key] = function(this.get<T>(key))
     }
+
+    private fun <T> SavedStateHandle.update(key: String, function:  (T?) -> T?) {
+
+        this[key] = function(this.get<T>(key))
+    }
+
 
 
     internal fun calculateProgressValue(currentProgress: Long) {
@@ -395,11 +407,28 @@ class ViewModel(
         }
     }
 
+    private fun getSavedRecentPlaylistSongs(){
+                if (isSelectedSongFromPlaylist.value){
+                    val string = sharedPref.getString("recentSongs","") ?: ""
+                    val recentSongs: List<SongUi> = Json.decodeFromString(string)
+                    Log.e("ks","my current :$recentSongs")
+                    currentPlayedPlaylistSong.update { recentSongs }
+                }
+        }
 
-    @OptIn(UnstableApi::class)
-    override fun onCleared() {
 
+   public override fun onCleared() {
         super.onCleared()
+
+           if (isSelectedSongFromPlaylist.value){
+               Log.e("ks","enter if condition inside onClear")
+               sharedPref.edit().apply {
+                   val stringList = Json.encodeToString(currentPlayedPlaylistSong.value)
+                   putString("recentSongs",stringList)
+                   apply()
+               }
+
+           }
     }
 
 

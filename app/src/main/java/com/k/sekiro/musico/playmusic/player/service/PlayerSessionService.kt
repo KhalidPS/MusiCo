@@ -311,14 +311,6 @@ class PlayerSessionService : MediaSessionService() {
 
     companion object{
         var isAlive = false
-        private var currentPlaylistSongs: List<SongUi>? = null
-
-        fun setCurrentPlaylistSong(songs: List<SongUi>){
-            currentPlaylistSongs = songs
-        }
-
-
-        fun getCurrentPlaylistSongs() = currentPlaylistSongs
     }
 
     /*

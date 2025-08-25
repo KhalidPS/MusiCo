@@ -490,6 +490,7 @@ class MainActivity : ComponentActivity() {
             controller?.release()
         }
 
+        viewModel.onCleared()
 
     }
 
@@ -570,7 +571,9 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    suspend fun controllerAndLastPlayedSongSetup(songs: List<SongUi>) {
+    suspend fun controllerAndLastPlayedSongSetup(songs1: List<SongUi>) {
+        val isFromPlaylist = viewModel.isSelectedSongFromPlaylist()
+        val songs = if (isFromPlaylist) viewModel.currentPlaylistSongs() else songs1
         if (songs.isNotEmpty() && controller != null && isNewCreation) {
 
             val path = sharedPref.getString("path", "")
@@ -679,14 +682,14 @@ class MainActivity : ComponentActivity() {
                 //controller!!.startProgressUpdate(viewModel)
                 viewModel.calculateProgressValue(controller!!.currentPosition)
 
-            } else if (PlayerSessionService.isAlive && controller!!.isPlaying){
+            } /*else if (PlayerSessionService.isAlive && controller!!.isPlaying){
                 Log.e("ks","here!!!!!!!!!!!1")
 
                 if (viewModel.isSelectedSongFromPlaylist()){
                     viewModel.updateCurrentPlaylist(PlayerSessionService.getCurrentPlaylistSongs()!!)
                     viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
                 }
-            }else {
+            }*/else {
                 /** Here the app is opened for first time**/
                 viewModel.updatePlayedSong(0)
                 controller.setMediaItemsList(songs, this@MainActivity)
