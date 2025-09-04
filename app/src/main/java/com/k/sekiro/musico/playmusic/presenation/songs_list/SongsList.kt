@@ -1,6 +1,7 @@
 package com.k.sekiro.musico.playmusic.presenation.songs_list
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -104,6 +105,11 @@ fun SharedTransitionScope.SongsList(
             )
         }
     ) {
+        BackHandler(enabled = selectModeEnabled){
+                onCancelSelectedSongs()
+        }
+
+
         Column(
             modifier = modifier
                 .fillMaxSize()

@@ -255,6 +255,7 @@ class MainActivity : ComponentActivity() {
                                                 }
 
                                                 if (!viewModel.isSelectedSongFromPlaylist() && controller!!.currentMediaItemIndex != index) {
+                                                    viewModel.updateIsSelectedSongFromPlaylist(value = false, songs = songs)
                                                     viewModel.updatePlayedSong(index)
                                                     viewModel.addToRecent(song.id)
                                                 } else if (viewModel.isSelectedSongFromPlaylist()) {
@@ -266,10 +267,10 @@ class MainActivity : ComponentActivity() {
                                                             this@MainActivity
                                                         )
                                                     }
+                                                    viewModel.updateIsSelectedSongFromPlaylist(value = false, songs = songs)
                                                     viewModel.updatePlayedSong(index)
                                                     viewModel.addToRecent(song.id)
                                                 }
-                                                viewModel.updateIsSelectedSongFromPlaylist(value = false, songs = songs)
                                                 navController.navigate(PlayedSong(index))
                                             },
                                             progress = { progress },
@@ -399,6 +400,7 @@ class MainActivity : ComponentActivity() {
 
                                 composable<PlaylistScreen> {
                                     val playlistId = it.toRoute<PlaylistScreen>().id
+                                    val currentPlaylistId = viewModel.currentPlaylistId()
                                     val playlist = remember(
                                         state.value.recentPlaylistSongs,
                                         state.value.playlistsWithSongs
@@ -418,12 +420,31 @@ class MainActivity : ComponentActivity() {
                                         onBackButtonClicked = { navController.popBackStack() },
                                         onSongClicked = { index, song ->
                                             //val currentPlayedIndex = playlist.songs.indexOf(state.value.playedSong)
-                                            if (index != controller!!.currentMediaItemIndex) {
+                                            //if (song.path != controller?.currentMediaItem?.mediaId || index != controller!!.currentMediaItemIndex) {
+
+                                            if (playlistId != currentPlaylistId){
                                                 viewModel.updateIsSelectedSongFromPlaylist(
                                                     true,
                                                     playlist.songs,
                                                     playlistId
                                                 )
+
+                                                lifecycleScope.launch {
+                                                    controller?.setMediaItemsList(
+                                                        startIndex = index,
+                                                        songs = playlist.songs,
+                                                        context = this@MainActivity,
+                                                        startProgress = 0L
+                                                    )
+                                                }
+                                            }else if (song.path != controller?.currentMediaItem?.mediaId) {
+                                                viewModel.updateIsSelectedSongFromPlaylist(
+                                                    true,
+                                                    playlist.songs,
+                                                    playlistId
+                                                )
+
+                                                Log.e("ks","the index : $index , playlistId: $playlistId")
                                                 lifecycleScope.launch {
                                                     controller?.setMediaItemsList(
                                                         startIndex = index,

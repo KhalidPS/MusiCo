@@ -212,7 +212,11 @@ class PlayerSessionService : MediaSessionService() {
             ): ListenableFuture<*> {
 
                 var internalSeekCommand = seekCommand
-                val mediaItem = getMediaItemAt(mediaItemIndex)
+                val mediaItem = try {
+                    getMediaItemAt(mediaItemIndex)
+                }catch (ex: IndexOutOfBoundsException){
+                    currentMediaItem!!
+                }
                 val songId = mediaItem.mediaMetadata.discNumber!!.toLong()
 
                 when(seekCommand){
