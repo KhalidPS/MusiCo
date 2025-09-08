@@ -2,34 +2,29 @@ package com.k.sekiro.musico.playmusic.presenation
 
 import android.content.SharedPreferences
 import android.util.Log
-import androidx.annotation.OptIn
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.util.UnstableApi
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
-import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toPlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 class ViewModel(
@@ -410,7 +405,14 @@ class ViewModel(
     private fun getSavedRecentPlaylistSongs(){
                 if (isSelectedSongFromPlaylist.value){
                     val string = sharedPref.getString("recentSongs","") ?: ""
-                    val recentSongs: List<SongUi> = Json.decodeFromString(string)
+
+                    val recentSongs: List<SongUi> = try {
+                        Json.decodeFromString(string)
+                    } catch (ex: SerializationException){
+                        emptyList()
+                    } catch (ex: Exception){
+                        emptyList()
+                    }
                     Log.e("ks","my current :$recentSongs")
                     currentPlayedPlaylistSong.update { recentSongs }
                 }

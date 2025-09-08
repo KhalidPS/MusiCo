@@ -132,7 +132,6 @@ fun CustomWheelPicker(
                 Text(
                     text = items[index].name,
                     fontSize = 24.sp,
-                    color = Color.Black,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .height(itemHeight)

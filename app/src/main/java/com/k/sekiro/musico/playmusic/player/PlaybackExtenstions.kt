@@ -1,6 +1,7 @@
 package com.k.sekiro.musico.playmusic.player
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import androidx.annotation.OptIn
@@ -18,6 +19,7 @@ import com.k.sekiro.musico.playmusic.player.notification.NotificationPlayerCusto
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import androidx.core.net.toUri
 import com.k.sekiro.musico.playmusic.presenation.PlayType
+import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,6 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withContext
 
 
 private var progressJob: Job? = null
@@ -76,7 +79,7 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Con
         try {
             songs.map { song ->
 
-                async(dispatcher){
+                async(dispatcher) {
                     val uri = song.cover.toUri()
 
                     /** check if image uri is valid if not then put placeholder from drawable **/
@@ -119,53 +122,58 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Con
     }
 
 @OptIn(UnstableApi::class)
-suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, startIndex: Int, startProgress: Long,context: Context) = supervisorScope {
+suspend fun MediaController?.setMediaItemsList(
+    songs: List<SongUi>,
+    startIndex: Int,
+    startProgress: Long,
+    context: Context
+) = supervisorScope {
     val dispatcher = Dispatchers.IO
 
     try {
-            songs.map { song ->
+        songs.map { song ->
 
-                async(dispatcher){
-                    val uri = song.cover.toUri()
+            async(dispatcher) {
+                val uri = song.cover.toUri()
 
-                    /** check if image uri is valid if not then put placeholder from drawable **/
-                    val cover =
-                        if (isValidUri(context, uri)) {
-                            uri
-                        } else {
-                            getUriFromDrawable(context, R.drawable.logo_2)
-                        }
+                /** check if image uri is valid if not then put placeholder from drawable **/
+                val cover =
+                    if (isValidUri(context, uri)) {
+                        uri
+                    } else {
+                        getUriFromDrawable(context, R.drawable.logo_2)
+                    }
 
 
 
-                    MediaItem.Builder()
-                        .setUri(song.dataUri)
-                        .setMediaId(song.path)
-                        .setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setArtworkUri(cover)
-                                .setTitle(song.artist)
-                                .setDisplayTitle(song.name)
-                                .setAlbumTitle(song.album)
-                                .setArtist(song.artist)
-                                .setDiscNumber(song.id.toInt())
-                                .build()
-                        ).build()
-                }
-
-            }.also {
-                this@setMediaItemsList!!.setMediaItems(it.awaitAll(),startIndex,startProgress)
-                this@setMediaItemsList.prepare()
+                MediaItem.Builder()
+                    .setUri(song.dataUri)
+                    .setMediaId(song.path)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setArtworkUri(cover)
+                            .setTitle(song.artist)
+                            .setDisplayTitle(song.name)
+                            .setAlbumTitle(song.album)
+                            .setArtist(song.artist)
+                            .setDiscNumber(song.id.toInt())
+                            .build()
+                    ).build()
             }
-        } catch (ex: DataSourceException) {
-            Log.e("ks", "converting song to MediaItem problem :${ex}")
-        } catch (ex: FileDataSource.FileDataSourceException) {
-            Log.e("ks", "converting song to MediaItem problem :${ex}")
-        } catch (ex: Exception) {
-            Log.e("ks", "converting song to MediaItem problem :${ex}")
 
+        }.also {
+            this@setMediaItemsList!!.setMediaItems(it.awaitAll(), startIndex, startProgress)
+            this@setMediaItemsList.prepare()
         }
+    } catch (ex: DataSourceException) {
+        Log.e("ks", "converting song to MediaItem problem :${ex}")
+    } catch (ex: FileDataSource.FileDataSourceException) {
+        Log.e("ks", "converting song to MediaItem problem :${ex}")
+    } catch (ex: Exception) {
+        Log.e("ks", "converting song to MediaItem problem :${ex}")
+
     }
+}
 
 
 @OptIn(UnstableApi::class)
@@ -248,4 +256,82 @@ fun MediaController?.getSongPlayedInBackground(): Pair<Int, Long>? {
     } else {
         null
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+suspend fun MediaController?.setupRecentPlayedSongWhenPlayerRunning(
+    songs: List<SongUi>,
+    viewModel: ViewModel
+) {
+    viewModel.updateIsPlaying(true)
+
+    val currentPath = this!!.currentMediaItem!!.mediaId
+    //val currentPlayedSong = songs.find { it.path == currentPath }
+    //val index = if (currentPlayedSong != null) songs.indexOf(currentPlayedSong) else this!!.currentMediaItemIndex
+    val index = songs.indexOfFirst { it.path == currentPath }.takeIf { it != -1 }
+        ?: this!!.currentMediaItemIndex
+    viewModel.updatePlayedSong(index)
+
+    /** May need to add the whole songs list to controller **/
+
+    Log.e(
+        "ks",
+        "Played song not null: ${viewModel.getPlayedSong()}"
+    )
+
+    this!!.startProgressUpdate(viewModel::calculateProgressValue)
+}
+
+
+suspend fun MediaController?.setupRecentPlayedSongWhenServiceNotActive(
+    sharedPref: SharedPreferences,
+    songs: List<SongUi>,
+    viewModel: ViewModel,
+    path: String,
+    context: Context
+) {
+    val progress = sharedPref.getLong("progress", 0)
+    var index = sharedPref.getInt("index", 0)
+
+    /** Previously I was get the saved index from pref and then get the last played song
+    but this would not be good solution in some scenarios (e.g if pause the player
+    and close the app this will save the index then u downloaded new song then u open app
+    again the problem is that the played song would be now not the song u expected to be which is the
+    last one played before u close the app, instead it would be the previous song for the song u expected to be
+    due to adding new songs to storage)**/
+
+
+    Log.e("ks", "path: $path")
+
+    withContext(Dispatchers.IO) {
+        for (i in 0 until songs.size) {
+            Log.e(
+                "ks",
+                "inside for size of List: ${songs.size}"
+            )
+            Log.e(
+                "ks",
+                "path inside for loop :${songs[i].path}"
+            )
+            if (songs[i].path == path) {
+                Log.e("ks", "path inside if :${songs[i].path}")
+                index = i
+                viewModel.updatePlayedSong(i)
+                Log.e("ks", "catch the index :$i")
+                Log.e("ks", "catch the index 2 :$index")
+                break
+            }
+        }
+    }
+
+    this!!.setMediaItemsList(
+        songs,
+        index,
+        progress,
+        context
+    )
+    //controller!!.startProgressUpdate(viewModel)
+    viewModel.calculateProgressValue(progress)
 }

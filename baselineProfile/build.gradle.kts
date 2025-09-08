@@ -15,8 +15,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
+/*    kotlinOptions {
         jvmTarget = "11"
+    }*/
+
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
 
     defaultConfig {
@@ -31,7 +37,7 @@ android {
     // This code creates the gradle managed device used to generate baseline profiles.
     // To use GMD please invoke generation through the command line:
     // ./gradlew :app:generateBaselineProfile
-    testOptions.managedDevices.devices {
+    testOptions.managedDevices.allDevices {
         create<ManagedVirtualDevice>("pixel6Api34") {
             device = "Pixel 6"
             apiLevel = 34
@@ -59,7 +65,7 @@ androidComponents {
         val artifactsLoader = v.artifacts.getBuiltArtifactsLoader()
         v.instrumentationRunnerArguments.put(
             "targetAppId",
-            v.testedApks.map { artifactsLoader.load(it)?.applicationId }
+            v.testedApks.map { artifactsLoader.load(it)?.applicationId ?: "" }
         )
     }
 }
