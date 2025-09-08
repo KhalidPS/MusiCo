@@ -45,6 +45,8 @@ import com.k.sekiro.musico.playmusic.player.onChangPlayType
 import com.k.sekiro.musico.playmusic.player.playOrPause
 import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.player.setMediaItemsList
+import com.k.sekiro.musico.playmusic.player.setupRecentPlayedSongWhenPlayerRunning
+import com.k.sekiro.musico.playmusic.player.setupRecentPlayedSongWhenServiceNotActive
 import com.k.sekiro.musico.playmusic.player.startProgressUpdate
 import com.k.sekiro.musico.playmusic.player.stopProgressUpdate
 import com.k.sekiro.musico.playmusic.presenation.PlayType
@@ -600,69 +602,13 @@ class MainActivity : ComponentActivity() {
             val path = sharedPref.getString("path", "")
 
             if (controller!!.isPlaying) {
-                viewModel.updateIsPlaying(true)
-
-                val currentPath = controller!!.currentMediaItem!!.mediaId
-                val currentPlayedSong = songs.find { it.path == currentPath }
-                val index =
-                    if (currentPlayedSong != null) songs.indexOf(currentPlayedSong) else controller!!.currentMediaItemIndex
-                viewModel.updatePlayedSong(index)
-
-                /** May need to add the whole songs list to controller **/
-
-                Log.e(
-                    "ks",
-                    "Played song not null: ${viewModel.getPlayedSong()}"
-                )
-
-                controller!!.startProgressUpdate(viewModel::calculateProgressValue)
-
+                controller!!.setupRecentPlayedSongWhenPlayerRunning(songs, viewModel)
 
             } else if (!PlayerSessionService.isAlive && path != null && path.isNotBlank() && path.isNotEmpty()) {
                 /** if the player is paused and the service is not active (new creation for service)
                 then get the saved value from preferences then update the state and setMediaItems **/
-                val progress = sharedPref.getLong("progress", 0)
-                var index = sharedPref.getInt("index", 0)
 
-                /** Previously I was get the saved index from pref and then get the last played song
-                but this would not be good solution in some scenarios (e.g if pause the player
-                and close the app this will save the index then u downloaded new song then u open app
-                again the problem is that the played song would be now not the song u expected to be which is the
-                last one played before u close the app, instead it would be the previous song for the song u expected to be
-                due to adding new songs to storage)**/
-
-
-                Log.e("ks", "path: $path")
-
-                withContext(Dispatchers.IO) {
-                    for (i in 0 until songs.size) {
-                        Log.e(
-                            "ks",
-                            "inside for size of List: ${songs.size}"
-                        )
-                        Log.e(
-                            "ks",
-                            "path inside for loop :${songs[i].path}"
-                        )
-                        if (songs[i].path == path) {
-                            Log.e("ks", "path inside if :${songs[i].path}")
-                            index = i
-                            viewModel.updatePlayedSong(i)
-                            Log.e("ks", "catch the index :$i")
-                            Log.e("ks", "catch the index 2 :$index")
-                            break
-                        }
-                    }
-                }
-
-                controller!!.setMediaItemsList(
-                    songs,
-                    index,
-                    progress,
-                    this@MainActivity
-                )
-                //controller!!.startProgressUpdate(viewModel)
-                viewModel.calculateProgressValue(progress)
+                controller!!.setupRecentPlayedSongWhenServiceNotActive(sharedPref,songs,viewModel,path,this)
 
 
             } else if (PlayerSessionService.isAlive && !controller!!.isPlaying) {
