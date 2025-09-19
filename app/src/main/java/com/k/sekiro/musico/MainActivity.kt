@@ -621,10 +621,17 @@ class MainActivity : ComponentActivity() {
                 then there's no need to get saved value from preferences as I did in the previous if, instead
                 I should get values from controller that connect to mediaSessionService**/
 
-                if (songs[controller!!.currentMediaItemIndex].path == path) {
+                val currentPath = controller!!.currentMediaItem!!.mediaId
+                val index = songs.indexOfFirst { it.path == currentPath}.takeIf { it != -1 }
+                    ?: controller!!.currentMediaItemIndex
+
+                viewModel.updatePlayedSong(index)
+
+
+                /*if (songs[controller!!.currentMediaItemIndex].path == path) {
                     viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
                 } else {
-                    viewModel.updatePlayedSong(songs.indexOf(songs.find { it.path == path }))
+                    viewModel.updatePlayedSong(songs.indexOfFirst { it.path == path })*/
 
                     /** this condition is important for one case which is the first time u open
                     app and the permission screen appear , so imagine the user stay in permission
@@ -637,8 +644,17 @@ class MainActivity : ComponentActivity() {
                     last else block would be executed **/
                     if (controller!!.mediaItemCount == 0) {
                         controller!!.setMediaItemsList(songs, this@MainActivity)
+                    }else if (songs.size != controller!!.mediaItemCount){
+                        /** but this else block will execute every time the parent condition is true
+                         * to synchronize the controller mediaItems with songs cuz may new songs come from downloading and so on=*/
+                        controller!!.setMediaItemsList(
+                            songs = songs,
+                            startIndex = index,
+                            startProgress = controller!!.currentPosition,
+                            context = this
+                        )
                     }
-                }
+               // }
 
 
 
