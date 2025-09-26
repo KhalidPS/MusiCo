@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
                                     // new collecting songs list is different from previous collecting songs list if not then
                                     //eliminates the new songs list and as a result the collect body won't execute
                                     .collect {
-                                        controllerAndLastPlayedSongSetup(it)
+                                        controllerAndLastPlayedSongSetup2(it)
                                     }
                             }
 
@@ -689,10 +689,163 @@ class MainActivity : ComponentActivity() {
             controller.setMediaItemsList(
                 songs,
                 startIndex = index,
-                startProgress = controller!!.currentPosition
+                startProgress = controller!!.currentPosition,
             )
         }
     }
+
+
+
+
+
+
+    suspend fun controllerAndLastPlayedSongSetup2(allSongs: List<SongUi>) {
+        val controller = this.controller ?: return
+        val songs = getRelevantSongsList(allSongs)
+
+        if (songs.isEmpty()) return
+
+        when {
+            isNewCreation -> handleNewCreationSetup(controller, songs)
+            shouldUpdateMediaItemsForNewSongs(controller, songs) -> handleNewSongsAdded(
+                controller,
+                songs
+            )
+        }
+    }
+
+    private fun getRelevantSongsList(allSongs: List<SongUi>): List<SongUi> {
+        return if (viewModel.isSelectedSongFromPlaylist()) {
+            viewModel.currentPlaylistSongs()
+        } else {
+            allSongs
+        }
+    }
+
+    private suspend fun handleNewCreationSetup(
+        controller: MediaController,
+        songs: List<SongUi>
+    ) {
+        val savedPath = sharedPref.getString("path", "") ?: ""
+
+        when {
+            controller.isPlaying -> handlePlayingControllerSetup(controller, songs)
+            isServiceInactiveWithSavedPath(savedPath) -> handleInactiveServiceSetup(
+                controller,
+                songs,
+                savedPath
+            )
+
+            PlayerSessionService.isAlive && !controller.isPlaying -> handleActiveServicePausedSetup(
+                controller,
+                songs
+            )
+
+            else -> handleFirstTimeAppLaunch(controller, songs)
+        }
+
+        isNewCreation = false
+    }
+
+    private suspend fun handlePlayingControllerSetup(
+        controller: MediaController,
+        songs: List<SongUi>
+    ) {
+        controller.setupRecentPlayedSongWhenPlayerRunning(songs, viewModel)
+    }
+
+    private fun isServiceInactiveWithSavedPath(path: String): Boolean {
+        return !PlayerSessionService.isAlive && path.isNotBlank()
+    }
+
+    private suspend fun handleInactiveServiceSetup(
+        controller: MediaController,
+        songs: List<SongUi>,
+        path: String
+    ) {
+        controller.setupRecentPlayedSongWhenServiceNotActive(
+            sharedPref, songs, viewModel, path, this
+        )
+    }
+    /**`such a Scenario:` if the player is paused but the service is still active <<(e.g
+    when remove the app from recent task while player is playing
+    and this will destroy the activity by calling onDestroy and save
+    index and progress in preferences but if we change the progress using notification
+    slider and then pause player from notification then click notification the service is still active
+    cuz when I removed the app from recent task the player was playing not paused.)>>
+    then there's no need to get saved value from preferences as I did in the previous if, instead
+    I should get values from controller that connect to mediaSessionService**/
+    private suspend fun handleActiveServicePausedSetup(
+        controller: MediaController,
+        songs: List<SongUi>,
+    ) {
+
+        val currentPath = controller.currentMediaItem!!.mediaId
+        val index = songs.indexOfFirst { it.path == currentPath}.takeIf { it != -1 }
+            ?: controller.currentMediaItemIndex
+
+        viewModel.updatePlayedSong(index)
+
+            // Handle case where no media items are loaded (e.g., permission screen delay)
+        /** this condition is important for one case which is the first time u open
+        app and the permission screen appear , so imagine the user stay in permission
+        screen more than or equal to 2 seconds in this case the PlayerSessionService.isAlive
+        would be true and the controller is already not playing cuz it's first time
+        and no mediaItems added to controller so this condition to check this case
+        and then added media Items.
+        but in case the permissions are already granted no permission screen to appear
+        so the app is opened for first time and no service active(isActive flag is false  until passing 2 seconds we set it true) so the
+        handleFirstTimeAppLaunch fun would be executed **/
+        if (controller.mediaItemCount == 0) {
+            controller.setMediaItemsList(songs, this)
+        }else if (songs.size != controller.mediaItemCount){
+            /** but this else block will execute every time the parent condition is true
+             * to synchronize the controller mediaItems with songs cuz may new songs come from downloading and so on=*/
+            controller.setMediaItemsList(
+                songs = songs,
+                startIndex = index,
+                startProgress = controller.currentPosition,
+                context = this
+            )
+        }
+
+        viewModel.calculateProgressValue(controller.currentPosition)
+    }
+
+    private suspend fun handleFirstTimeAppLaunch(
+        controller: MediaController,
+        songs: List<SongUi>
+    ) {
+        viewModel.updatePlayedSong(0)
+        controller.setMediaItemsList(songs, this)
+    }
+
+    private fun shouldUpdateMediaItemsForNewSongs(
+        controller: MediaController,
+        songs: List<SongUi>
+    ): Boolean {
+        return !isNewCreation &&
+                songs.isNotEmpty() &&
+                controller.mediaItemCount != songs.size
+    }
+
+    private suspend fun handleNewSongsAdded(controller: MediaController, songs: List<SongUi>) {
+        val currentSong = viewModel.getPlayedSong()
+        val index = songs.indexOf(currentSong)
+
+        controller.setMediaItemsList(
+            songs = songs,
+            startIndex = index,
+            startProgress = controller.currentPosition,
+            this
+        )
+    }
+
+
+
+
+
+
 
 
 }
