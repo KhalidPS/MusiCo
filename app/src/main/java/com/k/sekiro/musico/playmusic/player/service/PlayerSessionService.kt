@@ -51,6 +51,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import org.koin.android.ext.koin.androidContext
+import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -212,12 +214,14 @@ class PlayerSessionService : MediaSessionService() {
             ): ListenableFuture<*> {
 
                 var internalSeekCommand = seekCommand
-                val mediaItem = try {
+                val mediaItem: MediaItem? = try {
                     getMediaItemAt(mediaItemIndex)
                 }catch (ex: IndexOutOfBoundsException){
-                    currentMediaItem!!
+                    currentMediaItem
                 }
-                val songId = mediaItem.mediaMetadata.discNumber!!.toLong()
+
+
+                val songId = mediaItem?.mediaMetadata?.discNumber
 
                 when(seekCommand){
 
@@ -231,7 +235,9 @@ class PlayerSessionService : MediaSessionService() {
                     }
                 }
 
-                scope.launch { playlistSongRepo.addPlaylistSongRef(PlaylistSong(2,songId)) }
+                if (songId != null) {
+                    scope.launch { playlistSongRepo.addPlaylistSongRef(PlaylistSong(2,songId.toLong())) }
+                }
 
                 return super.handleSeek(mediaItemIndex, positionMs, internalSeekCommand)
             }

@@ -378,6 +378,7 @@ class MainActivity : ComponentActivity() {
                                         passedTimeDuration = { passedTime },
                                         playedSong = playedSong,
                                         songs = songs,
+                                        isFavorite = viewModel::isFavorite,
                                         onAction = ::onAction,
                                         index = index,
                                         animatedVisibilityScope = this,
@@ -588,113 +589,11 @@ class MainActivity : ComponentActivity() {
                     viewModel.updateProgress(action.newProgress)
                 }
 
+                is UiAction.onFavoriteClicked -> { viewModel.updateFavorite(action.songUi) }
             }
         }
 
     }
-
-
-    suspend fun controllerAndLastPlayedSongSetup(songs1: List<SongUi>) {
-        val isFromPlaylist = viewModel.isSelectedSongFromPlaylist()
-        val songs = if (isFromPlaylist) viewModel.currentPlaylistSongs() else songs1
-        if (songs.isNotEmpty() && controller != null && isNewCreation) {
-
-            val path = sharedPref.getString("path", "")
-
-            if (controller!!.isPlaying) {
-                controller!!.setupRecentPlayedSongWhenPlayerRunning(songs, viewModel)
-
-            } else if (!PlayerSessionService.isAlive && path != null && path.isNotBlank() && path.isNotEmpty()) {
-                /** if the player is paused and the service is not active (new creation for service)
-                then get the saved value from preferences then update the state and setMediaItems **/
-
-                controller!!.setupRecentPlayedSongWhenServiceNotActive(sharedPref,songs,viewModel,path,this)
-
-
-            } else if (PlayerSessionService.isAlive && !controller!!.isPlaying) {
-                /** if the player is paused but the service is still active <<(e.g
-                when remove the app from recent task while player is playing
-                and this will destroy the activity by calling onDestroy and save
-                index and progress in preferences but if we change the progress using notification
-                slider and then pause player from notification then click notification the service is still active
-                cuz when I removed the app from recent task the player was playing not paused.)>>
-                then there's no need to get saved value from preferences as I did in the previous if, instead
-                I should get values from controller that connect to mediaSessionService**/
-
-                val currentPath = controller!!.currentMediaItem!!.mediaId
-                val index = songs.indexOfFirst { it.path == currentPath}.takeIf { it != -1 }
-                    ?: controller!!.currentMediaItemIndex
-
-                viewModel.updatePlayedSong(index)
-
-
-                /*if (songs[controller!!.currentMediaItemIndex].path == path) {
-                    viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
-                } else {
-                    viewModel.updatePlayedSong(songs.indexOfFirst { it.path == path })*/
-
-                    /** this condition is important for one case which is the first time u open
-                    app and the permission screen appear , so imagine the user stay in permission
-                    screen more than or equal to 2 seconds in this case the PlayerSessionService.isAlive
-                    would be true and the controller is already not playing cuz it's first time
-                    and no mediaItems added to controller so this condition to check this case
-                    and then added media Items.
-                    but in case the permissions are already granted no permission screen to appear
-                    so the app is opened for first time and no service active(isActive flag is false  until passing 2 seconds we set it true) so the
-                    last else block would be executed **/
-                    if (controller!!.mediaItemCount == 0) {
-                        controller!!.setMediaItemsList(songs, this@MainActivity)
-                    }else if (songs.size != controller!!.mediaItemCount){
-                        /** but this else block will execute every time the parent condition is true
-                         * to synchronize the controller mediaItems with songs cuz may new songs come from downloading and so on=*/
-                        controller!!.setMediaItemsList(
-                            songs = songs,
-                            startIndex = index,
-                            startProgress = controller!!.currentPosition,
-                            context = this
-                        )
-                    }
-               // }
-
-
-
-                Log.e(
-                    "ks",
-                    "Played song not null: ${viewModel.getPlayedSong()}"
-                )
-                //controller!!.startProgressUpdate(viewModel)
-                viewModel.calculateProgressValue(controller!!.currentPosition)
-
-            } /*else if (PlayerSessionService.isAlive && controller!!.isPlaying){
-                Log.e("ks","here!!!!!!!!!!!1")
-
-                if (viewModel.isSelectedSongFromPlaylist()){
-                    viewModel.updateCurrentPlaylist(PlayerSessionService.getCurrentPlaylistSongs()!!)
-                    viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
-                }
-            }*/else {
-                /** Here the app is opened for first time**/
-                viewModel.updatePlayedSong(0)
-                controller.setMediaItemsList(songs, this@MainActivity)
-
-            }
-
-            isNewCreation = false
-
-        } else if (!isNewCreation && songs.isNotEmpty() && controller!!.mediaItemCount != songs.size) {
-            /** This in case the player is playing and the user new songs are coming either by downloading them
-            or by received them from other device using share apps **/
-            val index = songs.indexOf(viewModel.getPlayedSong())
-            Log.e("ks", "index for after new added songs : $index")
-            controller.setMediaItemsList(
-                songs,
-                startIndex = index,
-                startProgress = controller!!.currentPosition,
-            )
-        }
-    }
-
-
 
 
 
@@ -780,7 +679,7 @@ class MainActivity : ComponentActivity() {
         songs: List<SongUi>,
     ) {
 
-        val currentPath = controller.currentMediaItem!!.mediaId
+        val currentPath = controller.currentMediaItem?.mediaId ?: return
         val index = songs.indexOfFirst { it.path == currentPath}.takeIf { it != -1 }
             ?: controller.currentMediaItemIndex
 

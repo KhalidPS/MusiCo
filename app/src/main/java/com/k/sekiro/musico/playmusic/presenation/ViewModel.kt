@@ -47,7 +47,9 @@ class ViewModel(
     private val _state = MutableStateFlow<UiState>(UiState())
     val state = _state
         .onStart {
+            Log.e("ks", "heyyyy I'm in onStart flow")
             getAllSongsFromLocal()
+            songsRepository.startObservingSongChanges { getAllSongsFromLocal() }
             getPlayLists()
             getRecentPlaylistSongs()
             getPlaylistsWithSongs()
@@ -71,7 +73,7 @@ class ViewModel(
     private val currentPlayedPlaylistId = MutableStateFlow(-1L)
 
     init {
-        isSelectedSongFromPlaylist.update { sharedPref.getBoolean("isSelectedFromPlaylist",false) }
+        isSelectedSongFromPlaylist.update { sharedPref.getBoolean("isSelectedFromPlaylist", false) }
     }
 
     /*    private val _state = savedStateHandle.getStateFlow(stateKey, UiState())
@@ -85,7 +87,6 @@ class ViewModel(
                 stopTimeoutMillis = 5000
             )
         )*/
-
 
 
     fun updatePlayedSong(index: Int) {
@@ -313,6 +314,7 @@ class ViewModel(
         }
     }
 
+
     fun addToRecent(songId: Long) {
         /*       val playlist =  _state.value.playlistsWithSongs.find { it.playlist.name == "Recent" }!!
                 val song = playlist.songs.find { it.id == songId }*/
@@ -355,8 +357,8 @@ class ViewModel(
         isSelectedSongFromPlaylist.update { value }
         currentPlayedPlaylistSong.update { songs }
         currentPlayedPlaylistId.update { playlistId }
-        sharedPref.edit().apply{
-            putBoolean("isSelectedFromPlaylist",value)
+        sharedPref.edit().apply {
+            putBoolean("isSelectedFromPlaylist", value)
             apply()
         }
     }
@@ -371,17 +373,42 @@ class ViewModel(
         currentPlayedPlaylistSong.update { song }
     }
 
+    private fun getFavoriteSongs(): List<SongUi> {
+        return _state.value.playlistsWithSongs.find { it.playlist.id == 1L }!!.songs
+    }
 
-    private suspend fun <T> SavedStateHandle.updateSuspended(key: String, function: suspend (T?) -> T?) {
+    fun updateFavorite(songUi: SongUi) {
+        if (!isFavorite(songUi)) {
+            viewModelScope.launch {
+                playlistSongRepository.addPlaylistSongRef(
+                    PlaylistSong(1, songUi.id)
+                )
+            }
+        }else {
+            viewModelScope.launch {
+                playlistSongRepository.deletePlaylistSongRef(
+                    PlaylistSong(1,songUi.id)
+                )
+            }
+        }
+    }
+
+    fun isFavorite(songUi: SongUi): Boolean {
+        return getFavoriteSongs().contains(songUi)
+    }
+
+    private suspend fun <T> SavedStateHandle.updateSuspended(
+        key: String,
+        function: suspend (T?) -> T?
+    ) {
 
         this[key] = function(this.get<T>(key))
     }
 
-    private fun <T> SavedStateHandle.update(key: String, function:  (T?) -> T?) {
+    private fun <T> SavedStateHandle.update(key: String, function: (T?) -> T?) {
 
         this[key] = function(this.get<T>(key))
     }
-
 
 
     internal fun calculateProgressValue(currentProgress: Long) {
@@ -402,35 +429,37 @@ class ViewModel(
         }
     }
 
-    private fun getSavedRecentPlaylistSongs(){
-                if (isSelectedSongFromPlaylist.value){
-                    val string = sharedPref.getString("recentSongs","") ?: ""
+    private fun getSavedRecentPlaylistSongs() {
+        if (isSelectedSongFromPlaylist.value) {
+            val string = sharedPref.getString("recentSongs", "") ?: ""
 
-                    val recentSongs: List<SongUi> = try {
-                        Json.decodeFromString(string)
-                    } catch (ex: SerializationException){
-                        emptyList()
-                    } catch (ex: Exception){
-                        emptyList()
-                    }
-                    Log.e("ks","my current :$recentSongs")
-                    currentPlayedPlaylistSong.update { recentSongs }
-                }
+            val recentSongs: List<SongUi> = try {
+                Json.decodeFromString(string)
+            } catch (ex: SerializationException) {
+                emptyList()
+            } catch (ex: Exception) {
+                emptyList()
+            }
+            Log.e("ks", "my current :$recentSongs")
+            currentPlayedPlaylistSong.update { recentSongs }
         }
+    }
 
 
-   public override fun onCleared() {
+    public override fun onCleared() {
         super.onCleared()
 
-           if (isSelectedSongFromPlaylist.value){
-               Log.e("ks","enter if condition inside onClear")
-               sharedPref.edit().apply {
-                   val stringList = Json.encodeToString(currentPlayedPlaylistSong.value)
-                   putString("recentSongs",stringList)
-                   apply()
-               }
+        if (isSelectedSongFromPlaylist.value) {
+            Log.e("ks", "enter if condition inside onClear")
+            sharedPref.edit().apply {
+                val stringList = Json.encodeToString(currentPlayedPlaylistSong.value)
+                putString("recentSongs", stringList)
+                apply()
+            }
+        }
 
-           }
+        songsRepository.stopObservingSongChanges()
+
     }
 
 

@@ -39,7 +39,7 @@ fun AddPlaylistDialog(
     val isError = remember(
         playlists,
         txt
-    ) { (playlists.find { it.name == txt } != null) }
+    ) { (playlists.find { it.name == txt.trim() } != null) }
 
 
 

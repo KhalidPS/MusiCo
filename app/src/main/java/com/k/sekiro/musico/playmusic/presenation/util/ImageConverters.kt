@@ -16,6 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.FileNotFoundException
 import okio.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 fun convertResToBitmap(context:Context,@DrawableRes resId: Int): Bitmap{
     return BitmapFactory.decodeResource(context.resources,resId)
@@ -29,14 +31,15 @@ reason for making this suspending cuz openInputStream is blocking call and if th
 even if I'm calling it inside coroutine it may block the whole thread that the coroutines are running on
 then block all siblings coroutines inside that thread, but by making it suspend it would only block
 the coroutine that this function has been called inside it**/
-suspend inline fun isValidUri(context: Context,uri: Uri): Boolean{
-    return try {
+suspend inline fun isValidUri(context: Context,uri: Uri) = suspendCoroutine { continuation ->
+    try {
         context.contentResolver.openInputStream(uri)?.close()
-        true
+        continuation.resume(true)
     }catch (e: Exception){
-        false
+        continuation.resume(false)
     }
-}
+
+    }
 
 fun getUriFromDrawable(context: Context,drawableId: Int): Uri{
     return Uri.parse("android.resource://${context.packageName}/$drawableId")

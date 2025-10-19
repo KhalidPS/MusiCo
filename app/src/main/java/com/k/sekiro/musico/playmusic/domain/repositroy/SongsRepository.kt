@@ -23,4 +23,8 @@ interface SongsRepository {
 
     suspend fun getSongsWithPlaylist(songId: Long): SongWithPlaylists?
 
+    fun startObservingSongChanges(onChange:() -> Unit)
+
+    fun stopObservingSongChanges()
+
 }

@@ -166,8 +166,7 @@ fun SharedTransitionScope.SongsList(
                     } else mockPlaylists[0]
                 }
                 
-                Log.e("ks","$playlist")
-
+                Log.e("ks","favorite songs :${playlistWithSongs[0]}")
                 PlayListBox(
                     boxColor = SkyBlue,
                     playListIconTint = Color.Red,

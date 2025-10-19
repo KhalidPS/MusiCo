@@ -106,6 +106,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     lurCache: LruCache<String, Palette>,
     //state: UiState,
     songs: List<SongUi>,
+    isFavorite: (SongUi) -> Boolean,
     playedSong: SongUi?,
     sliderProgress: () -> Float,
     passedTimeDuration: () -> String,
@@ -115,7 +116,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     animatedVisibilityScope: AnimatedVisibilityScope,
     onAction: (UiAction) -> Unit,
     onDownArrowClicked: () -> Unit = {},
-    onSettledPageChanged:(Long) -> Unit = {}
+    onSettledPageChanged: (Long) -> Unit = {}
 ) {
 
 
@@ -127,10 +128,10 @@ fun SharedTransitionScope.PlayedSongScreen(
     )
     // var indexState = index
     val scope = rememberCoroutineScope()
+    var isFavorite by remember { mutableStateOf(isFavorite(songs[pagerState.settledPage])) }
 
 
     var spotColor by remember { mutableStateOf(Color.Cyan) }
-
 
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -158,22 +159,22 @@ fun SharedTransitionScope.PlayedSongScreen(
     val outerLineStroke =
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) 30f else 20f
 
-/*    val coilPainter = rememberAsyncImagePainter(songs[pagerState.currentPage].cover)
-    val painterState = coilPainter.state.collectAsState()
+    /*    val coilPainter = rememberAsyncImagePainter(songs[pagerState.currentPage].cover)
+        val painterState = coilPainter.state.collectAsState()
 
-    val painter = when (painterState.value) {
-        is AsyncImagePainter.State.Empty -> {
-            painterResource(R.drawable.logo_2)
-        }
+        val painter = when (painterState.value) {
+            is AsyncImagePainter.State.Empty -> {
+                painterResource(R.drawable.logo_2)
+            }
 
-        is AsyncImagePainter.State.Error -> {
-            painterResource(R.drawable.logo_2)
-        }
+            is AsyncImagePainter.State.Error -> {
+                painterResource(R.drawable.logo_2)
+            }
 
-        else -> {
-            coilPainter
-        }
-    }*/
+            else -> {
+                coilPainter
+            }
+        }*/
 
     LaunchedEffect(Unit) {
         Log.e("ks", "index state 1: $index")
@@ -199,9 +200,9 @@ fun SharedTransitionScope.PlayedSongScreen(
         if (playedSong != null && playedSong != songs[pagerState.settledPage]) {
             pagerState.animateScrollToPage(songs.indexOf(playedSong))
         }
-        Log.e("ks","the played one : $playedSong")
-        Log.e("ks","the index one :${songs.indexOf(playedSong)}")
-        Log.e("ks","the settled one ${songs[pagerState.settledPage]}")
+        Log.e("ks", "the played one : $playedSong")
+        Log.e("ks", "the index one :${songs.indexOf(playedSong)}")
+        Log.e("ks", "the settled one ${songs[pagerState.settledPage]}")
     }
 
 
@@ -217,6 +218,7 @@ fun SharedTransitionScope.PlayedSongScreen(
             onSettledPageChanged(songs[it].id)
             onAction(UiAction.PlayPause)
             //}
+            isFavorite = isFavorite(songs[it])
 
             val job1 = launch { line1X.snapTo(0f) }
             val job2 = launch { line2Y.snapTo(0f) }
@@ -256,7 +258,13 @@ fun SharedTransitionScope.PlayedSongScreen(
 
 
             val song = songs[it]
-            val songCover = async { convertUriToBitmap(song.cover.toUri(), context.contentResolver, context.resources) }
+            val songCover = async {
+                convertUriToBitmap(
+                    song.cover.toUri(),
+                    context.contentResolver,
+                    context.resources
+                )
+            }
 
 
             val palette = if (lurCache[song.path] != null) {
@@ -433,7 +441,6 @@ fun SharedTransitionScope.PlayedSongScreen(
                     //  val songCover = songs[it].cover?:convertResToBitmap(context,R.drawable.logo_2)
 
 
-
                     AsyncImage(
                         model = songs[it].cover,
                         //bitmap = songs[it].cover.asImageBitmap(),
@@ -545,7 +552,10 @@ fun SharedTransitionScope.PlayedSongScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
                 ) {
-                    PassedTimeText(passedTime = passedTimeDuration , color = Color.White.copy(alpha = .7f))
+                    PassedTimeText(
+                        passedTime = passedTimeDuration,
+                        color = Color.White.copy(alpha = .7f)
+                    )
 
                     Text(
                         text = songs[pagerState.currentPage].displayableDuration.formatted,
@@ -666,14 +676,19 @@ fun SharedTransitionScope.PlayedSongScreen(
                     }
 
                     IconButton(
-                        onClick = { /**/ },
+                        onClick = {
+                            onAction(UiAction.onFavoriteClicked(songs[pagerState.settledPage]))
+                            isFavorite = !isFavorite
+                        },
 
                         ) {
                         Icon(
                             imageVector = Icons.Default.Favorite,
                             contentDescription = null,
                             modifier = Modifier.size(30.dp),
-                            tint = Color.Red
+                            tint = if (isFavorite) Color.Red else Color.White.copy(
+                                alpha = .5f
+                            )
                         )
                     }
 
@@ -696,6 +711,7 @@ private fun PlayedSongScreenPrev() {
                 animatedVisibilityScope = this,
                 passedTimeDuration = { "" },
                 songs = mockSongs.map { it.toSongUi() },
+                isFavorite = { false },
                 playedSong = mockSongs[0].toSongUi(),
                 playType = PlayType.RepeatAll,
                 isPlaying = true,
