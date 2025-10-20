@@ -1,5 +1,4 @@
-
-package com.k.sekiro.musico.playmusic.data.local
+package com.k.sekiro.musico.playmusic.data.local.room
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.k.sekiro.musico.playmusic.domain.model.Playlist

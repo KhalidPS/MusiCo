@@ -8,7 +8,7 @@ import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
 import com.k.sekiro.musico.playmusic.data.util.getSongsByUri
-import com.k.sekiro.musico.playmusic.data.local.SongsDao
+import com.k.sekiro.musico.playmusic.data.local.room.SongsDao
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
 import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.SongWithPlaylists

@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.player
+package com.k.sekiro.musico.playmusic.presenation.player
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -15,7 +15,7 @@ import androidx.media3.session.MediaController
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.presenation.util.getUriFromDrawable
 import com.k.sekiro.musico.playmusic.presenation.util.isValidUri
-import com.k.sekiro.musico.playmusic.player.notification.NotificationPlayerCustomCommand
+import com.k.sekiro.musico.playmusic.presenation.player.notification.NotificationPlayerCustomCommand
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import androidx.core.net.toUri
 import com.k.sekiro.musico.playmusic.presenation.PlayType

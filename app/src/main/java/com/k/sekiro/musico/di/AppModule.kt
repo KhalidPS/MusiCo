@@ -10,20 +10,18 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.palette.graphics.Palette
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
-import com.k.sekiro.musico.playmusic.data.local.AppDatabase
+import com.k.sekiro.musico.playmusic.data.local.room.AppDatabase
 import com.k.sekiro.musico.playmusic.data.local.PaletteCache
-import com.k.sekiro.musico.playmusic.data.local.RoomCallback
+import com.k.sekiro.musico.playmusic.data.local.preferences.PreferencesDataStoreSaver
+import com.k.sekiro.musico.playmusic.data.local.room.RoomCallback
 import com.k.sekiro.musico.playmusic.data.repository.PlaylistRepositoryImpl
 import com.k.sekiro.musico.playmusic.data.repository.PlaylistSongRepositoryImpl
 import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
+import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
@@ -58,6 +56,7 @@ val appModule = module{
     singleOf(::SongsRepositoryImpl) bind SongsRepository::class
     singleOf(::PlaylistRepositoryImpl) bind PlaylistRepository::class
     singleOf(::PlaylistSongRepositoryImpl) bind PlaylistSongRepository::class
+    singleOf(::PreferencesDataStoreSaver) bind SimpleDataSaver::class
 
     viewModelOf(::ViewModel)
 
@@ -133,4 +132,4 @@ val appModule = module{
 }
 
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore("settings")
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore("setting_v2")

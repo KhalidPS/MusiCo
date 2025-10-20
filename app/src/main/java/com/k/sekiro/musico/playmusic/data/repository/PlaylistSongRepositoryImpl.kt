@@ -1,6 +1,6 @@
 package com.k.sekiro.musico.playmusic.data.repository
 
-import com.k.sekiro.musico.playmusic.data.local.PlaylistSongDao
+import com.k.sekiro.musico.playmusic.data.local.room.PlaylistSongDao
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository

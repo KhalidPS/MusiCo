@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.player.notification
+package com.k.sekiro.musico.playmusic.presenation.player.notification
 
 import android.app.Notification
 import android.app.Service
@@ -6,7 +6,6 @@ import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSessionService
 import androidx.media3.ui.PlayerNotificationManager
-import com.k.sekiro.musico.playmusic.player.service.PlayerSessionService
 
 @UnstableApi
 class NotificationListener(private val service: MediaSessionService) : PlayerNotificationManager.NotificationListener{

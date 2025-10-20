@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.player.notification
+package com.k.sekiro.musico.playmusic.presenation.player.notification
 
 import android.content.Context
 import androidx.core.app.NotificationCompat

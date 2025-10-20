@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.data.local
+package com.k.sekiro.musico.playmusic.data.local.room
 
 import androidx.room.Dao
 import androidx.room.Delete

@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.player.service
+package com.k.sekiro.musico.playmusic.presenation.player.service
 
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 

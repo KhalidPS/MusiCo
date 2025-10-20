@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.player.notification
+package com.k.sekiro.musico.playmusic.presenation.player.notification
 
 import android.os.Bundle
 import androidx.media3.session.CommandButton
