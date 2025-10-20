@@ -2,9 +2,14 @@ package com.k.sekiro.musico.playmusic.presenation
 
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaController
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
@@ -14,6 +19,10 @@ import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toPlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
+import com.k.sekiro.musico.playmusic.presenation.player.MediaControllerManager
+import com.k.sekiro.musico.playmusic.presenation.player.onChangPlayType
+import com.k.sekiro.musico.playmusic.presenation.player.playOrPause
+import com.k.sekiro.musico.playmusic.presenation.player.startProgressUpdate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +41,7 @@ class ViewModel(
     private val playlistRepository: PlaylistRepository,
     private val playlistSongRepository: PlaylistSongRepository,
     private val sharedPref: SharedPreferences,
+    private val controllerManager: MediaControllerManager,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -73,6 +83,8 @@ class ViewModel(
     private val currentPlayedPlaylistId = MutableStateFlow(-1L)
 
     init {
+        controllerManager.setViewModel(this)
+        controllerManager.setCoroutineScope(viewModelScope)
         isSelectedSongFromPlaylist.update { sharedPref.getBoolean("isSelectedFromPlaylist", false) }
     }
 
@@ -447,8 +459,6 @@ class ViewModel(
 
 
     public override fun onCleared() {
-        super.onCleared()
-
         if (isSelectedSongFromPlaylist.value) {
             Log.e("ks", "enter if condition inside onClear")
             sharedPref.edit().apply {
@@ -460,7 +470,110 @@ class ViewModel(
 
         songsRepository.stopObservingSongChanges()
 
+        super.onCleared()
+
+
     }
+
+    fun initController(){
+        controllerManager.initialize()
+    }
+
+    suspend fun controllerAndLastPlayedSongSetup(songs: List<SongUi>){
+        controllerManager.controllerAndLastPlayedSongSetup(songs)
+    }
+
+    fun getControllerManager(): MediaControllerManager = controllerManager
+
+    fun getController(): MediaController? = controllerManager.getController()
+
+    fun getIsNewCreation() = controllerManager.getIsNewCreation()
+
+    fun setIsNewCreation(value: Boolean) = controllerManager.setIsNewCreation(value)
+
+
+    @OptIn(UnstableApi::class)
+    fun onAction(action: UiAction) {
+        val controller = controllerManager.getController() ?: return
+        viewModelScope.launch {
+            when (action) {
+                is UiAction.ChangePlayType -> {
+
+                    controller
+                        .onChangPlayType(action.playType, ::updatePlayType)
+
+                }
+
+                is UiAction.ChangeToOtherSong -> {
+
+                    when (action.index) {
+                        controller.currentMediaItemIndex -> {
+                            controller.playOrPause(
+                                ::calculateProgressValue,
+                                ::updateIsPlaying
+                            )
+                        }
+
+                        else -> {
+                            controller.seekToDefaultPosition(action.index)
+                            updateIsPlaying(true)
+                            controller.playWhenReady = true
+                            controller
+                                .startProgressUpdate(::calculateProgressValue)
+                        }
+                    }
+
+
+                }
+
+                UiAction.OnDownArrowClicked -> TODO()
+                UiAction.OnMoreActionClicked -> TODO()
+                UiAction.PlayPause -> controller.playOrPause(
+                    ::calculateProgressValue,
+                    ::updateIsPlaying
+                )
+
+                UiAction.SeekBackward -> controller.seekBack()
+                UiAction.SeekForward -> controller.seekForward()
+                is UiAction.SeekTo -> {
+
+                    val seekPosition =
+                        ((getPlayedSong()!!.displayableDuration.durationMillis * action.position / 100f)).toLong()
+
+                    controller.seekTo(seekPosition)
+                }
+
+                UiAction.SeekToNext -> {
+                    if (controller.repeatMode == Player.REPEAT_MODE_ONE && controller.currentMediaItemIndex == controller.mediaItemCount - 1) {
+                        controller.seekTo(0, 0L)
+                    } else {
+                        controller.seekToNextMediaItem()
+
+                    }
+                }
+
+                UiAction.SeekToPrevious -> {
+                    if (controller.repeatMode == Player.REPEAT_MODE_ONE && controller.currentMediaItemIndex == 0) {
+                        controller
+                            .seekTo(controller.mediaItemCount - 1, 0L)
+                    } else {
+                        controller.seekToPreviousMediaItem()
+
+                    }
+                }
+
+                is UiAction.UpdateProgress -> {
+                    updateProgress(action.newProgress)
+                }
+
+                is UiAction.onFavoriteClicked -> {
+                    updateFavorite(action.songUi)
+                }
+            }
+        }
+
+    }
+
 
 
 }

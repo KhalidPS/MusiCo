@@ -65,9 +65,6 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 class MainActivity : ComponentActivity() {
     val lruCache: LruCache<String, Palette> by inject()
     private val viewModel: ViewModel by viewModel()
-    val sharedPref: SharedPreferences by inject()
-
-    private lateinit var controllerManager: MediaControllerManager
 
 
     @ExperimentalSharedTransitionApi
@@ -76,16 +73,10 @@ class MainActivity : ComponentActivity() {
         Log.e("ks", "onActivity create")
         super.onCreate(savedInstanceState)
 
-        controllerManager = MediaControllerManager(
-            this,
-            viewModel,
-            sharedPref,
-            lifecycleScope
-        )
 
-        lifecycle.addObserver(controllerManager)
+        lifecycle.addObserver(viewModel.getControllerManager())
 
-        controllerManager.initialize()
+        viewModel.initController()
 
         enableEdgeToEdge()
         setContent {
@@ -126,7 +117,7 @@ class MainActivity : ComponentActivity() {
                                     // new collecting songs list is different from previous collecting songs list if not then
                                     //eliminates the new songs list and as a result the collect body won't execute
                                     .collect {
-                                        controllerManager.controllerAndLastPlayedSongSetup(it)
+                                        viewModel.controllerAndLastPlayedSongSetup(it)
                                     }
                             }
 
@@ -167,7 +158,7 @@ class MainActivity : ComponentActivity() {
                                             song = playedSong ?: songs[0],
                                             selectModeEnabled = selectModeEnabled,
                                             onPlayClicked = {
-                                                onAction(UiAction.PlayPause)
+                                                viewModel.onAction(UiAction.PlayPause)
                                             },
                                             onSelectSong = viewModel::onSelectSong,
                                             selectedSongs = selectedSongs,
@@ -178,7 +169,7 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             },
                                             animatedVisibilityScope = this,
-                                            onAction = ::onAction,
+                                            onAction = viewModel::onAction,
                                             playlists = playlists,
                                             onAddToNewPlaylist = viewModel::onAddToNewPlaylist,
                                             onAddToExistPlaylist = viewModel::onAddToExistPlaylist,
@@ -249,7 +240,7 @@ class MainActivity : ComponentActivity() {
                                         playedSong = playedSong,
                                         songs = songs,
                                         isFavorite = viewModel::isFavorite,
-                                        onAction = ::onAction,
+                                        onAction = viewModel::onAction,
                                         index = index,
                                         animatedVisibilityScope = this,
                                         onDownArrowClicked = { navController.popBackStack() },
@@ -327,92 +318,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        lifecycle.removeObserver(viewModel.getControllerManager())
         super.onDestroy()
-        viewModel.onCleared()
     }
 
-
-    @OptIn(UnstableApi::class)
-    fun onAction(action: UiAction) {
-        val controller = controllerManager.getController() ?: return
-        lifecycleScope.launch {
-            when (action) {
-                is UiAction.ChangePlayType -> {
-
-                    controller
-                        .onChangPlayType(action.playType, viewModel::updatePlayType)
-
-                }
-
-                is UiAction.ChangeToOtherSong -> {
-
-                    when (action.index) {
-                        controller.currentMediaItemIndex -> {
-                            controller.playOrPause(
-                                viewModel::calculateProgressValue,
-                                viewModel::updateIsPlaying
-                            )
-                        }
-
-                        else -> {
-                            controller.seekToDefaultPosition(action.index)
-                            viewModel.updateIsPlaying(true)
-                            controller.playWhenReady = true
-                            controller
-                                .startProgressUpdate(viewModel::calculateProgressValue)
-                        }
-                    }
-
-
-                }
-
-                UiAction.OnDownArrowClicked -> TODO()
-                UiAction.OnMoreActionClicked -> TODO()
-                UiAction.PlayPause -> controller.playOrPause(
-                    viewModel::calculateProgressValue,
-                    viewModel::updateIsPlaying
-                )
-
-                UiAction.SeekBackward -> controller.seekBack()
-                UiAction.SeekForward -> controller.seekForward()
-                is UiAction.SeekTo -> {
-
-                    val seekPosition =
-                        ((viewModel.getPlayedSong()!!.displayableDuration.durationMillis * action.position / 100f)).toLong()
-
-                    controller.seekTo(seekPosition)
-                }
-
-                UiAction.SeekToNext -> {
-                    if (controller.repeatMode == Player.REPEAT_MODE_ONE && controller.currentMediaItemIndex == controller.mediaItemCount - 1) {
-                        controller.seekTo(0, 0L)
-                    } else {
-                        controller.seekToNextMediaItem()
-
-                    }
-                }
-
-                UiAction.SeekToPrevious -> {
-                    if (controller.repeatMode == Player.REPEAT_MODE_ONE && controller.currentMediaItemIndex == 0) {
-                        controller
-                            .seekTo(controller.mediaItemCount - 1, 0L)
-                    } else {
-                        controller.seekToPreviousMediaItem()
-
-                    }
-                }
-
-                is UiAction.UpdateProgress -> {
-                    viewModel.updateProgress(action.newProgress)
-                }
-
-                is UiAction.onFavoriteClicked -> {
-                    viewModel.updateFavorite(action.songUi)
-                }
-            }
-        }
-
-    }
 
 
     private fun handleBottomBarClicked(
@@ -450,7 +359,7 @@ class MainActivity : ComponentActivity() {
         index: Int,
         navController: NavHostController
     ) {
-        if (controllerManager.getController()!!.currentMediaItemIndex != index && controllerManager.getIsNewCreation()) {
+        if (viewModel.getController()!!.currentMediaItemIndex != index && viewModel.getIsNewCreation()) {
             /** if the creation for activity is new and for first time then
             set new mediaItems then reset the isNewCreation to false cuz if the
             user click the item again there is no need to set mediaItems again since we did that before
@@ -459,17 +368,17 @@ class MainActivity : ComponentActivity() {
             instead of continue playing due to setMediaItems every click**/
 
             lifecycleScope.launch {
-                controllerManager.getController()!!
+                viewModel.getController()!!
                     .setMediaItemsList(
                         songs,
                         this@MainActivity
                     )
             }
-            controllerManager.setIsNewCreation(false)
+            viewModel.setIsNewCreation(false)
             viewModel.addToRecent(song.id)
         }
 
-        if (!viewModel.isSelectedSongFromPlaylist() && controllerManager.getController()!!.currentMediaItemIndex != index) {
+        if (!viewModel.isSelectedSongFromPlaylist() && viewModel.getController()!!.currentMediaItemIndex != index) {
             viewModel.updateIsSelectedSongFromPlaylist(
                 value = false,
                 songs = songs
@@ -478,7 +387,7 @@ class MainActivity : ComponentActivity() {
             viewModel.addToRecent(song.id)
         } else if (viewModel.isSelectedSongFromPlaylist()) {
             lifecycleScope.launch {
-                controllerManager.getController()!!
+                viewModel.getController()!!
                     .setMediaItemsList(
                         songs,
                         startIndex = index,
@@ -506,7 +415,7 @@ class MainActivity : ComponentActivity() {
         navController: NavHostController
     ) {
 
-        val controller = controllerManager.getController() ?: return
+        val controller = viewModel.getController() ?: return
 
         if (playlistId != currentPlaylistId) {
             viewModel.updateIsSelectedSongFromPlaylist(

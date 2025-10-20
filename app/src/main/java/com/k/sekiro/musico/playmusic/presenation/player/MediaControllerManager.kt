@@ -26,11 +26,12 @@ import kotlin.collections.indexOf
 
 class MediaControllerManager(
     private val context: Context,
-    private val viewModel: ViewModel,
     private val sharedPreferences: SharedPreferences,
-    private val coroutineScope: CoroutineScope
 ) : LifecycleEventObserver{
 
+    private lateinit var viewModel: ViewModel
+
+    private lateinit var coroutineScope: CoroutineScope
     private var controller: MediaController? = null
     private lateinit var controllerFuture: ListenableFuture<MediaController>
     private var isNewCreation = true
@@ -90,8 +91,6 @@ class MediaControllerManager(
 
 
     }
-
-
 
     fun initialize(){
         isNewCreation = true
@@ -264,6 +263,8 @@ class MediaControllerManager(
                 controller?.let { controller ->
                     val currentSong = controller.currentMediaItemIndex
                     val currentProgress = controller.currentPosition
+                    
+                    Log.e("ks","Yoooooooo the activity truly destroyed")
 
                     Log.e("ks", "currentSong >>>>>>>> $currentSong")
                     Log.e("ks", "currentProgress >>>>>>>> $currentProgress")
@@ -282,6 +283,8 @@ class MediaControllerManager(
                     MediaController.releaseFuture(controllerFuture)
                     controller.removeListener(listener)
                     controller.release()
+                    
+                    Log.e("ks","Yooo the cleaning for res done")
                 }
             }
             else -> { /* Handle other lifecycle events if needed */
@@ -296,5 +299,13 @@ class MediaControllerManager(
     }
 
     fun getController(): MediaController? = controller
+
+    fun setViewModel(viewModel: ViewModel) {
+        this.viewModel = viewModel
+    }
+
+    fun setCoroutineScope(coroutineScope: CoroutineScope) {
+        this.coroutineScope = coroutineScope
+    }
 
 }

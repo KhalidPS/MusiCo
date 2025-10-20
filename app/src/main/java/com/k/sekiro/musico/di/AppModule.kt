@@ -22,11 +22,13 @@ import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
+import com.k.sekiro.musico.playmusic.presenation.player.MediaControllerManager
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import kotlin.math.sin
 
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -128,6 +130,8 @@ val appModule = module{
     //single { MusiCoServiceHandler(get()) }
 
     single { androidContext().dataStore}
+
+    single { MediaControllerManager(androidContext(),get()) }
 
 }
 
