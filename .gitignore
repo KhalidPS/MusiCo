@@ -1,7 +1,6 @@
 *.iml
 .gradle
 /local.properties
-/.idea
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -19,5 +18,3 @@
 *.xml
 !AndroidManifest.xml
 local.properties
-/.kotlin
-/app/google-services.json
