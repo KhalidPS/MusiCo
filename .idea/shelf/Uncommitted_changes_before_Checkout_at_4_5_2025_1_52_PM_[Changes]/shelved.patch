@@ -1,0 +1,38 @@
+Index: app/src/main/java/com/k/sekiro/musico/playmusic/player/PlaybackExtenstions.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.k.sekiro.musico.playmusic.player\r\n\r\nimport android.util.Log\r\nimport androidx.annotation.OptIn\r\nimport androidx.media3.common.MediaItem\r\nimport androidx.media3.common.MediaMetadata\r\nimport androidx.media3.common.Player\r\nimport androidx.media3.common.util.UnstableApi\r\nimport androidx.media3.datasource.DataSourceException\r\nimport androidx.media3.datasource.FileDataSource\r\nimport androidx.media3.session.MediaController\r\nimport com.k.sekiro.musico.playmusic.presenation.model.SongUi\r\nimport com.k.sekiro.musico.playmusic.presenation.model.toUri\r\nimport com.k.sekiro.musico.playmusic.presenation.played_song.PlayType\r\nimport com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongViewModel\r\nimport kotlinx.coroutines.CoroutineScope\r\nimport kotlinx.coroutines.Job\r\nimport kotlinx.coroutines.cancel\r\nimport kotlinx.coroutines.coroutineScope\r\nimport kotlinx.coroutines.delay\r\nimport kotlinx.coroutines.isActive\r\nimport kotlinx.coroutines.launch\r\n\r\n\r\nprivate var progressJob: Job? = null\r\nprivate var scope: CoroutineScope? = null\r\n\r\nfun MediaController?.addMediaItem(mediaItem: MediaItem) {\r\n    this!!.setMediaItem(mediaItem)\r\n    this!!.prepare()\r\n}\r\n\r\nsuspend fun MediaController?.playOrPause(viewModel: PlayedSongViewModel) {\r\n    if (this!!.isPlaying) {\r\n        this.pause()\r\n        stopProgressUpdate(viewModel)\r\n    } else {\r\n        this.play()\r\n        viewModel.updateIsPlaying(true)\r\n        startProgressUpdate(viewModel)\r\n    }\r\n}\r\n\r\nsuspend fun MediaController?.startProgressUpdate(viewModel: PlayedSongViewModel) {\r\n    scope?.cancel()\r\n    coroutineScope {\r\n        scope = this\r\n        launch {\r\n            while (isActive) {\r\n                delay(500)\r\n                viewModel.calculateProgressValue(this@startProgressUpdate!!.currentPosition)\r\n                Log.e(\"ks\",\"progressing..........................\")\r\n            }\r\n        }\r\n    }\r\n}\r\n\r\n\r\n@OptIn(UnstableApi::class)\r\nfun MediaController?.setMediaItemsList(songs: List<SongUi>) {\r\n    try {\r\n        songs.map { song ->\r\n            MediaItem.Builder()\r\n                .setUri(song.dataUri)\r\n                .setMediaMetadata(\r\n                    MediaMetadata.Builder()\r\n                        .setArtworkUri(song.cover.toUri())\r\n                        .setTitle(song.artist)\r\n                        .setDisplayTitle(song.name)\r\n                        .setAlbumTitle(song.album)\r\n                        .setArtist(song.artist)\r\n                        .build()\r\n                ).build()\r\n        }.also {\r\n            this!!.setMediaItems(it)\r\n            this.prepare()\r\n        }\r\n    } catch (ex: DataSourceException) {\r\n        Log.e(\"ks\", \"converting song to MediaItem problem :${ex}\")\r\n    } catch (ex: FileDataSource.FileDataSourceException) {\r\n        Log.e(\"ks\", \"converting song to MediaItem problem :${ex}\")\r\n    } catch (ex: Exception) {\r\n        Log.e(\"ks\", \"converting song to MediaItem problem :${ex}\")\r\n\r\n    }\r\n}\r\n\r\nfun stopProgressUpdate(viewModel: PlayedSongViewModel) {\r\n    viewModel.updateIsPlaying(false)\r\n    scope?.cancel()\r\n}\r\n\r\n\r\nfun MediaController?.onChangPlayType(type: PlayType, viewModel: PlayedSongViewModel) {\r\n    when (type) {\r\n        PlayType.RepeatAll -> {\r\n            this!!.shuffleModeEnabled = false\r\n            this!!.repeatMode = Player.REPEAT_MODE_ALL\r\n        }\r\n\r\n        PlayType.RepeatOne -> {\r\n            this!!.shuffleModeEnabled = false\r\n            this!!.repeatMode = Player.REPEAT_MODE_ONE\r\n        }\r\n\r\n        PlayType.Shuffle -> {\r\n            this!!.repeatMode = Player.REPEAT_MODE_OFF\r\n            this!!.shuffleModeEnabled = true\r\n        }\r\n    }\r\n\r\n    viewModel.updatePlayType(type)\r\n\r\n}\r\n\r\n\r\nfun MediaController?.getSongPlayedInBackground(): Pair<Int, Long>? {\r\n    return if (this != null && this.isPlaying) {\r\n        Pair(this.currentMediaItemIndex, this.currentPosition)\r\n    } else {\r\n        null\r\n    }\r\n}\r\n
+===================================================================
+diff --git a/app/src/main/java/com/k/sekiro/musico/playmusic/player/PlaybackExtenstions.kt b/app/src/main/java/com/k/sekiro/musico/playmusic/player/PlaybackExtenstions.kt
+--- a/app/src/main/java/com/k/sekiro/musico/playmusic/player/PlaybackExtenstions.kt	(revision 767ed506656faeb84fe9bebc5a06887aa888aa95)
++++ b/app/src/main/java/com/k/sekiro/musico/playmusic/player/PlaybackExtenstions.kt	(date 1743800372727)
+@@ -16,6 +16,7 @@
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Job
+ import kotlinx.coroutines.cancel
++import kotlinx.coroutines.cancelAndJoin
+ import kotlinx.coroutines.coroutineScope
+ import kotlinx.coroutines.delay
+ import kotlinx.coroutines.isActive
+@@ -42,10 +43,9 @@
+ }
+ 
+ suspend fun MediaController?.startProgressUpdate(viewModel: PlayedSongViewModel) {
+-    scope?.cancel()
++    progressJob?.cancelAndJoin()
+     coroutineScope {
+-        scope = this
+-        launch {
++       progressJob = launch {
+             while (isActive) {
+                 delay(500)
+                 viewModel.calculateProgressValue(this@startProgressUpdate!!.currentPosition)
+@@ -87,7 +87,7 @@
+ 
+ fun stopProgressUpdate(viewModel: PlayedSongViewModel) {
+     viewModel.updateIsPlaying(false)
+-    scope?.cancel()
++    progressJob?.cancel()
+ }
+ 
+ 
