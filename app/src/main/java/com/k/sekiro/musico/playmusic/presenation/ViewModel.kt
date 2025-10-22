@@ -10,8 +10,14 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
+import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
+import com.k.sekiro.musico.playmusic.domain.model.INDEX_KEY
+import com.k.sekiro.musico.playmusic.domain.model.IsSelectedFromPlaylist_KEY
+import com.k.sekiro.musico.playmusic.domain.model.PATH_KEY
+import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
+import com.k.sekiro.musico.playmusic.domain.model.RecentSongs_KEY
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
@@ -22,9 +28,13 @@ import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.player.MediaControllerManager
 import com.k.sekiro.musico.playmusic.presenation.player.onChangPlayType
 import com.k.sekiro.musico.playmusic.presenation.player.playOrPause
+import com.k.sekiro.musico.playmusic.presenation.player.service.PlayerSessionService
 import com.k.sekiro.musico.playmusic.presenation.player.startProgressUpdate
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
@@ -33,6 +43,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
@@ -40,7 +51,7 @@ class ViewModel(
     private val songsRepository: SongsRepository,
     private val playlistRepository: PlaylistRepository,
     private val playlistSongRepository: PlaylistSongRepository,
-    private val sharedPref: SharedPreferences,
+    private val dataSaver: SimpleDataSaver,
     private val controllerManager: MediaControllerManager,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -85,7 +96,12 @@ class ViewModel(
     init {
         controllerManager.setViewModel(this)
         controllerManager.setCoroutineScope(viewModelScope)
-        isSelectedSongFromPlaylist.update { sharedPref.getBoolean("isSelectedFromPlaylist", false) }
+        viewModelScope.launch {
+            isSelectedSongFromPlaylist.update {
+                dataSaver.suspendGet(IsSelectedFromPlaylist_KEY, false)
+            }
+        }
+
     }
 
     /*    private val _state = savedStateHandle.getStateFlow(stateKey, UiState())
@@ -369,10 +385,9 @@ class ViewModel(
         isSelectedSongFromPlaylist.update { value }
         currentPlayedPlaylistSong.update { songs }
         currentPlayedPlaylistId.update { playlistId }
-        sharedPref.edit().apply {
-            putBoolean("isSelectedFromPlaylist", value)
-            apply()
-        }
+        viewModelScope.launch { dataSaver.suspendSave(IsSelectedFromPlaylist_KEY, value) }
+        controllerManager.syncRecentPlaylistSongs(songs,value)
+        PlayerSessionService.syncRecentPlaylist(songs, value)
     }
 
     fun isSelectedSongFromPlaylist(): Boolean = isSelectedSongFromPlaylist.value
@@ -396,10 +411,10 @@ class ViewModel(
                     PlaylistSong(1, songUi.id)
                 )
             }
-        }else {
+        } else {
             viewModelScope.launch {
                 playlistSongRepository.deletePlaylistSongRef(
-                    PlaylistSong(1,songUi.id)
+                    PlaylistSong(1, songUi.id)
                 )
             }
         }
@@ -441,12 +456,12 @@ class ViewModel(
         }
     }
 
-    private fun getSavedRecentPlaylistSongs() {
+    private suspend fun getSavedRecentPlaylistSongs() = coroutineScope {
         if (isSelectedSongFromPlaylist.value) {
-            val string = sharedPref.getString("recentSongs", "") ?: ""
+            val string = async { dataSaver.suspendGet(RecentSongs_KEY, "") }
 
             val recentSongs: List<SongUi> = try {
-                Json.decodeFromString(string)
+                Json.decodeFromString(string.await())
             } catch (ex: SerializationException) {
                 emptyList()
             } catch (ex: Exception) {
@@ -457,29 +472,26 @@ class ViewModel(
         }
     }
 
+    suspend fun saveRecentPlaylistSongs() {
+        val stringList = Json.encodeToString(currentPlayedPlaylistSong.value)
+        dataSaver.suspendSave(RecentSongs_KEY, stringList)
+    }
+
+
 
     public override fun onCleared() {
-        if (isSelectedSongFromPlaylist.value) {
-            Log.e("ks", "enter if condition inside onClear")
-            sharedPref.edit().apply {
-                val stringList = Json.encodeToString(currentPlayedPlaylistSong.value)
-                putString("recentSongs", stringList)
-                apply()
-            }
-        }
 
         songsRepository.stopObservingSongChanges()
 
         super.onCleared()
 
-
     }
 
-    fun initController(){
+    fun initController() {
         controllerManager.initialize()
     }
 
-    suspend fun controllerAndLastPlayedSongSetup(songs: List<SongUi>){
+    suspend fun controllerAndLastPlayedSongSetup(songs: List<SongUi>) {
         controllerManager.controllerAndLastPlayedSongSetup(songs)
     }
 
@@ -573,7 +585,6 @@ class ViewModel(
         }
 
     }
-
 
 
 }

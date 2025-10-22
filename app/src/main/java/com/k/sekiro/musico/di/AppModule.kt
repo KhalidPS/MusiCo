@@ -133,6 +133,8 @@ val appModule = module{
 
     single { MediaControllerManager(androidContext(),get()) }
 
+    singleOf(::PreferencesDataStoreSaver) bind SimpleDataSaver::class
+
 }
 
 

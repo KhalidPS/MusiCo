@@ -16,18 +16,27 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
+import com.k.sekiro.musico.playmusic.domain.model.INDEX_KEY
+import com.k.sekiro.musico.playmusic.domain.model.PATH_KEY
+import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
+import com.k.sekiro.musico.playmusic.domain.model.RecentSongs_KEY
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.player.service.PlayerSessionService
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import kotlin.collections.indexOf
 
 class MediaControllerManager(
     private val context: Context,
-    private val sharedPreferences: SharedPreferences,
-) : LifecycleEventObserver{
+    private val dataSaver: SimpleDataSaver,
+) : LifecycleEventObserver {
 
     private lateinit var viewModel: ViewModel
 
@@ -35,6 +44,9 @@ class MediaControllerManager(
     private var controller: MediaController? = null
     private lateinit var controllerFuture: ListenableFuture<MediaController>
     private var isNewCreation = true
+    private var job: Job? = null
+    private var recentPlaylist: List<SongUi> = emptyList()
+    private var isSelectedFromPlaylist: Boolean = false
 
 
     private val listener = object : Player.Listener {
@@ -57,6 +69,15 @@ class MediaControllerManager(
                 }
             } else {
                 stopProgressUpdate(viewModel::updateIsPlaying)
+                job?.cancel()
+                job = coroutineScope.launch {
+                    delay(500)
+                    launch { saveCurrentSongData() }
+                    if (isSelectedFromPlaylist){
+                        launch { saveRecentPlaylistSongs() }
+                    }
+
+                }
             }
         }
 
@@ -92,7 +113,7 @@ class MediaControllerManager(
 
     }
 
-    fun initialize(){
+    fun initialize() {
         isNewCreation = true
         val sessionToken = SessionToken(
             context, ComponentName(
@@ -112,7 +133,6 @@ class MediaControllerManager(
             }, MoreExecutors.directExecutor()
         )
     }
-
 
 
     suspend fun controllerAndLastPlayedSongSetup(allSongs: List<SongUi>) {
@@ -142,7 +162,8 @@ class MediaControllerManager(
         controller: MediaController,
         songs: List<SongUi>
     ) {
-        val savedPath = sharedPreferences.getString("path", "") ?: ""
+        val savedPath = dataSaver.suspendGet(PATH_KEY, "")
+        Log.e("ks", "path in handleNewCreationSetup : $savedPath")
 
         when {
             controller.isPlaying -> handlePlayingControllerSetup(controller, songs)
@@ -180,9 +201,10 @@ class MediaControllerManager(
         path: String
     ) {
         controller.setupRecentPlayedSongWhenServiceNotActive(
-            sharedPreferences, songs, viewModel, path, context
+            dataSaver, songs, viewModel, path, context
         )
     }
+
     /**`such a Scenario:` if the player is paused but the service is still active <<(e.g
     when remove the app from recent task while player is playing
     and this will destroy the activity by calling onDestroy and save
@@ -197,7 +219,7 @@ class MediaControllerManager(
     ) {
 
         val currentPath = controller.currentMediaItem?.mediaId ?: return
-        val index = songs.indexOfFirst { it.path == currentPath}.takeIf { it != -1 }
+        val index = songs.indexOfFirst { it.path == currentPath }.takeIf { it != -1 }
             ?: controller.currentMediaItemIndex
 
         viewModel.updatePlayedSong(index)
@@ -214,7 +236,7 @@ class MediaControllerManager(
         handleFirstTimeAppLaunch fun would be executed **/
         if (controller.mediaItemCount == 0) {
             controller.setMediaItemsList(songs, context)
-        }else if (songs.size != controller.mediaItemCount){
+        } else if (songs.size != controller.mediaItemCount) {
             /** but this else block will execute every time the parent condition is true
              * to synchronize the controller mediaItems with songs cuz may new songs come from downloading and so on=*/
             controller.setMediaItemsList(
@@ -263,30 +285,21 @@ class MediaControllerManager(
                 controller?.let { controller ->
                     val currentSong = controller.currentMediaItemIndex
                     val currentProgress = controller.currentPosition
-                    
-                    Log.e("ks","Yoooooooo the activity truly destroyed")
+
+                    Log.e("ks", "Yoooooooo the activity truly destroyed")
 
                     Log.e("ks", "currentSong >>>>>>>> $currentSong")
                     Log.e("ks", "currentProgress >>>>>>>> $currentProgress")
                     Log.e("ks", "onActivity Destroy")
 
-                    sharedPreferences.edit().apply {
-                        putInt("index", currentSong)
-                        putLong("progress", currentProgress)
-                        controller.currentMediaItem?.mediaId?.let { mediaId ->
-                            putString("path", mediaId)
-                            Log.e("ks", "mediaId ; $mediaId")
-                        }
-                        apply()
-                    }
-
                     MediaController.releaseFuture(controllerFuture)
                     controller.removeListener(listener)
                     controller.release()
-                    
-                    Log.e("ks","Yooo the cleaning for res done")
+
+                    Log.e("ks", "Yooo the cleaning for res done")
                 }
             }
+
             else -> { /* Handle other lifecycle events if needed */
             }
         }
@@ -306,6 +319,31 @@ class MediaControllerManager(
 
     fun setCoroutineScope(coroutineScope: CoroutineScope) {
         this.coroutineScope = coroutineScope
+    }
+
+
+    private suspend fun saveRecentPlaylistSongs() {
+        val stringList = Json.encodeToString(recentPlaylist)
+        dataSaver.suspendSave(RecentSongs_KEY, stringList)
+    }
+
+    fun syncRecentPlaylistSongs(songs: List<SongUi>, isSelected: Boolean) {
+        recentPlaylist = songs
+        isSelectedFromPlaylist = isSelected
+    }
+
+    private suspend fun saveCurrentSongData() {
+        val currentSong = controller!!.currentMediaItemIndex
+        val currentProgress = controller!!.currentPosition
+        val path = controller!!.currentMediaItem!!.mediaId
+
+        coroutineScope.launch {
+            dataSaver.suspendSave(
+                INDEX_KEY to currentSong,
+                PROGRESS_KEY to currentProgress,
+                PATH_KEY to path
+            )
+        }
     }
 
 }

@@ -1,6 +1,5 @@
 package com.k.sekiro.musico
 
-import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -25,7 +24,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -45,11 +43,7 @@ import com.k.sekiro.musico.playmusic.presenation.model.PlaylistShowcase
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
-import com.k.sekiro.musico.playmusic.presenation.player.MediaControllerManager
-import com.k.sekiro.musico.playmusic.presenation.player.onChangPlayType
-import com.k.sekiro.musico.playmusic.presenation.player.playOrPause
 import com.k.sekiro.musico.playmusic.presenation.player.setMediaItemsList
-import com.k.sekiro.musico.playmusic.presenation.player.startProgressUpdate
 import com.k.sekiro.musico.playmusic.presenation.playlist.PlaylistCollapsingScreen
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.PermissionGate
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.ShowcasePlaylists

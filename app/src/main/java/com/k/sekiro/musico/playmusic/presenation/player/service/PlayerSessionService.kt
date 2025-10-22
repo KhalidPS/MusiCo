@@ -23,8 +23,14 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.k.sekiro.musico.MainActivity
 import com.k.sekiro.musico.MusicoApp
+import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
+import com.k.sekiro.musico.playmusic.domain.model.INDEX_KEY
+import com.k.sekiro.musico.playmusic.domain.model.PATH_KEY
+import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
+import com.k.sekiro.musico.playmusic.domain.model.RecentSongs_KEY
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
+import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.player.notification.CUSTOM_COMMAND_REPEAT_ALL_ACTION
 import com.k.sekiro.musico.playmusic.presenation.player.notification.MusiCoNotificationManager
 import com.k.sekiro.musico.playmusic.presenation.player.notification.NotificationPlayerCustomCommand
@@ -33,24 +39,29 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import org.koin.android.ext.android.inject
 
 
 class PlayerSessionService : MediaSessionService() {
-    var mediaSession: MediaSession? = null
-    var musiCoNotificationManager: MusiCoNotificationManager? = null
-    val sharedPref: SharedPreferences by inject()
+    private var mediaSession: MediaSession? = null
+    private var musiCoNotificationManager: MusiCoNotificationManager? = null
+    private val dataSaver: SimpleDataSaver by inject()
 
-    val playlistSongRepo: PlaylistSongRepository by inject()
+    private val playlistSongRepo: PlaylistSongRepository by inject()
 
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    val notificationPlayerCustomCommandButtons =
+    private val notificationPlayerCustomCommandButtons =
         NotificationPlayerCustomCommand.entries.map { it.commandButton }
 
 
-    val sessionCallback = object : MediaSession.Callback {
+
+    private val sessionCallback = object : MediaSession.Callback {
         @OptIn(UnstableApi::class)
         override fun onConnect(
             session: MediaSession,
@@ -263,31 +274,24 @@ class PlayerSessionService : MediaSessionService() {
             || player.mediaItemCount == 0
             || player.playbackState == Player.STATE_ENDED
         ) {
-
             // Stop the service if not playing, continue playing in the background otherwise.
             //stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
-            Log.e("ks", "remove app from background")
         }
+        Log.e("ks", "remove app from background")
+
+
+        saveCurrentSongData()
+        if (isSelectedFromPlaylist){
+            saveRecentPlaylistSongs()
+        }
+
+
+
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
-        super.onDestroy()
-
-        val currentSong = mediaSession!!.player.currentMediaItemIndex
-        val currentProgress = mediaSession!!.player.currentPosition
-        val path = mediaSession!!.player.currentMediaItem!!.mediaId
-        sharedPref.edit().apply {
-            putInt("index", currentSong)
-            putLong("progress", currentProgress)
-            putString("path",path)
-            
-            Log.e("ks","mediaId in service :${path}")
-            Log.e("ks","uri in service : ${mediaSession!!.player!!.currentMediaItem?.localConfiguration?.uri.toString()}")
-            Log.e("ks","is uri equal mediaId : ${path == mediaSession!!.player!!.currentMediaItem?.localConfiguration?.uri.toString()}")
-            apply()
-        }
-
         mediaSession?.run {
             release()
             player.release()
@@ -296,11 +300,49 @@ class PlayerSessionService : MediaSessionService() {
             scope.cancel()
             //mediaSession = null
         }
+
+        super.onDestroy()
     }
 
 
+    private fun saveCurrentSongData(){
+        val currentSong = mediaSession!!.player.currentMediaItemIndex
+        val currentProgress = mediaSession!!.player.currentPosition
+        val path = mediaSession!!.player.currentMediaItem!!.mediaId
+
+        scope.launch {
+            dataSaver.suspendSave(
+                INDEX_KEY to currentSong,
+                PROGRESS_KEY to currentProgress,
+                PATH_KEY to path
+            )
+        }
+
+
+        Log.e("ks","mediaId in service :${path}")
+        Log.e("ks","uri in service : ${mediaSession!!.player!!.currentMediaItem?.localConfiguration?.uri.toString()}")
+        Log.e("ks","is uri equal mediaId : ${path == mediaSession!!.player!!.currentMediaItem?.localConfiguration?.uri.toString()}")
+    }
+
+
+    private fun saveRecentPlaylistSongs() {
+        val stringList = Json.encodeToString(recentPlaylist)
+        scope.launch {
+            dataSaver.suspendSave(RecentSongs_KEY, stringList)
+
+        }
+    }
+
     companion object{
+        private var recentPlaylist: List<SongUi> = emptyList()
+        private var isSelectedFromPlaylist = false
         var isAlive = false
+
+        fun syncRecentPlaylist(songs:List<SongUi>,isSelected:Boolean){
+            recentPlaylist = songs
+            isSelectedFromPlaylist = isSelected
+        }
+
     }
 
     /*

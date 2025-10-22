@@ -18,6 +18,9 @@ import com.k.sekiro.musico.playmusic.presenation.util.isValidUri
 import com.k.sekiro.musico.playmusic.presenation.player.notification.NotificationPlayerCustomCommand
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import androidx.core.net.toUri
+import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
+import com.k.sekiro.musico.playmusic.domain.model.INDEX_KEY
+import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -286,14 +289,14 @@ suspend fun MediaController?.setupRecentPlayedSongWhenPlayerRunning(
 
 
 suspend fun MediaController?.setupRecentPlayedSongWhenServiceNotActive(
-    sharedPref: SharedPreferences,
+    dataSaver: SimpleDataSaver,
     songs: List<SongUi>,
     viewModel: ViewModel,
     path: String,
     context: Context
 ) {
-    val progress = sharedPref.getLong("progress", 0)
-    var index = sharedPref.getInt("index", 0)
+    val progress = dataSaver.suspendGet(PROGRESS_KEY, 0L)
+    var index = 0
 
     /** Previously I was get the saved index from pref and then get the last played song
     but this would not be good solution in some scenarios (e.g if pause the player
