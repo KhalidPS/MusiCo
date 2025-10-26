@@ -27,15 +27,20 @@ import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
 import com.k.sekiro.musico.playmusic.domain.model.INDEX_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PATH_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
+import com.k.sekiro.musico.playmusic.domain.model.PlayMode_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.model.RecentSongs_KEY
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
+import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.player.notification.CUSTOM_COMMAND_REPEAT_ALL_ACTION
 import com.k.sekiro.musico.playmusic.presenation.player.notification.MusiCoNotificationManager
 import com.k.sekiro.musico.playmusic.presenation.player.notification.NotificationPlayerCustomCommand
+import com.k.sekiro.musico.playmusic.presenation.player.startProgressUpdate
+import com.k.sekiro.musico.playmusic.presenation.player.stopProgressUpdate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -56,8 +61,69 @@ class PlayerSessionService : MediaSessionService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private var job: Job? = null
+    private var playModeJob: Job? = null
+
     private val notificationPlayerCustomCommandButtons =
         NotificationPlayerCustomCommand.entries.map { it.commandButton }
+
+    private val listener = object : Player.Listener {
+        override fun onMediaItemTransition(
+            mediaItem: MediaItem?,
+            reason: Int
+        ) {
+            Log.e("ks","service onMediaItemTransition")
+            super.onMediaItemTransition(mediaItem, reason)
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            Log.e("ks","service onIsPlayingChanged")
+
+            if (!isPlaying) {
+                job?.cancel()
+                job = scope.launch {
+                    delay(500)
+                    launch (Dispatchers.Main){ saveCurrentSongData() }
+                    if (isSelectedFromPlaylist){
+                        launch { saveRecentPlaylistSongs() }
+                    }
+
+                }
+            }
+
+        }
+
+        override fun onRepeatModeChanged(repeatMode: Int) {
+            super.onRepeatModeChanged(repeatMode)
+
+            playModeJob?.cancel()
+            when (repeatMode) {
+                Player.REPEAT_MODE_ONE -> {
+                   playModeJob =  scope.launch {
+                       delay(500)
+                       dataSaver.suspendSave(PlayMode_KEY, PlayType.RepeatOne.name)
+                   }
+                }
+                Player.REPEAT_MODE_ALL -> {
+                    playModeJob = scope.launch {
+                        delay(500)
+                        dataSaver.suspendSave(PlayMode_KEY, PlayType.RepeatAll.name)
+                    }
+                }
+            }
+        }
+
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+            super.onShuffleModeEnabledChanged(shuffleModeEnabled)
+            playModeJob?.cancel()
+            if (shuffleModeEnabled) {
+               playModeJob =  scope.launch {
+                   delay(500)
+                   dataSaver.suspendSave(PlayMode_KEY, PlayType.Shuffle.name)
+               }
+            }
+        }
+    }
 
 
 
@@ -197,6 +263,8 @@ class PlayerSessionService : MediaSessionService() {
             .setTrackSelector(DefaultTrackSelector(this))
             .build()
 
+        player.addListener(listener)
+
         val forwardingPlayer = object : ForwardingSimpleBasePlayer(player){
             override fun handleSeek(
                 mediaItemIndex: Int,
@@ -277,6 +345,7 @@ class PlayerSessionService : MediaSessionService() {
             // Stop the service if not playing, continue playing in the background otherwise.
             //stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+            Log.e("ks","kill service after remove app")
         }
         Log.e("ks", "remove app from background")
 
@@ -294,6 +363,7 @@ class PlayerSessionService : MediaSessionService() {
     override fun onDestroy() {
         mediaSession?.run {
             release()
+            player.removeListener(listener)
             player.release()
             Log.e("ks", "Service Destroyed ^_^")
 
@@ -310,7 +380,7 @@ class PlayerSessionService : MediaSessionService() {
         val currentProgress = mediaSession!!.player.currentPosition
         val path = mediaSession!!.player.currentMediaItem!!.mediaId
 
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             dataSaver.suspendSave(
                 INDEX_KEY to currentSong,
                 PROGRESS_KEY to currentProgress,
@@ -326,8 +396,8 @@ class PlayerSessionService : MediaSessionService() {
 
 
     private fun saveRecentPlaylistSongs() {
-        val stringList = Json.encodeToString(recentPlaylist)
-        scope.launch {
+        scope.launch(Dispatchers.IO){
+            val stringList = Json.encodeToString(recentPlaylist)
             dataSaver.suspendSave(RecentSongs_KEY, stringList)
 
         }

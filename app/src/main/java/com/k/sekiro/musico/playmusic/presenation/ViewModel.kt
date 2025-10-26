@@ -386,7 +386,6 @@ class ViewModel(
         currentPlayedPlaylistSong.update { songs }
         currentPlayedPlaylistId.update { playlistId }
         viewModelScope.launch { dataSaver.suspendSave(IsSelectedFromPlaylist_KEY, value) }
-        controllerManager.syncRecentPlaylistSongs(songs,value)
         PlayerSessionService.syncRecentPlaylist(songs, value)
     }
 

@@ -50,6 +50,7 @@ import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.ShowcasePlay
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.playmusic.presenation.util.ObserveAsEvent
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -353,6 +354,8 @@ class MainActivity : ComponentActivity() {
         index: Int,
         navController: NavHostController
     ) {
+
+        var job: Job? = null
         if (viewModel.getController()!!.currentMediaItemIndex != index && viewModel.getIsNewCreation()) {
             /** if the creation for activity is new and for first time then
             set new mediaItems then reset the isNewCreation to false cuz if the
@@ -380,7 +383,7 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(index)
             viewModel.addToRecent(song.id)
         } else if (viewModel.isSelectedSongFromPlaylist()) {
-            lifecycleScope.launch {
+           job =  lifecycleScope.launch {
                 viewModel.getController()!!
                     .setMediaItemsList(
                         songs,
@@ -396,7 +399,12 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(index)
             viewModel.addToRecent(song.id)
         }
-        navController.navigate(PlayedSong(index))
+
+        lifecycleScope.launch {
+            job?.join()
+            navController.navigate(PlayedSong(index))
+        }
+
     }
 
 

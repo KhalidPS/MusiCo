@@ -20,6 +20,7 @@ import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
 import com.k.sekiro.musico.playmusic.domain.model.INDEX_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PATH_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
+import com.k.sekiro.musico.playmusic.domain.model.PlayMode_KEY
 import com.k.sekiro.musico.playmusic.domain.model.RecentSongs_KEY
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
@@ -27,6 +28,8 @@ import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.player.service.PlayerSessionService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -44,9 +47,7 @@ class MediaControllerManager(
     private var controller: MediaController? = null
     private lateinit var controllerFuture: ListenableFuture<MediaController>
     private var isNewCreation = true
-    private var job: Job? = null
-    private var recentPlaylist: List<SongUi> = emptyList()
-    private var isSelectedFromPlaylist: Boolean = false
+
 
 
     private val listener = object : Player.Listener {
@@ -54,10 +55,6 @@ class MediaControllerManager(
             when (playbackState) {
                 ExoPlayer.STATE_BUFFERING -> viewModel.calculateProgressValue(controller!!.currentPosition)
             }
-        }
-
-        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            super.onPlayWhenReadyChanged(playWhenReady, reason)
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -69,15 +66,6 @@ class MediaControllerManager(
                 }
             } else {
                 stopProgressUpdate(viewModel::updateIsPlaying)
-                job?.cancel()
-                job = coroutineScope.launch {
-                    delay(500)
-                    launch { saveCurrentSongData() }
-                    if (isSelectedFromPlaylist){
-                        launch { saveRecentPlaylistSongs() }
-                    }
-
-                }
             }
         }
 
@@ -141,13 +129,23 @@ class MediaControllerManager(
 
         if (songs.isEmpty()) return
 
-        when {
-            isNewCreation -> handleNewCreationSetup(controller, songs)
-            shouldUpdateMediaItemsForNewSongs(controller, songs) -> handleNewSongsAdded(
-                controller,
-                songs
-            )
+        coroutineScope {
+
+            val playMode = async { dataSaver.suspendGet(PlayMode_KEY, PlayType.RepeatAll.name) }
+
+            when {
+                isNewCreation -> handleNewCreationSetup(controller, songs)
+                shouldUpdateMediaItemsForNewSongs(controller, songs) -> handleNewSongsAdded(
+                    controller,
+                    songs
+                )
+            }
+
+            val playType = PlayType.valueOf(playMode.await())
+            controller.onChangPlayType(playType,viewModel::updatePlayType)
         }
+
+
     }
 
     private fun getRelevantSongsList(allSongs: List<SongUi>): List<SongUi> {
@@ -322,28 +320,5 @@ class MediaControllerManager(
     }
 
 
-    private suspend fun saveRecentPlaylistSongs() {
-        val stringList = Json.encodeToString(recentPlaylist)
-        dataSaver.suspendSave(RecentSongs_KEY, stringList)
-    }
-
-    fun syncRecentPlaylistSongs(songs: List<SongUi>, isSelected: Boolean) {
-        recentPlaylist = songs
-        isSelectedFromPlaylist = isSelected
-    }
-
-    private suspend fun saveCurrentSongData() {
-        val currentSong = controller!!.currentMediaItemIndex
-        val currentProgress = controller!!.currentPosition
-        val path = controller!!.currentMediaItem!!.mediaId
-
-        coroutineScope.launch {
-            dataSaver.suspendSave(
-                INDEX_KEY to currentSong,
-                PROGRESS_KEY to currentProgress,
-                PATH_KEY to path
-            )
-        }
-    }
 
 }
