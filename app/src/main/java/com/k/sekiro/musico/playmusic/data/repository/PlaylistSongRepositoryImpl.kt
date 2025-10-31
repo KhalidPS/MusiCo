@@ -14,7 +14,7 @@ class PlaylistSongRepositoryImpl(private val playlistSongDao: PlaylistSongDao): 
     override suspend fun getPlaylistSongRef(
         playlistId: Long,
         songId: Long
-    ): PlaylistSong {
+    ): PlaylistSong? {
         return playlistSongDao.getPlaylistSongRef(playlistId,songId)
     }
 

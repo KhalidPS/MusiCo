@@ -16,7 +16,7 @@ interface PlaylistSongDao {
     suspend fun insert(playlistSongRef: PlaylistSong)
 
     @Query("SELECT * FROM PlaylistSong WHERE songId = :songId AND playlistId = :playlistId")
-    suspend fun getPlaylistSongRef(playlistId: Long,songId: Long): PlaylistSong
+    suspend fun getPlaylistSongRef(playlistId: Long,songId: Long): PlaylistSong?
 
     @Query("""
         SELECT SongTable.* FROM (SELECT * FROM PlaylistSong WHERE playlistId = 2) as PlaylistSongTable

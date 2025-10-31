@@ -307,7 +307,7 @@
                                 <PersistentState>
                                   <option name="values">
                                     <map>
-                                      <entry key="url" value="file:/$USER_HOME$/AppData/Local/Android/Sdk/icons/material/materialicons/shuffle/baseline_shuffle_24.xml" />
+                                      <entry key="url" value="file:/$USER_HOME$/AppData/Local/Android/Sdk/icons/material/materialsymbolsoutlined/favorite/outline_favorite_24.xml" />
                                     </map>
                                   </option>
                                 </PersistentState>
@@ -317,7 +317,7 @@
                         </option>
                         <option name="values">
                           <map>
-                            <entry key="outputName" value="shuffle" />
+                            <entry key="outputName" value="unfavorite" />
                             <entry key="sourceFile" value="C:\Users\Pc\AndroidStudioProjects\MusiCo" />
                           </map>
                         </option>

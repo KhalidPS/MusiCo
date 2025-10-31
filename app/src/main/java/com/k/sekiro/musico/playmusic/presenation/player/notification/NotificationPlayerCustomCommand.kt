@@ -68,6 +68,15 @@ enum class NotificationPlayerCustomCommand(
             .build()
     ),
 
+    UNFAVORITE(
+        customAction = CUSTOM_COMMAND_REMOVE_FAVORITE_ACTION,
+        commandButton = CommandButton.Builder()
+            .setDisplayName("Remove Favorite")
+            .setSessionCommand(SessionCommand(CUSTOM_COMMAND_REMOVE_FAVORITE_ACTION, Bundle()))
+            .setIconResId(R.drawable.unfavorite)
+            .build()
+    )
+
 
 
 

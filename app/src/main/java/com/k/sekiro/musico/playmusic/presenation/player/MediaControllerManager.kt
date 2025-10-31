@@ -3,6 +3,7 @@ package com.k.sekiro.musico.playmusic.presenation.player
 import android.content.ComponentName
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
 import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -124,14 +125,17 @@ class MediaControllerManager(
 
 
     suspend fun controllerAndLastPlayedSongSetup(allSongs: List<SongUi>) {
+        Log.e("ks","enter controllerManager controllerAndLastPlayedSongSetup block")
         val controller = this.controller ?: return
+        Log.e("ks","after controller check")
+
         val songs = getRelevantSongsList(allSongs)
 
         if (songs.isEmpty()) return
+        Log.e("ks","after songs check")
+
 
         coroutineScope {
-
-            val playMode = async { dataSaver.suspendGet(PlayMode_KEY, PlayType.RepeatAll.name) }
 
             when {
                 isNewCreation -> handleNewCreationSetup(controller, songs)
@@ -140,9 +144,6 @@ class MediaControllerManager(
                     songs
                 )
             }
-
-            val playType = PlayType.valueOf(playMode.await())
-            controller.onChangPlayType(playType,viewModel::updatePlayType)
         }
 
 
@@ -179,7 +180,7 @@ class MediaControllerManager(
             else -> handleFirstTimeAppLaunch(controller, songs)
         }
 
-        isNewCreation = false
+       // isNewCreation = false
     }
 
     private suspend fun handlePlayingControllerSetup(
@@ -198,9 +199,18 @@ class MediaControllerManager(
         songs: List<SongUi>,
         path: String
     ) {
-        controller.setupRecentPlayedSongWhenServiceNotActive(
-            dataSaver, songs, viewModel, path, context
-        )
+        coroutineScope {
+            val playMode = async { dataSaver.suspendGet(PlayMode_KEY, PlayType.RepeatAll.name) }
+            controller.setupRecentPlayedSongWhenServiceNotActive(
+                dataSaver, songs, viewModel, path
+            )
+
+
+            val playType = PlayType.valueOf(playMode.await())
+            Log.e("ks","playType : $playType")
+            controller.onChangPlayType(playType,viewModel::updatePlayType)
+        }
+
     }
 
     /**`such a Scenario:` if the player is paused but the service is still active <<(e.g
@@ -211,7 +221,7 @@ class MediaControllerManager(
     cuz when I removed the app from recent task the player was playing not paused.)>>
     then there's no need to get saved value from preferences as I did in the previous if, instead
     I should get values from controller that connect to mediaSessionService**/
-    private suspend fun handleActiveServicePausedSetup(
+    private fun handleActiveServicePausedSetup(
         controller: MediaController,
         songs: List<SongUi>,
     ) {
@@ -233,7 +243,7 @@ class MediaControllerManager(
         so the app is opened for first time and no service active(isActive flag is false  until passing 2 seconds we set it true) so the
         handleFirstTimeAppLaunch fun would be executed **/
         if (controller.mediaItemCount == 0) {
-            controller.setMediaItemsList(songs, context)
+            controller.setMediaItemsList(songs)
         } else if (songs.size != controller.mediaItemCount) {
             /** but this else block will execute every time the parent condition is true
              * to synchronize the controller mediaItems with songs cuz may new songs come from downloading and so on=*/
@@ -241,19 +251,18 @@ class MediaControllerManager(
                 songs = songs,
                 startIndex = index,
                 startProgress = controller.currentPosition,
-                context = context
             )
         }
-
+        controller.syncUiPlayModeWithController(viewModel)
         viewModel.calculateProgressValue(controller.currentPosition)
     }
 
-    private suspend fun handleFirstTimeAppLaunch(
+    private fun handleFirstTimeAppLaunch(
         controller: MediaController,
         songs: List<SongUi>
     ) {
         viewModel.updatePlayedSong(0)
-        controller.setMediaItemsList(songs, context)
+        controller.setMediaItemsList(songs)
     }
 
     private fun shouldUpdateMediaItemsForNewSongs(
@@ -265,7 +274,7 @@ class MediaControllerManager(
                 controller.mediaItemCount != songs.size
     }
 
-    private suspend fun handleNewSongsAdded(controller: MediaController, songs: List<SongUi>) {
+    private fun handleNewSongsAdded(controller: MediaController, songs: List<SongUi>) {
         val currentSong = viewModel.getPlayedSong()
         val index = songs.indexOf(currentSong)
 
@@ -273,7 +282,6 @@ class MediaControllerManager(
             songs = songs,
             startIndex = index,
             startProgress = controller.currentPosition,
-            context
         )
     }
 
@@ -283,6 +291,12 @@ class MediaControllerManager(
                 controller?.let { controller ->
                     val currentSong = controller.currentMediaItemIndex
                     val currentProgress = controller.currentPosition
+
+                    val manufacturer = Build.MANUFACTURER
+                    val model = Build.MODEL
+
+                    Log.e("ks", "manufacturer >>>>>>>> $manufacturer")
+                    Log.e("ks", "model >>>>>>>> $model")
 
                     Log.e("ks", "Yoooooooo the activity truly destroyed")
 

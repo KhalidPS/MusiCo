@@ -14,6 +14,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -48,6 +49,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.android.inject
 
@@ -64,6 +66,8 @@ class PlayerSessionService : MediaSessionService() {
     private var job: Job? = null
     private var playModeJob: Job? = null
 
+    private var isFavorite: Boolean = false
+
     private val notificationPlayerCustomCommandButtons =
         NotificationPlayerCustomCommand.entries.map { it.commandButton }
 
@@ -72,6 +76,21 @@ class PlayerSessionService : MediaSessionService() {
             mediaItem: MediaItem?,
             reason: Int
         ) {
+            val songId = mediaItem?.mediaMetadata?.discNumber?.let { it.toLong() } ?: return
+
+            scope.launch {
+                isFavorite = isFavorite(songId)
+                Log.e("ks","isFavorite in service: $isFavorite")
+                    withContext(Dispatchers.Main){
+                        if (isFavorite){
+                            updateNotificationToFavorite()
+                        }else{
+                            updateNotificationToUnFavorite()
+                        }
+                    }
+
+
+            }
             Log.e("ks","service onMediaItemTransition")
             super.onMediaItemTransition(mediaItem, reason)
         }
@@ -162,6 +181,9 @@ class PlayerSessionService : MediaSessionService() {
             args: Bundle
         ): ListenableFuture<SessionResult> {
 
+            val songId = session.player.mediaMetadata.discNumber?.let { it.toLong() }
+            val favoritePlaylistId = 1L
+
             when (customCommand.customAction) {
 
                 /*                NotificationPlayerCustomCommand.REWIND.customAction -> {
@@ -178,14 +200,32 @@ class PlayerSessionService : MediaSessionService() {
 
                 NotificationPlayerCustomCommand.FAVORITE.customAction -> {
 
-                    Log.e("ks", "Favorite clicked")
+
+                    updateNotificationToUnFavorite()
+                    if (songId != null){
+                        scope.launch {
+                            playlistSongRepo.deletePlaylistSongRef(PlaylistSong(favoritePlaylistId,songId))
+                            isFavorite = false
+                        }
+                    }
+                }
+
+
+                NotificationPlayerCustomCommand.UNFAVORITE.customAction ->{
+                    updateNotificationToFavorite()
+                    if (songId != null){
+                        scope.launch {
+                            playlistSongRepo.addPlaylistSongRef(PlaylistSong(favoritePlaylistId,songId))
+                            isFavorite = true
+                        }
+                    }
                 }
 
                 NotificationPlayerCustomCommand.REPEAT_ONE.customAction -> {
 
                     mediaSession!!.setCustomLayout(
                         ImmutableList.of(
-                            notificationPlayerCustomCommandButtons[0],
+                            favoriteOrUnFavoriteCommand(isFavorite),
                             notificationPlayerCustomCommandButtons[3]
                         )
                     )
@@ -200,7 +240,7 @@ class PlayerSessionService : MediaSessionService() {
                 CUSTOM_COMMAND_REPEAT_ALL_ACTION -> {
                     session.setCustomLayout(
                         ImmutableList.of(
-                            notificationPlayerCustomCommandButtons[0],
+                            favoriteOrUnFavoriteCommand(isFavorite),
                             notificationPlayerCustomCommandButtons[2]
                             )
                     )
@@ -213,7 +253,7 @@ class PlayerSessionService : MediaSessionService() {
                 NotificationPlayerCustomCommand.SHUFFLE.customAction -> {
                     session.setCustomLayout(
                         ImmutableList.of(
-                            notificationPlayerCustomCommandButtons[0],
+                            favoriteOrUnFavoriteCommand(isFavorite),
                             notificationPlayerCustomCommandButtons[1]
                         )
                     )
@@ -357,7 +397,6 @@ class PlayerSessionService : MediaSessionService() {
 
 
 
-        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
@@ -413,6 +452,77 @@ class PlayerSessionService : MediaSessionService() {
             isSelectedFromPlaylist = isSelected
         }
 
+    }
+
+    private fun isShuffle(): Boolean{
+        if (mediaSession == null) return false
+        return mediaSession!!.player.shuffleModeEnabled
+    }
+
+    private fun isRepeatAll(): Boolean{
+        if (mediaSession == null) return false
+        return !isShuffle() && mediaSession!!.player.repeatMode == Player.REPEAT_MODE_ALL
+    }
+
+
+    private fun updateNotificationToFavorite(){
+        if (isShuffle()){
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[0],
+                    notificationPlayerCustomCommandButtons[3]
+                )
+            )
+        }else if (isRepeatAll()){
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[0],
+                    notificationPlayerCustomCommandButtons[1]
+                )
+            )
+        }else{
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[0],
+                    notificationPlayerCustomCommandButtons[2]
+                )
+            )
+        }
+    }
+
+
+    private fun updateNotificationToUnFavorite(){
+        if (isShuffle()){
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[4],
+                    notificationPlayerCustomCommandButtons[3]
+                )
+            )
+        }else if (isRepeatAll()){
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[4],
+                    notificationPlayerCustomCommandButtons[1]
+                )
+            )
+        }else{
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[4],
+                    notificationPlayerCustomCommandButtons[2]
+                )
+            )
+        }
+    }
+
+    private fun favoriteOrUnFavoriteCommand(isFavorite: Boolean): CommandButton{
+        return if (isFavorite) notificationPlayerCustomCommandButtons[0]
+        else notificationPlayerCustomCommandButtons[4]
+    }
+
+    private suspend fun isFavorite(songId: Long): Boolean {
+       return playlistSongRepo.getPlaylistSongRef(1,songId) != null
     }
 
     /*

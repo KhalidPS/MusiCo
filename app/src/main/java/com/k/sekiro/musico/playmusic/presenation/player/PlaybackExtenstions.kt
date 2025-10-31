@@ -1,7 +1,6 @@
 package com.k.sekiro.musico.playmusic.presenation.player
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import androidx.annotation.OptIn
@@ -13,13 +12,12 @@ import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.session.MediaController
 import com.k.sekiro.musico.R
-import com.k.sekiro.musico.playmusic.presenation.util.getUriFromDrawable
-import com.k.sekiro.musico.playmusic.presenation.util.isValidUri
+import com.k.sekiro.musico.playmusic.domain.getUriFromDrawable
+import com.k.sekiro.musico.playmusic.domain.isValidUri
 import com.k.sekiro.musico.playmusic.presenation.player.notification.NotificationPlayerCustomCommand
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import androidx.core.net.toUri
 import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
-import com.k.sekiro.musico.playmusic.domain.model.INDEX_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
@@ -75,32 +73,16 @@ suspend fun MediaController?.startProgressUpdate(calculateProgress: (Long) -> Un
 
 
 @OptIn(UnstableApi::class)
-suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Context) =
-    supervisorScope {
-
-        val dispatcher = Dispatchers.IO
+fun MediaController?.setMediaItemsList(songs: List<SongUi>) {
         try {
             songs.map { song ->
-
-                async(dispatcher) {
-                    val uri = song.cover.toUri()
-
-                    /** check if image uri is valid if not then put placeholder from drawable **/
-                    val cover =
-                        if (isValidUri(context, uri)) {
-                            uri
-                        } else {
-                            getUriFromDrawable(context, R.drawable.logo_2)
-                        }
-
-
 
                     MediaItem.Builder()
                         .setUri(song.dataUri)
                         .setMediaId(song.path)
                         .setMediaMetadata(
                             MediaMetadata.Builder()
-                                .setArtworkUri(cover)
+                                .setArtworkUri(song.cover.toUri())
                                 .setTitle(song.artist)
                                 .setDisplayTitle(song.name)
                                 .setAlbumTitle(song.album)
@@ -108,10 +90,9 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Con
                                 .setDiscNumber(song.id.toInt())
                                 .build()
                         ).build()
-                }
 
             }.also {
-                this@setMediaItemsList!!.setMediaItems(it.awaitAll())
+                this@setMediaItemsList!!.setMediaItems(it)
                 this@setMediaItemsList.prepare()
             }
         } catch (ex: DataSourceException) {
@@ -123,60 +104,6 @@ suspend fun MediaController?.setMediaItemsList(songs: List<SongUi>, context: Con
 
         }
     }
-
-@OptIn(UnstableApi::class)
-suspend fun MediaController?.setMediaItemsList(
-    songs: List<SongUi>,
-    startIndex: Int,
-    startProgress: Long,
-    context: Context
-) = supervisorScope {
-    val dispatcher = Dispatchers.IO
-
-    try {
-        songs.map { song ->
-
-            async(dispatcher) {
-                val uri = song.cover.toUri()
-
-                /** check if image uri is valid if not then put placeholder from drawable **/
-                val cover =
-                    if (isValidUri(context, uri)) {
-                        uri
-                    } else {
-                        getUriFromDrawable(context, R.drawable.logo_2)
-                    }
-
-
-
-                MediaItem.Builder()
-                    .setUri(song.dataUri)
-                    .setMediaId(song.path)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setArtworkUri(cover)
-                            .setTitle(song.artist)
-                            .setDisplayTitle(song.name)
-                            .setAlbumTitle(song.album)
-                            .setArtist(song.artist)
-                            .setDiscNumber(song.id.toInt())
-                            .build()
-                    ).build()
-            }
-
-        }.also {
-            this@setMediaItemsList!!.setMediaItems(it.awaitAll(), startIndex, startProgress)
-            this@setMediaItemsList.prepare()
-        }
-    } catch (ex: DataSourceException) {
-        Log.e("ks", "converting song to MediaItem problem :${ex}")
-    } catch (ex: FileDataSource.FileDataSourceException) {
-        Log.e("ks", "converting song to MediaItem problem :${ex}")
-    } catch (ex: Exception) {
-        Log.e("ks", "converting song to MediaItem problem :${ex}")
-
-    }
-}
 
 
 @OptIn(UnstableApi::class)
@@ -284,16 +211,29 @@ suspend fun MediaController?.setupRecentPlayedSongWhenPlayerRunning(
         "Played song not null: ${viewModel.getPlayedSong()}"
     )
 
+    syncUiPlayModeWithController(viewModel)
+
+
     this!!.startProgressUpdate(viewModel::calculateProgressValue)
 }
 
+
+fun MediaController.syncUiPlayModeWithController(viewModel: ViewModel){
+    if (shuffleModeEnabled){
+        viewModel.updatePlayType(PlayType.Shuffle)
+    }else if (!shuffleModeEnabled && repeatMode == Player.REPEAT_MODE_ALL){
+        viewModel.updatePlayType(PlayType.RepeatAll)
+    }else {
+        viewModel.updatePlayType(PlayType.RepeatOne)
+
+    }
+}
 
 suspend fun MediaController?.setupRecentPlayedSongWhenServiceNotActive(
     dataSaver: SimpleDataSaver,
     songs: List<SongUi>,
     viewModel: ViewModel,
     path: String,
-    context: Context
 ) {
     val progress = dataSaver.suspendGet(PROGRESS_KEY, 0L)
     var index = 0
@@ -333,7 +273,6 @@ suspend fun MediaController?.setupRecentPlayedSongWhenServiceNotActive(
         songs,
         index,
         progress,
-        context
     )
     //controller!!.startProgressUpdate(viewModel)
     viewModel.calculateProgressValue(progress)

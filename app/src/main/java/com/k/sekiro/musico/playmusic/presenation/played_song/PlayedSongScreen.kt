@@ -11,7 +11,6 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.SharedTransitionScope.ResizeMode
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,8 +42,6 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
@@ -73,20 +70,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.palette.graphics.Palette
-import coil3.compose.AsyncImagePainter
-import coil3.compose.rememberAsyncImagePainter
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.presenation.util.Constants
 import com.k.sekiro.musico.playmusic.presenation.util.applyIf
 import com.k.sekiro.musico.playmusic.presenation.util.toPx
-import com.k.sekiro.musico.playmusic.presenation.util.convertUriToBitmap
+import com.k.sekiro.musico.playmusic.domain.convertUriToBitmap
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.UiAction
-import com.k.sekiro.musico.playmusic.presenation.UiState
-import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTimeText
@@ -106,7 +99,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     lurCache: LruCache<String, Palette>,
     //state: UiState,
     songs: List<SongUi>,
-    isFavorite: (SongUi) -> Boolean,
+    favoriteSongs: List<SongUi>,
     playedSong: SongUi?,
     sliderProgress: () -> Float,
     passedTimeDuration: () -> String,
@@ -128,7 +121,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     )
     // var indexState = index
     val scope = rememberCoroutineScope()
-    var isFavorite by remember { mutableStateOf(isFavorite(songs[pagerState.settledPage])) }
+    val isFavorite by remember(favoriteSongs){ derivedStateOf { favoriteSongs.contains(songs[pagerState.settledPage]) } }
 
 
     var spotColor by remember { mutableStateOf(Color.Cyan) }
@@ -218,7 +211,7 @@ fun SharedTransitionScope.PlayedSongScreen(
             onSettledPageChanged(songs[it].id)
             onAction(UiAction.PlayPause)
             //}
-            isFavorite = isFavorite(songs[it])
+           // isFavorite = isFavorite(songs[it])
 
             val job1 = launch { line1X.snapTo(0f) }
             val job2 = launch { line2Y.snapTo(0f) }
@@ -678,7 +671,6 @@ fun SharedTransitionScope.PlayedSongScreen(
                     IconButton(
                         onClick = {
                             onAction(UiAction.onFavoriteClicked(songs[pagerState.settledPage]))
-                            isFavorite = !isFavorite
                         },
 
                         ) {
@@ -711,7 +703,7 @@ private fun PlayedSongScreenPrev() {
                 animatedVisibilityScope = this,
                 passedTimeDuration = { "" },
                 songs = mockSongs.map { it.toSongUi() },
-                isFavorite = { false },
+                favoriteSongs = mockSongs.map { it.toSongUi() },
                 playedSong = mockSongs[0].toSongUi(),
                 playType = PlayType.RepeatAll,
                 isPlaying = true,

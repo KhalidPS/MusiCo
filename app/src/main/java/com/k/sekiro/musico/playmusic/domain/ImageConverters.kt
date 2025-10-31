@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.presenation.util
+package com.k.sekiro.musico.playmusic.domain
 
 import android.content.ContentResolver
 import android.content.Context

@@ -1,6 +1,7 @@
 package com.k.sekiro.musico.playmusic.presenation
 
 import android.content.SharedPreferences
+import android.os.Bundle
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.lifecycle.SavedStateHandle
@@ -26,6 +27,7 @@ import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toPlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.player.MediaControllerManager
+import com.k.sekiro.musico.playmusic.presenation.player.notification.NotificationPlayerCustomCommand
 import com.k.sekiro.musico.playmusic.presenation.player.onChangPlayType
 import com.k.sekiro.musico.playmusic.presenation.player.playOrPause
 import com.k.sekiro.musico.playmusic.presenation.player.service.PlayerSessionService
@@ -212,13 +214,18 @@ class ViewModel(
         viewModelScope.launch(Dispatchers.IO) {
 
 
-            val roomSongsIdentifier = songsRepository.getSongsFromRoom().associate { it.path to it }
+            val roomSongs = songsRepository.getSongsFromRoom()
+
+            if (roomSongs.isNotEmpty()) {
+                _state.update { it.copy(songs = roomSongs.map { it.toSongUi() }) }
+            }
+
+            val roomSongsIdentifier = roomSongs.associate { it.path to it }
             val songsFromLocal = songsRepository.getAllStorageSongs()
             val songsFromLocalIdentifier = songsFromLocal.associate { it.path to it }
 
-
+            Log.e("ks", "songsFromLocal : $songsFromLocal")
             if (roomSongsIdentifier.isNotEmpty()) {
-
                 for (song in songsFromLocal) {
                     val songByPath = roomSongsIdentifier[song.path]
 
@@ -409,11 +416,20 @@ class ViewModel(
                 playlistSongRepository.addPlaylistSongRef(
                     PlaylistSong(1, songUi.id)
                 )
+                controllerManager.getController()?.sendCustomCommand(
+                    NotificationPlayerCustomCommand.UNFAVORITE.commandButton.sessionCommand!!,
+                    Bundle.EMPTY
+                )
             }
         } else {
             viewModelScope.launch {
                 playlistSongRepository.deletePlaylistSongRef(
                     PlaylistSong(1, songUi.id)
+                )
+
+                controllerManager.getController()?.sendCustomCommand(
+                    NotificationPlayerCustomCommand.FAVORITE.commandButton.sessionCommand!!,
+                    Bundle.EMPTY
                 )
             }
         }
@@ -477,7 +493,6 @@ class ViewModel(
     }
 
 
-
     public override fun onCleared() {
 
         songsRepository.stopObservingSongChanges()
@@ -491,6 +506,7 @@ class ViewModel(
     }
 
     suspend fun controllerAndLastPlayedSongSetup(songs: List<SongUi>) {
+        Log.e("ks","enter viewModel controllerAndLastPlayedSongSetup block")
         controllerManager.controllerAndLastPlayedSongSetup(songs)
     }
 

@@ -1,5 +1,6 @@
 package com.k.sekiro.musico
 
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -112,6 +113,7 @@ class MainActivity : ComponentActivity() {
                                     // new collecting songs list is different from previous collecting songs list if not then
                                     //eliminates the new songs list and as a result the collect body won't execute
                                     .collect {
+                                        Log.e("ks","enter collect block")
                                         viewModel.controllerAndLastPlayedSongSetup(it)
                                     }
                             }
@@ -225,6 +227,7 @@ class MainActivity : ComponentActivity() {
 
                                     val isPlaying = state.value.isPlaying
                                     val playedSong = state.value.playedSong
+                                    val favoriteSongs = state.value.playlistsWithSongs.find { it.playlist.id == 1L } ?: return@composable
 
                                     PlayedSongScreen(
                                         lurCache = lruCache,
@@ -234,7 +237,7 @@ class MainActivity : ComponentActivity() {
                                         passedTimeDuration = { passedTime },
                                         playedSong = playedSong,
                                         songs = songs,
-                                        isFavorite = viewModel::isFavorite,
+                                        favoriteSongs = favoriteSongs.songs,
                                         onAction = viewModel::onAction,
                                         index = index,
                                         animatedVisibilityScope = this,
@@ -313,10 +316,15 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+
+        val manufacturer = Build.MANUFACTURER
+        val model = Build.MODEL
+
+        Log.e("ks", "manufacturer >>>>>>>> $manufacturer")
+        Log.e("ks", "model >>>>>>>> $model")
         lifecycle.removeObserver(viewModel.getControllerManager())
         super.onDestroy()
     }
-
 
 
     private fun handleBottomBarClicked(
@@ -355,7 +363,6 @@ class MainActivity : ComponentActivity() {
         navController: NavHostController
     ) {
 
-        var job: Job? = null
         if (viewModel.getController()!!.currentMediaItemIndex != index && viewModel.getIsNewCreation()) {
             /** if the creation for activity is new and for first time then
             set new mediaItems then reset the isNewCreation to false cuz if the
@@ -364,13 +371,7 @@ class MainActivity : ComponentActivity() {
             every time the user click the item the playing for item will start again from scratch
             instead of continue playing due to setMediaItems every click**/
 
-            lifecycleScope.launch {
-                viewModel.getController()!!
-                    .setMediaItemsList(
-                        songs,
-                        this@MainActivity
-                    )
-            }
+            viewModel.getController()!!.setMediaItemsList(songs)
             viewModel.setIsNewCreation(false)
             viewModel.addToRecent(song.id)
         }
@@ -383,15 +384,12 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(index)
             viewModel.addToRecent(song.id)
         } else if (viewModel.isSelectedSongFromPlaylist()) {
-           job =  lifecycleScope.launch {
-                viewModel.getController()!!
-                    .setMediaItemsList(
-                        songs,
-                        startIndex = index,
-                        startProgress = 0L,
-                        this@MainActivity
-                    )
-            }
+            viewModel.getController()!!
+                .setMediaItemsList(
+                    songs,
+                    startIndex = index,
+                    startProgress = 0L,
+                )
             viewModel.updateIsSelectedSongFromPlaylist(
                 value = false,
                 songs = songs
@@ -399,11 +397,8 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(index)
             viewModel.addToRecent(song.id)
         }
+        navController.navigate(PlayedSong(index))
 
-        lifecycleScope.launch {
-            job?.join()
-            navController.navigate(PlayedSong(index))
-        }
 
     }
 
@@ -418,6 +413,7 @@ class MainActivity : ComponentActivity() {
     ) {
 
         val controller = viewModel.getController() ?: return
+        if (viewModel.getIsNewCreation()) viewModel.setIsNewCreation(false)
 
         if (playlistId != currentPlaylistId) {
             viewModel.updateIsSelectedSongFromPlaylist(
@@ -426,15 +422,12 @@ class MainActivity : ComponentActivity() {
                 playlistId
             )
 
-            lifecycleScope.launch {
-                controller
-                    ?.setMediaItemsList(
-                        startIndex = index,
-                        songs = playlist.songs,
-                        context = this@MainActivity,
-                        startProgress = 0L
-                    )
-            }
+            controller?.setMediaItemsList(
+                startIndex = index,
+                songs = playlist.songs,
+                startProgress = 0L
+            )
+
         } else if (song.path != controller?.currentMediaItem?.mediaId) {
             viewModel.updateIsSelectedSongFromPlaylist(
                 true,
@@ -446,15 +439,13 @@ class MainActivity : ComponentActivity() {
                 "ks",
                 "the index : $index , playlistId: $playlistId"
             )
-            lifecycleScope.launch {
-                controller
-                    ?.setMediaItemsList(
-                        startIndex = index,
-                        songs = playlist.songs,
-                        context = this@MainActivity,
-                        startProgress = 0L
-                    )
-            }
+            controller
+                ?.setMediaItemsList(
+                    startIndex = index,
+                    songs = playlist.songs,
+                    startProgress = 0L
+                )
+
         }
         navController.navigate(
             PlayedSong(

@@ -166,14 +166,12 @@ fun SharedTransitionScope.SongsList(
                     } else mockPlaylists[0]
                 }
                 
-                Log.e("ks","favorite songs :${playlistWithSongs[0]}")
                 PlayListBox(
                     boxColor = SkyBlue,
                     playListIconTint = Color.Red,
                     playListIcon = Icons.Default.Favorite,
 
-                    playlist = playlistWithSongs[0]
-                        ?: mockPlaylists[0],
+                    playlist = if (playlistWithSongs.isNotEmpty()) playlistWithSongs[0] else return@Row,
                     onClick = { onClickFavOrRecent(it) }
                 )
 
@@ -192,7 +190,6 @@ fun SharedTransitionScope.SongsList(
                     playListIcon = Icons.TwoTone.Refresh,
                     onClick = onClickFavOrRecent,
                     playlist = playlistWithSongs[1].copy(songs = recentPlaylistSongs)
-                        ?: mockPlaylists[0]
                 )
 
             }

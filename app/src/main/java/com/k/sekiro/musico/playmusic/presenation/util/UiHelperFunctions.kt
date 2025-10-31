@@ -1,7 +1,6 @@
 package com.k.sekiro.musico.playmusic.presenation.util
 
 import android.content.Context
-import android.net.Uri
 import androidx.collection.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -14,12 +13,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.palette.graphics.Palette
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
-import com.k.sekiro.musico.playmusic.presenation.util.convertUriToBitmap
+import com.k.sekiro.musico.playmusic.domain.convertUriToBitmap
 import kotlinx.coroutines.Dispatchers
 import androidx.core.net.toUri
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 

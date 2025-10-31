@@ -12,7 +12,10 @@ import com.k.sekiro.musico.playmusic.data.local.room.SongsDao
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
 import com.k.sekiro.musico.playmusic.domain.model.Song
 import com.k.sekiro.musico.playmusic.domain.model.SongWithPlaylists
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -50,11 +53,14 @@ class SongsRepositoryImpl(
         }
 
 
-        launch(dispatcher){ getSongsByUri(resolver,internalAudioUri,songList) }
-        launch(dispatcher){ getSongsByUri(resolver,externalAudioUri,songList) }
+        launch(dispatcher){ getSongsByUri(context,internalAudioUri,songList) }
+        launch(dispatcher){ getSongsByUri(context,externalAudioUri,songList) }
 
 
        // Log.e("ks","the song list inside fun \n ${songList.filter { it.cover != null }}")
+
+        Log.e("ks","unAwaited songs: $songList")
+        Log.e("ks","unAwaited songs: $songList")
 
         songList
     }
