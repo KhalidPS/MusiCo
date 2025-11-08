@@ -18,7 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
-import com.k.sekiro.musico.playmusic.presenation.util.AddPlaylistDialog
+import com.k.sekiro.musico.playmusic.presenation.util.component.AddPlaylistDialog
+import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectionBottomSheet
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,6 +27,7 @@ import com.k.sekiro.musico.playmusic.presenation.util.AddPlaylistDialog
 fun SelectedSongsBar(
     modifier: Modifier = Modifier,
     onCancel: () -> Unit = {},
+    onDelete: () -> Unit = {},
     playlists: List<Playlist> = emptyList(),
     onAddToNewPlaylist: (String) -> Unit = {},
     onAddToExistPlaylist: (Playlist) -> Unit = {}
@@ -80,7 +82,7 @@ fun SelectedSongsBar(
     }
 
     IconButton(
-        onClick = {}
+        onClick = onDelete
     ) {
         Icon(
             imageVector = Icons.Default.Delete,

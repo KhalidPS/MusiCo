@@ -46,8 +46,8 @@ fun SongUi.toSong(): Song = Song(
 
 
 val mockSongs = listOf(
-    Song("LalalaLalalaLalalaLalalaLalalaLalalaLalalaLalala","","Me & you", ""),
-    Song("Kingdom track 1","","Bandicom", ""),
+    Song("LalalaLalalaLalalaLalalaLalalaLalalaLalalaLalala","LalalaLalalaLalalaLalalaLalalaLalalaLalalaLalala","Me & you", ""),
+    Song("Kingdom track 1","Kingdom track 1","Bandicom", ""),
     Song("Qadim","","Ajnad Nasheed", ""),
     Song("Funk Virso","","Irokz", "")
 )

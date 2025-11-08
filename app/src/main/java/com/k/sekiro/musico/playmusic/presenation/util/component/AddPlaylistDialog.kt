@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.presenation.util
+package com.k.sekiro.musico.playmusic.presenation.util.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

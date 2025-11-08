@@ -37,6 +37,8 @@ interface SongsDao {
     @Transaction
     @Query("SELECT * FROM Song WHERE id = :songId")
     suspend fun getSongsWithPlaylist(songId: Long): SongWithPlaylists?
+
+
 }
 
 /** !! don't forget to solve index problem for (continue playing last song)

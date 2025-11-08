@@ -1,26 +1,27 @@
 package com.k.sekiro.musico.playmusic.presenation.playlist
 
 import android.util.Log
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.Image
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -32,13 +33,29 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
+import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import com.k.sekiro.musico.R
+import com.k.sekiro.musico.playmusic.domain.model.Playlist
+import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.UiAction
+import com.k.sekiro.musico.playmusic.presenation.model.DeletionType
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
+import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
+import com.k.sekiro.musico.playmusic.presenation.playlist.component.CustomTopBar
+import com.k.sekiro.musico.playmusic.presenation.playlist.component.ExpandableFabMenu
+import com.k.sekiro.musico.playmusic.presenation.playlist.component.FabMenuItem
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
+import com.k.sekiro.musico.playmusic.presenation.util.component.DeleteDialog
+import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectionBottomSheet
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
+import com.k.sekiro.musico.playmusic.presenation.util.component.AddPlaylistDialog
+import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
+import com.k.sekiro.musico.ui.theme.Red
+import com.k.sekiro.musico.ui.theme.Red2
+import com.k.sekiro.musico.ui.theme.Red3
+import com.k.sekiro.musico.ui.theme.RedVarient
 
 // Assuming you have a drawable resource named 'sample_image'
 // For this example, let's use a placeholder.
@@ -50,12 +67,34 @@ import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
 @Composable
 fun PlaylistCollapsingScreen(
     playlistWithSongsUi: PlaylistWithSongsUi,
-    onAction:(UiAction) -> Unit = {},
-    onBackButtonClicked:() -> Unit = {},
-    onSongClicked:(Int, SongUi) -> Unit = {_,_ ->}
+    onAction: (UiAction) -> Unit = {},
+    onAddToNewPlaylist: (String) -> Unit,
+    onAddToExistPlaylist: (Playlist) -> Unit,
+    onAddSingleSong: (Long, Playlist?, String?) -> Unit,
+    onCancelClicked: () -> Unit,
+    playlists: List<Playlist>,
+    onBackButtonClicked: () -> Unit = {},
+    onSongClicked: (Int, SongUi) -> Unit = { _, _ -> },
+    onSelectSong: (SongUi) -> Unit = {},
+    selectedSongs: List<SongUi>,
+    selectModeEnabled: Boolean,
+    onConfirmDeletePlaylist:(Playlist) -> Unit = {}
 ) {
 
+    BackHandler(selectModeEnabled) {
+        onCancelClicked()
+    }
+
+
+    var songToAddFromMenu: SongUi? by remember { mutableStateOf(null) }
+
+    val context = LocalContext.current
+
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    var isShowSheet by remember { mutableStateOf(false) }
+    var isShowDeleteDialog by remember { mutableStateOf(false) }
+    var isShowAddPlaylistDialog by remember { mutableStateOf(false) }
+    var isShowDeletePlaylistDialog by remember { mutableStateOf(false) }
 
 
     // --- Define Dimensions ---
@@ -97,19 +136,22 @@ fun PlaylistCollapsingScreen(
     val titleCollapsedHorizontalPadding = 16.dp
 
     // Calculate the start and end positions for the title's vertical movement
-    val titleExpandedY = with(density) { (expandedImageHeight / 2).toPx() - (titleFontSizeExpanded.toPx() / 2) }
-    val titleCollapsedY = with(density) { (collapsedToolbarHeight / 2).toPx() - (titleFontSizeCollapsed.toPx() / 2) }
+    val titleExpandedY =
+        with(density) { (expandedImageHeight / 2).toPx() - (titleFontSizeExpanded.toPx() / 2) }
+    val titleCollapsedY =
+        with(density) { (collapsedToolbarHeight / 2).toPx() - (titleFontSizeCollapsed.toPx() / 2) }
 
     // Calculate the start and end positions for the title's horizontal movement
-    val titleExpandedX = with(density) { (expandedImageHeight / 2).toPx() - (200.dp.toPx() / 2) } // Approximate center
+    val titleExpandedX =
+        with(density) { (expandedImageHeight / 2).toPx() - (200.dp.toPx() / 2) } // Approximate center
     val iconButtonWidth = 48.dp
     val startPadding = 16.dp
     val titleIconGap = 8.dp // A small gap between the icon and the title
     val titleCollapsedX = with(density) { (startPadding + iconButtonWidth + titleIconGap).toPx() }
     // --- Toolbar Color Animation ---
-/*    val toolbarBackgroundColor by animateColorAsState(
-        targetValue =   if (scrollProgress < 1f) Color.Transparent else MaterialTheme.colorScheme.surface
-        *//* lerp(
+    /*    val toolbarBackgroundColor by animateColorAsState(
+            targetValue =   if (scrollProgress < 1f) Color.Transparent else MaterialTheme.colorScheme.surface
+            *//* lerp(
             Color.Transparent,
             MaterialTheme.colorScheme.surface,
             scrollProgress
@@ -145,13 +187,30 @@ fun PlaylistCollapsingScreen(
 
             itemsIndexed(
                 playlistWithSongsUi.songs,
-                key = { index, item -> item.id}
+                key = { index, item -> item.id }
             ) { index, song ->
                 Song(
                     song = song,
                     onClick = {
-                        onSongClicked(index,it)
-                    }
+                        if (selectModeEnabled) {
+                            onSelectSong(song)
+                        } else {
+                            onSongClicked(index, it)
+
+                        }
+                    },
+                    onLongClicked = onSelectSong,
+                    onShareClick = { context.shareAudioFile(listOf(song.dataUri.toUri())) },
+                    onDeleteClicked = {
+                        songToAddFromMenu = song
+                        isShowDeleteDialog = true
+                    },
+                    onAddToPlaylistClicked = {
+                        songToAddFromMenu = song
+                        isShowSheet = true
+                    },
+                    selectedSongs = selectedSongs,
+                    selectModeEnabled = selectModeEnabled
                 )
             }
         }
@@ -181,40 +240,207 @@ fun PlaylistCollapsingScreen(
                     // alpha = 1f - scrollProgress
                 }
                 .zIndex(3f) // Ensure title is on top
-                .background( if(scrollProgress < 1) Color.LightGray.copy(.3f) else Color.Unspecified)
+                .background(if (scrollProgress < 1) Color.LightGray.copy(.3f) else Color.Unspecified)
         )
 
         // --- TopAppBar (The final, fixed toolbar) ---
-            TopAppBar(
-                title = { }, // Title is handled by the animated Text composable above
-                navigationIcon = {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        modifier = Modifier.padding(start = 8.dp)
-                            .clickable(
-                                enabled = isBackEnabled,
-                                onClick = onBackButtonClicked
-                            )
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    /* containerColor = toolbarBackgroundColor,
-                     scrolledContainerColor = toolbarBackgroundColor*/
-                ),
-                modifier = Modifier
-                    .height(collapsedToolbarHeight)
-                    .zIndex(2f) // Make sure it's above the scrollable content
-                    .graphicsLayer{
-                        alpha = if (scrollProgress < 1f) 0f else 1f
-                    }
+
+        CustomTopBar(
+            collapsedToolbarHeight = collapsedToolbarHeight,
+            scrollProgress = scrollProgress,
+            isBackEnabled = isBackEnabled
+        )
+
+        
+        IconButton(
+            onClick = { isShowDeletePlaylistDialog = true },
+            modifier = Modifier.zIndex(if (scrollProgress < 1f) 5f else 0f)
+        ) { 
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = null,
+                tint = Red
             )
+        }
+
+
+        if (selectModeEnabled) {
+            ExpandableFabMenu(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd),
+                menuItems = listOf(
+                    {
+                        FabMenuItem(icon = {
+                            Icon(
+                                Icons.AutoMirrored.Default.PlaylistAdd,
+                                "Add to Playlist"
+                            )
+                        }) { isShowSheet = true }
+                    },
+                    {
+                        FabMenuItem(icon = {
+                            Icon(
+                                Icons.Filled.Delete,
+                                "Delete"
+                            )
+                        }) { isShowDeleteDialog = true }
+                    },
+                    {
+                        FabMenuItem(icon = {
+                            Icon(
+                                Icons.Filled.Cancel,
+                                "Cancel"
+                            )
+                        }, onClick = onCancelClicked)
+                    }
+                )
+            )
+        }
+
 
     }
+
+
+    if (isShowSheet) {
+        PlaylistSelectionBottomSheet(
+            onConfirm = {
+                Log.e("ks", "songToAddFromMenu : $songToAddFromMenu")
+                if (selectModeEnabled) {
+                    onAddToExistPlaylist(it)
+                } else if (songToAddFromMenu != null) {
+                    onAddSingleSong(songToAddFromMenu!!.id, it, null)
+                }
+            },
+            onDismiss = { isShowSheet = false },
+            onAddPlaylist = { isShowAddPlaylistDialog = true },
+            playlists = playlists
+        )
+    }
+
+
+    AddPlaylistDialog(
+        isShowDialog = isShowAddPlaylistDialog,
+        playlists = playlists,
+        onAddPlaylistClicked = {
+            isShowAddPlaylistDialog = false
+            isShowSheet = false
+            if (selectModeEnabled) {
+                onAddToNewPlaylist(it)
+            } else if (songToAddFromMenu != null) {
+                onAddSingleSong(songToAddFromMenu!!.id, null, it)
+            }
+        },
+        onCancelClicked = { isShowAddPlaylistDialog = false }
+    )
+
+
+    if (isShowDeleteDialog) {
+
+        var radioValue by remember { mutableIntStateOf(1) }
+
+        DeleteDialog(
+            onConfirm = {
+                if (radioValue == 1) {
+                    if (selectModeEnabled) {
+                        onAction(
+                            UiAction.DeletionConfirmClicked(
+                                DeletionType.PlaylistDeletion(
+                                    playlistWithSongsUi.playlist.id
+                                )
+                            )
+                        )
+                    } else if (songToAddFromMenu != null) {
+                        Log.e("ks","songToAddFromMenu : $songToAddFromMenu")
+                        onAction(
+                            UiAction.DeletionConfirmClicked(
+                                DeletionType.PlaylistDeletion(
+                                    playlistWithSongsUi.playlist.id,
+                                    songToAddFromMenu
+                                )
+                            )
+                        )
+                    }
+                } else {
+                    if (selectModeEnabled) {
+                        onAction(UiAction.DeletionConfirmClicked(DeletionType.StorageDeletion()))
+                    } else if (songToAddFromMenu != null) {
+                        onAction(
+                            UiAction.DeletionConfirmClicked(
+                                DeletionType.StorageDeletion(
+                                    songToAddFromMenu
+                                )
+                            )
+                        )
+
+                    }
+                }
+
+                isShowDeleteDialog = false
+            },
+            onIgnore = { isShowDeleteDialog = false },
+            onDismissRequest = { isShowDeleteDialog = false },
+            additionalContent = {
+
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = radioValue == 1,
+                            onClick = { radioValue = 1 }
+                        )
+
+                        Text("From Playlist")
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = radioValue == 2,
+                            onClick = { radioValue = 2 }
+                        )
+
+                        Text("Permanently")
+                    }
+
+
+                }
+            }
+        )
+
+    }
+
+
+    if (isShowDeletePlaylistDialog){
+        DeleteDialog(
+            title = "Delete Playlist",
+            description = "Are you sure you that you want delete this Playlist?",
+            onConfirm = {
+                onConfirmDeletePlaylist(playlistWithSongsUi.playlist)
+                isShowDeletePlaylistDialog = false
+            },
+            onIgnore = { isShowDeletePlaylistDialog = false },
+            onDismissRequest = { isShowDeletePlaylistDialog = false }
+        )
+    }
+
+
 }
 
 @Preview
 @Composable
 private fun CollapsingTitleToolbarPrev() {
-    PlaylistCollapsingScreen(playlistWithSongsUi = mockPlaylists[0])
+    PlaylistCollapsingScreen(
+        playlistWithSongsUi = mockPlaylists[0],
+        selectedSongs = mockSongs.map { it.toSongUi() },
+        selectModeEnabled = false,
+        playlists = emptyList(),
+        onCancelClicked = {},
+        onAddToExistPlaylist = {},
+        onAddToNewPlaylist = {},
+        onAddSingleSong = { _, _, _ -> }
+    )
 }

@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.presenation.songs_list.component
+package com.k.sekiro.musico.playmusic.presenation.util.component
 
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
@@ -10,14 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddToPhotos
-import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,7 +34,8 @@ fun PlaylistSelectionBottomSheet(
     playlists: List<Playlist>,
     onDismiss: () -> Unit = {},
     onConfirm: (Playlist) -> Unit = {},
-    onAddPlaylist:() -> Unit = {}
+    onAddPlaylist:() -> Unit = {},
+    isShowAddPlaylistIcon: Boolean = true
 ) {
     val defaultOption = Playlist(name = "Select a playlist")
     val fullCarList = listOf(defaultOption) + playlists
@@ -56,16 +55,20 @@ fun PlaylistSelectionBottomSheet(
                 .padding(bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row (
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ){
-                IconButton(onClick = onAddPlaylist) {
-                    Icon(
-                        imageVector = Icons.Default.AddToPhotos,
-                        contentDescription = "add playlist icon"
-                    )
+
+            if (isShowAddPlaylistIcon){
+                Row (
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ){
+                    IconButton(onClick = onAddPlaylist) {
+                        Icon(
+                            imageVector = Icons.Default.AddToPhotos,
+                            contentDescription = "add playlist icon"
+                        )
+                    }
                 }
+
             }
 
             Text(

@@ -7,18 +7,13 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
-import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.ScrollableDefaults
-import androidx.compose.foundation.gestures.TargetedFlingBehavior
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Arrangement
@@ -67,7 +62,7 @@ import androidx.palette.graphics.Palette
 import com.k.sekiro.musico.playmusic.presenation.util.applyIf
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
-import com.k.sekiro.musico.playmusic.presenation.util.convertUriToBitmap
+import com.k.sekiro.musico.playmusic.domain.convertUriToBitmap
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntOffset
