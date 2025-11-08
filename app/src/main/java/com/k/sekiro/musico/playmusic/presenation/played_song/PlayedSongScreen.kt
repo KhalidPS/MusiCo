@@ -59,6 +59,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -114,6 +115,7 @@ fun SharedTransitionScope.PlayedSongScreen(
 
 
     val context = LocalContext.current
+    val resources = LocalResources.current
     val density = LocalDensity.current.density
     val pagerState = rememberPagerState(
         pageCount = { songs.size },
@@ -255,7 +257,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                 convertUriToBitmap(
                     song.cover.toUri(),
                     context.contentResolver,
-                    context.resources
+                    resources
                 )
             }
 
@@ -493,7 +495,7 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                 Text(
                     songs[pagerState.currentPage].title,
-                    fontSize = 30.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Black,
                     textAlign = TextAlign.Start,
                     modifier = Modifier
@@ -670,7 +672,7 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                     IconButton(
                         onClick = {
-                            onAction(UiAction.onFavoriteClicked(songs[pagerState.settledPage]))
+                            onAction(UiAction.OnFavoriteClicked(songs[pagerState.settledPage]))
                         },
 
                         ) {

@@ -1,12 +1,20 @@
 package com.k.sekiro.musico
 
+import android.app.Activity
+import android.app.RecoverableSecurityException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.collection.LruCache
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -23,8 +31,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -37,6 +45,7 @@ import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.UiEvents
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
+import com.k.sekiro.musico.playmusic.presenation.model.DeletionType
 import com.k.sekiro.musico.playmusic.presenation.model.Home
 import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistScreen
@@ -51,16 +60,32 @@ import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.ShowcasePlay
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.playmusic.presenation.util.ObserveAsEvent
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
     val lruCache: LruCache<String, Palette> by inject()
     private val viewModel: ViewModel by viewModel()
+    private val deletePermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                Log.e("ks", "granted permission")
+                viewModel.onCancelAllSelectedSongs()
+                Toast.makeText(
+                    this, "Deleted Successfully", Toast.LENGTH_SHORT
+                ).show()
+                // 2. User granted permission!
+                // Tell the ViewModel to retry the delete operation.
+                //viewModel.retryDelete()
+            } else {
+                Log.e("ks", "denied permission")
+
+                // User denied permission.
+                // showToast("Deletion permission denied.")
+            }
+        }
 
 
     @ExperimentalSharedTransitionApi
@@ -94,6 +119,31 @@ class MainActivity : ComponentActivity() {
                                     this, event.error.message, Toast.LENGTH_SHORT
                                 ).show()
                             }
+
+                            is UiEvents.IntentSender -> {
+
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                    val intentSender = MediaStore.createDeleteRequest(
+                                        contentResolver,
+                                        event.uris)
+                                    val request = IntentSenderRequest.Builder(intentSender).build()
+                                    deletePermissionLauncher.launch(request)
+
+                                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                    val recoverableSecurityException =
+                                        event.exception as? RecoverableSecurityException
+                                    val intentSender =
+                                        recoverableSecurityException?.let { it.userAction.actionIntent.intentSender }
+                                    if (intentSender != null) {
+                                        val request =
+                                            IntentSenderRequest.Builder(intentSender).build()
+                                        deletePermissionLauncher.launch(request)
+
+                                    }
+
+
+                                }
+                            }
                         }
                     }
 
@@ -113,7 +163,7 @@ class MainActivity : ComponentActivity() {
                                     // new collecting songs list is different from previous collecting songs list if not then
                                     //eliminates the new songs list and as a result the collect body won't execute
                                     .collect {
-                                        Log.e("ks","enter collect block")
+                                        Log.e("ks", "enter collect block")
                                         viewModel.controllerAndLastPlayedSongSetup(it)
                                     }
                             }
@@ -160,6 +210,13 @@ class MainActivity : ComponentActivity() {
                                             onSelectSong = viewModel::onSelectSong,
                                             selectedSongs = selectedSongs,
                                             onCancelSelectedSongs = viewModel::onCancelAllSelectedSongs,
+                                            onConfirmDeletion = {
+                                                viewModel.onAction(
+                                                    UiAction.DeletionConfirmClicked(
+                                                        DeletionType.StorageDeletion()
+                                                    )
+                                                )
+                                            },
                                             onBottomBarClicked = {
                                                 handleBottomBarClicked(
                                                     playedSong, songs, navController
@@ -170,14 +227,22 @@ class MainActivity : ComponentActivity() {
                                             playlists = playlists,
                                             onAddToNewPlaylist = viewModel::onAddToNewPlaylist,
                                             onAddToExistPlaylist = viewModel::onAddToExistPlaylist,
+                                            onAddSingleSong = viewModel::addSingleSongToPlaylist,
                                             playlistWithSongs = playlistWithSongs,
                                             onShowcasePlaylists = {
-                                                navController.navigate(PlaylistShowcase)
+                                                navController.navigate(PlaylistShowcase){
+                                                    launchSingleTop = true
+                                                    popUpTo(Home)
+                                                }
                                             },
                                             onClickFavOrRecent = {
+                                                viewModel.onCancelAllSelectedSongs()
                                                 navController.navigate(
                                                     PlaylistScreen(it)
-                                                )
+                                                ){
+                                                    launchSingleTop = true
+                                                    popUpTo(Home)
+                                                }
                                             },
                                             recentPlaylistSongs = recentPlaylistSongs
                                         )
@@ -227,7 +292,9 @@ class MainActivity : ComponentActivity() {
 
                                     val isPlaying = state.value.isPlaying
                                     val playedSong = state.value.playedSong
-                                    val favoriteSongs = state.value.playlistsWithSongs.find { it.playlist.id == 1L } ?: return@composable
+                                    val favoriteSongs =
+                                        state.value.playlistsWithSongs.find { it.playlist.id == 1L }
+                                            ?: return@composable
 
                                     PlayedSongScreen(
                                         lurCache = lruCache,
@@ -254,7 +321,11 @@ class MainActivity : ComponentActivity() {
                                         onBackButtonClicked = { navController.popBackStack() },
                                         onAddPlaylistClicked = viewModel::addNewPlaylist,
                                         onPlaylistItemClicked = {
-                                            navController.navigate(PlaylistScreen(it))
+                                            viewModel.onCancelAllSelectedSongs()
+                                            navController.navigate(PlaylistScreen(it)){
+                                                launchSingleTop = true
+                                                popUpTo(PlaylistShowcase)
+                                            }
                                         }
                                     )
                                 }
@@ -277,6 +348,10 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
 
+                                    val selectedSongs = state.value.selectedSongs
+                                    val selectModeEnabled = state.value.selectModeEnabled
+                                    val playlists = state.value.playlists
+
                                     PlaylistCollapsingScreen(
                                         playlistWithSongsUi = playlist ?: return@composable,
                                         onBackButtonClicked = { navController.popBackStack() },
@@ -290,9 +365,22 @@ class MainActivity : ComponentActivity() {
                                                 playlistId = playlistId,
                                                 song = song,
                                                 navController = navController,
-                                                playlist = playlist
+                                                playlist = playlist,
                                             )
 
+                                        },
+                                        onAction = viewModel::onAction,
+                                        onSelectSong = viewModel::onSelectSong,
+                                        selectedSongs = selectedSongs,
+                                        selectModeEnabled = selectModeEnabled,
+                                        onCancelClicked = viewModel::onCancelAllSelectedSongs,
+                                        playlists = playlists,
+                                        onAddToExistPlaylist = viewModel::onAddToExistPlaylist,
+                                        onAddToNewPlaylist = viewModel::onAddToNewPlaylist,
+                                        onAddSingleSong = viewModel::addSingleSongToPlaylist,
+                                        onConfirmDeletePlaylist = {
+                                            viewModel.deletePlaylist(it)
+                                            navController.popBackStack()
                                         }
                                     )
 
@@ -346,7 +434,10 @@ class MainActivity : ComponentActivity() {
                 isFromPlaylist = viewModel.isSelectedSongFromPlaylist(),
                 playlistId = viewModel.currentPlaylistId()
             )
-        )
+        ){
+            launchSingleTop = true
+            popUpTo(Home)
+        }
 
 
         Log.e(
@@ -397,7 +488,10 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(index)
             viewModel.addToRecent(song.id)
         }
-        navController.navigate(PlayedSong(index))
+        navController.navigate(PlayedSong(index)){
+            launchSingleTop = true
+            popUpTo(Home)
+        }
 
 
     }
@@ -453,9 +547,10 @@ class MainActivity : ComponentActivity() {
                 isFromPlaylist = true,
                 playlistId = playlist.playlist.id
             )
-        )
+        ){
+            launchSingleTop = true
+        }
     }
-
 }
 
 

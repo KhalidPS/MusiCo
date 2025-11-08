@@ -1,6 +1,8 @@
 package com.k.sekiro.musico.playmusic.presenation.util
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.collection.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -132,5 +134,15 @@ fun Palette.getDominantColor(defaultColor: Color = Color.Cyan): Color {
     ).firstOrNull()?.rgb?.let { Color(it) } ?: defaultColor
 }
 
+
+fun Context.shareAudioFile(uri: List<Uri>) {
+
+    val shareIntent = Intent(Intent.ACTION_SEND)
+    shareIntent.type = "audio/*"
+    shareIntent.putExtra(Intent.EXTRA_STREAM, uri.toTypedArray())
+    shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+    startActivity(Intent.createChooser(shareIntent, "Share Audio File"))
+}
 
 

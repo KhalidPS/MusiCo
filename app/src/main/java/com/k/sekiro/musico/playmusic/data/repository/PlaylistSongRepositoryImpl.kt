@@ -22,6 +22,10 @@ class PlaylistSongRepositoryImpl(private val playlistSongDao: PlaylistSongDao): 
         playlistSongDao.delete(playlistSongRef)
     }
 
+    override suspend fun deletePlaylistSongRefs(playlistSongRefs: List<PlaylistSong>) {
+        playlistSongDao.deleteGroup(playlistSongRefs)
+    }
+
     override fun getRecentPlaylistSongs(): Flow<List<Song>> {
         return playlistSongDao.getRecentPlaylistSongs()
     }

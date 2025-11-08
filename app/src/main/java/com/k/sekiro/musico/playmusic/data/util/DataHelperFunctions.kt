@@ -6,6 +6,9 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.provider.MediaStore
+import android.provider.MediaStore.Audio.AudioColumns.IS_ALARM
+import android.provider.MediaStore.Audio.AudioColumns.IS_NOTIFICATION
+import android.provider.MediaStore.Audio.AudioColumns.IS_RINGTONE
 import android.util.Log
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.domain.getUriFromDrawable
@@ -18,7 +21,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
-suspend fun getSongsByUri(context: Context,uri: Uri,songList: MutableList<Song>) =
+suspend fun getSongsByUri(context: Context,uri: Uri) =
     coroutineScope {
 
             val array: ArrayList<Deferred<Song>> = ArrayList()
@@ -38,9 +41,12 @@ suspend fun getSongsByUri(context: Context,uri: Uri,songList: MutableList<Song>)
                 MediaStore.Audio.Media.DATE_MODIFIED
             )
 
-            val selection = MediaStore.Audio.AudioColumns.IS_MUSIC + " = ? AND (${MediaStore.Audio.Media.DATA} LIKE ? " +
-                    "OR ${MediaStore.Audio.Media.DATA} LIKE ? OR ${MediaStore.Audio.Media.DATA} LIKE ?) AND ${MediaStore.Audio.AudioColumns.DURATION} > 1463"
-            val selectionArgs = arrayOf("1","%.mp3","%.acc","%.wav")
+            val selection = MediaStore.Audio.AudioColumns.IS_MUSIC + " = ? AND $IS_RINGTONE = ? AND $IS_ALARM = ? AND $IS_NOTIFICATION = ?" +
+                    " AND (${MediaStore.Audio.Media.DATA} LIKE ? " +
+                    "OR ${MediaStore.Audio.Media.DATA} LIKE ? OR ${MediaStore.Audio.Media.DATA} LIKE ? " +
+                    "OR ${MediaStore.Audio.Media.DATA} LIKE ? OR ${MediaStore.Audio.Media.DATA} LIKE ? OR " +
+                    "${MediaStore.Audio.Media.DATA} LIKE ?) AND ${MediaStore.Audio.AudioColumns.DURATION} > 1463"
+            val selectionArgs = arrayOf("1","0","0","0","%.mp3","%.acc","%.wav",".m4a",".ogg","flac")
             //val selection = MediaStore.Audio.Media.MIME_TYPE + " LIKE 'audio%'"
             //val selection = MediaStore.Audio.Media.DATA + " LIKE '%.mp3'"
            // val selection = "((${MediaStore.Audio.Media.DATA} LIKE '%.mp3') AND (${MediaStore.Audio.Media.MIME_TYPE} LIKE 'audio%'))"
@@ -137,9 +143,10 @@ suspend fun getSongsByUri(context: Context,uri: Uri,songList: MutableList<Song>)
 
                     array.add(song)
                 }
-                songList.addAll(array.awaitAll())
+                //songList.addAll(array.awaitAll())
                 cursor.close()
             }
 
+            array.awaitAll()
 
         }

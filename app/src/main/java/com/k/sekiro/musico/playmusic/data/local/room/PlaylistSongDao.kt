@@ -25,4 +25,7 @@ interface PlaylistSongDao {
 
     @Delete
     suspend fun delete(playlistSongRef: PlaylistSong)
+
+    @Delete
+    suspend fun deleteGroup(playlistSongRefs: List<PlaylistSong>)
 }

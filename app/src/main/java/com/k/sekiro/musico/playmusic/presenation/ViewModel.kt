@@ -1,27 +1,25 @@
 package com.k.sekiro.musico.playmusic.presenation
 
-import android.content.SharedPreferences
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
-import com.k.sekiro.musico.playmusic.domain.model.INDEX_KEY
 import com.k.sekiro.musico.playmusic.domain.model.IsSelectedFromPlaylist_KEY
-import com.k.sekiro.musico.playmusic.domain.model.PATH_KEY
-import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.model.RecentSongs_KEY
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
+import com.k.sekiro.musico.playmusic.presenation.model.DeletionType
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.model.toPlaylistWithSongsUi
@@ -36,7 +34,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
@@ -45,9 +42,10 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlin.coroutines.suspendCoroutine
 
 class ViewModel(
     private val songsRepository: SongsRepository,
@@ -372,6 +370,22 @@ class ViewModel(
 
     }
 
+    fun addSingleSongToPlaylist(songId: Long,playlist: Playlist?,playlistName:String?){
+        viewModelScope.launch(Dispatchers.IO) {
+            if (playlistName == null && playlist?.id != null){
+                playlistSongRepository.addPlaylistSongRef(PlaylistSong(playlist.id,songId))
+                _events.send(UiEvents.Message("added successfully to ${playlist.name} playlist"))
+            }else if (playlist?.id == null && playlistName != null){
+                val playlistId1 = playlistRepository.addPlaylist(Playlist(playlistName))
+                playlistSongRepository.addPlaylistSongRef(PlaylistSong(playlistId1,songId))
+                _events.send(UiEvents.Message("added successfully to $playlistName playlist"))
+
+            }
+
+        }
+
+    }
+
     private fun getRecentPlaylistSongs() {
         viewModelScope.launch(Dispatchers.IO) {
             playlistSongRepository.getRecentPlaylistSongs().collectLatest { songs ->
@@ -506,7 +520,7 @@ class ViewModel(
     }
 
     suspend fun controllerAndLastPlayedSongSetup(songs: List<SongUi>) {
-        Log.e("ks","enter viewModel controllerAndLastPlayedSongSetup block")
+        Log.e("ks", "enter viewModel controllerAndLastPlayedSongSetup block")
         controllerManager.controllerAndLastPlayedSongSetup(songs)
     }
 
@@ -518,6 +532,47 @@ class ViewModel(
 
     fun setIsNewCreation(value: Boolean) = controllerManager.setIsNewCreation(value)
 
+    private fun deleteSelectedSongsFromStorage(uris: List<Uri>) {
+        viewModelScope.launch {
+            _state.update {
+                Log.e("ks", "the ids are : ${it.selectedSongs.map { it.id }}")
+
+                try {
+                    songsRepository.deleteSongsFromLocal(uris)
+                    _events.send(UiEvents.Message("Deleted Successfully"))
+                    it.copy(selectedSongs = emptyList(), selectModeEnabled = false)
+                } catch (ex: SecurityException) {
+                    _events.send(UiEvents.IntentSender(ex, uris))
+                    it
+                } catch (ex: Exception) {
+                    _events.send(UiEvents.Message("Deletion Failed"))
+                    it
+                }
+
+
+            }
+        }
+    }
+
+    private fun deleteSingleSongFromStorage(uris: List<Uri>) {
+        viewModelScope.launch {
+            try {
+                songsRepository.deleteSongsFromLocal(uris)
+                _events.send(UiEvents.Message("Deleted Successfully"))
+            } catch (ex: SecurityException) {
+                _events.send(UiEvents.IntentSender(ex, uris))
+            } catch (ex: Exception) {
+                _events.send(UiEvents.Message("Deletion Failed"))
+
+            }
+        }
+    }
+
+    fun deletePlaylist(playlist: Playlist){
+        viewModelScope.launch(Dispatchers.IO){
+            playlistRepository.deletePlaylist(playlist)
+        }
+    }
 
     @OptIn(UnstableApi::class)
     fun onAction(action: UiAction) {
@@ -593,14 +648,45 @@ class ViewModel(
                     updateProgress(action.newProgress)
                 }
 
-                is UiAction.onFavoriteClicked -> {
+                is UiAction.OnFavoriteClicked -> {
                     updateFavorite(action.songUi)
+                }
+
+                is UiAction.DeletionConfirmClicked -> {
+                    when (action.deletionType) {
+                        is DeletionType.StorageDeletion -> {
+                            if (action.deletionType.songUi == null) deleteSelectedSongsFromStorage(
+                                _state.value.selectedSongs.map { it.dataUri.toUri() }
+                            )
+                            else deleteSingleSongFromStorage(listOf(action.deletionType.songUi.dataUri.toUri()))
+                        }
+
+                        is DeletionType.PlaylistDeletion -> {
+                            val playlistId = action.deletionType.playlistId
+                            if (action.deletionType.songUi == null){
+                                withContext(Dispatchers.IO){
+                                    playlistSongRepository.deletePlaylistSongRefs(
+                                        _state.value.selectedSongs.map {
+                                            PlaylistSong(playlistId,it.id)
+                                        }
+                                    )
+                                }
+
+                            }else{
+                                withContext(Dispatchers.IO){
+                                    playlistSongRepository.deletePlaylistSongRef(
+                                        PlaylistSong(playlistId,action.deletionType.songUi.id)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    onCancelAllSelectedSongs()
                 }
             }
         }
-
     }
-
 
 }
 
