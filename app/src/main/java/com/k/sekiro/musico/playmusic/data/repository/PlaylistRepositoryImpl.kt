@@ -27,4 +27,8 @@ class PlaylistRepositoryImpl(private val playlistDao: PlaylistDao): PlaylistRepo
         return playlistDao.getAllPlaylists()
     }
 
+    override suspend fun deletePlaylist(playlist: Playlist) {
+        playlistDao.delete(playlist)
+    }
+
 }

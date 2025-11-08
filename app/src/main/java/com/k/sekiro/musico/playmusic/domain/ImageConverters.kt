@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.presenation.util
+package com.k.sekiro.musico.playmusic.domain
 
 import android.content.ContentResolver
 import android.content.Context
@@ -18,6 +18,7 @@ import okio.FileNotFoundException
 import okio.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import androidx.core.net.toUri
 
 fun convertResToBitmap(context:Context,@DrawableRes resId: Int): Bitmap{
     return BitmapFactory.decodeResource(context.resources,resId)
@@ -42,7 +43,7 @@ suspend inline fun isValidUri(context: Context,uri: Uri) = suspendCoroutine { co
     }
 
 fun getUriFromDrawable(context: Context,drawableId: Int): Uri{
-    return Uri.parse("android.resource://${context.packageName}/$drawableId")
+    return "android.resource://${context.packageName}/$drawableId".toUri()
 }
 
 

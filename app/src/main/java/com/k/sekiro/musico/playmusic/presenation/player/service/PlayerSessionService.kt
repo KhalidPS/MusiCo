@@ -14,6 +14,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -27,15 +28,20 @@ import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
 import com.k.sekiro.musico.playmusic.domain.model.INDEX_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PATH_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
+import com.k.sekiro.musico.playmusic.domain.model.PlayMode_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.model.RecentSongs_KEY
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
+import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.player.notification.CUSTOM_COMMAND_REPEAT_ALL_ACTION
 import com.k.sekiro.musico.playmusic.presenation.player.notification.MusiCoNotificationManager
 import com.k.sekiro.musico.playmusic.presenation.player.notification.NotificationPlayerCustomCommand
+import com.k.sekiro.musico.playmusic.presenation.player.startProgressUpdate
+import com.k.sekiro.musico.playmusic.presenation.player.stopProgressUpdate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -43,6 +49,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.android.inject
 
@@ -56,8 +63,86 @@ class PlayerSessionService : MediaSessionService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private var job: Job? = null
+    private var playModeJob: Job? = null
+
+    private var isFavorite: Boolean = false
+
     private val notificationPlayerCustomCommandButtons =
         NotificationPlayerCustomCommand.entries.map { it.commandButton }
+
+    private val listener = object : Player.Listener {
+        override fun onMediaItemTransition(
+            mediaItem: MediaItem?,
+            reason: Int
+        ) {
+            val songId = mediaItem?.mediaMetadata?.discNumber?.let { it.toLong() } ?: return
+
+            scope.launch {
+                isFavorite = isFavorite(songId)
+                Log.e("ks","isFavorite in service: $isFavorite")
+                    withContext(Dispatchers.Main){
+                        if (isFavorite){
+                            updateNotificationToFavorite()
+                        }else{
+                            updateNotificationToUnFavorite()
+                        }
+                    }
+
+
+            }
+            Log.e("ks","service onMediaItemTransition")
+            super.onMediaItemTransition(mediaItem, reason)
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            Log.e("ks","service onIsPlayingChanged")
+
+            if (!isPlaying) {
+                job?.cancel()
+                job = scope.launch {
+                    delay(500)
+                    launch (Dispatchers.Main){ saveCurrentSongData() }
+                    if (isSelectedFromPlaylist){
+                        launch { saveRecentPlaylistSongs() }
+                    }
+
+                }
+            }
+
+        }
+
+        override fun onRepeatModeChanged(repeatMode: Int) {
+            super.onRepeatModeChanged(repeatMode)
+
+            playModeJob?.cancel()
+            when (repeatMode) {
+                Player.REPEAT_MODE_ONE -> {
+                   playModeJob =  scope.launch {
+                       delay(500)
+                       dataSaver.suspendSave(PlayMode_KEY, PlayType.RepeatOne.name)
+                   }
+                }
+                Player.REPEAT_MODE_ALL -> {
+                    playModeJob = scope.launch {
+                        delay(500)
+                        dataSaver.suspendSave(PlayMode_KEY, PlayType.RepeatAll.name)
+                    }
+                }
+            }
+        }
+
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+            super.onShuffleModeEnabledChanged(shuffleModeEnabled)
+            playModeJob?.cancel()
+            if (shuffleModeEnabled) {
+               playModeJob =  scope.launch {
+                   delay(500)
+                   dataSaver.suspendSave(PlayMode_KEY, PlayType.Shuffle.name)
+               }
+            }
+        }
+    }
 
 
 
@@ -96,6 +181,9 @@ class PlayerSessionService : MediaSessionService() {
             args: Bundle
         ): ListenableFuture<SessionResult> {
 
+            val songId = session.player.mediaMetadata.discNumber?.let { it.toLong() }
+            val favoritePlaylistId = 1L
+
             when (customCommand.customAction) {
 
                 /*                NotificationPlayerCustomCommand.REWIND.customAction -> {
@@ -112,14 +200,32 @@ class PlayerSessionService : MediaSessionService() {
 
                 NotificationPlayerCustomCommand.FAVORITE.customAction -> {
 
-                    Log.e("ks", "Favorite clicked")
+
+                    updateNotificationToUnFavorite()
+                    if (songId != null){
+                        scope.launch {
+                            playlistSongRepo.deletePlaylistSongRef(PlaylistSong(favoritePlaylistId,songId))
+                            isFavorite = false
+                        }
+                    }
+                }
+
+
+                NotificationPlayerCustomCommand.UNFAVORITE.customAction ->{
+                    updateNotificationToFavorite()
+                    if (songId != null){
+                        scope.launch {
+                            playlistSongRepo.addPlaylistSongRef(PlaylistSong(favoritePlaylistId,songId))
+                            isFavorite = true
+                        }
+                    }
                 }
 
                 NotificationPlayerCustomCommand.REPEAT_ONE.customAction -> {
 
                     mediaSession!!.setCustomLayout(
                         ImmutableList.of(
-                            notificationPlayerCustomCommandButtons[0],
+                            favoriteOrUnFavoriteCommand(isFavorite),
                             notificationPlayerCustomCommandButtons[3]
                         )
                     )
@@ -134,7 +240,7 @@ class PlayerSessionService : MediaSessionService() {
                 CUSTOM_COMMAND_REPEAT_ALL_ACTION -> {
                     session.setCustomLayout(
                         ImmutableList.of(
-                            notificationPlayerCustomCommandButtons[0],
+                            favoriteOrUnFavoriteCommand(isFavorite),
                             notificationPlayerCustomCommandButtons[2]
                             )
                     )
@@ -147,7 +253,7 @@ class PlayerSessionService : MediaSessionService() {
                 NotificationPlayerCustomCommand.SHUFFLE.customAction -> {
                     session.setCustomLayout(
                         ImmutableList.of(
-                            notificationPlayerCustomCommandButtons[0],
+                            favoriteOrUnFavoriteCommand(isFavorite),
                             notificationPlayerCustomCommandButtons[1]
                         )
                     )
@@ -196,6 +302,8 @@ class PlayerSessionService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             .setTrackSelector(DefaultTrackSelector(this))
             .build()
+
+        player.addListener(listener)
 
         val forwardingPlayer = object : ForwardingSimpleBasePlayer(player){
             override fun handleSeek(
@@ -277,6 +385,7 @@ class PlayerSessionService : MediaSessionService() {
             // Stop the service if not playing, continue playing in the background otherwise.
             //stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+            Log.e("ks","kill service after remove app")
         }
         Log.e("ks", "remove app from background")
 
@@ -288,12 +397,12 @@ class PlayerSessionService : MediaSessionService() {
 
 
 
-        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
         mediaSession?.run {
             release()
+            player.removeListener(listener)
             player.release()
             Log.e("ks", "Service Destroyed ^_^")
 
@@ -310,7 +419,7 @@ class PlayerSessionService : MediaSessionService() {
         val currentProgress = mediaSession!!.player.currentPosition
         val path = mediaSession!!.player.currentMediaItem!!.mediaId
 
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             dataSaver.suspendSave(
                 INDEX_KEY to currentSong,
                 PROGRESS_KEY to currentProgress,
@@ -326,8 +435,8 @@ class PlayerSessionService : MediaSessionService() {
 
 
     private fun saveRecentPlaylistSongs() {
-        val stringList = Json.encodeToString(recentPlaylist)
-        scope.launch {
+        scope.launch(Dispatchers.IO){
+            val stringList = Json.encodeToString(recentPlaylist)
             dataSaver.suspendSave(RecentSongs_KEY, stringList)
 
         }
@@ -343,6 +452,77 @@ class PlayerSessionService : MediaSessionService() {
             isSelectedFromPlaylist = isSelected
         }
 
+    }
+
+    private fun isShuffle(): Boolean{
+        if (mediaSession == null) return false
+        return mediaSession!!.player.shuffleModeEnabled
+    }
+
+    private fun isRepeatAll(): Boolean{
+        if (mediaSession == null) return false
+        return !isShuffle() && mediaSession!!.player.repeatMode == Player.REPEAT_MODE_ALL
+    }
+
+
+    private fun updateNotificationToFavorite(){
+        if (isShuffle()){
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[0],
+                    notificationPlayerCustomCommandButtons[3]
+                )
+            )
+        }else if (isRepeatAll()){
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[0],
+                    notificationPlayerCustomCommandButtons[1]
+                )
+            )
+        }else{
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[0],
+                    notificationPlayerCustomCommandButtons[2]
+                )
+            )
+        }
+    }
+
+
+    private fun updateNotificationToUnFavorite(){
+        if (isShuffle()){
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[4],
+                    notificationPlayerCustomCommandButtons[3]
+                )
+            )
+        }else if (isRepeatAll()){
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[4],
+                    notificationPlayerCustomCommandButtons[1]
+                )
+            )
+        }else{
+            mediaSession!!.setCustomLayout(
+                ImmutableList.of(
+                    notificationPlayerCustomCommandButtons[4],
+                    notificationPlayerCustomCommandButtons[2]
+                )
+            )
+        }
+    }
+
+    private fun favoriteOrUnFavoriteCommand(isFavorite: Boolean): CommandButton{
+        return if (isFavorite) notificationPlayerCustomCommandButtons[0]
+        else notificationPlayerCustomCommandButtons[4]
+    }
+
+    private suspend fun isFavorite(songId: Long): Boolean {
+       return playlistSongRepo.getPlaylistSongRef(1,songId) != null
     }
 
     /*
