@@ -30,7 +30,7 @@ import com.k.sekiro.musico.playmusic.domain.model.PATH_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PlayMode_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
-import com.k.sekiro.musico.playmusic.domain.model.RecentSongs_KEY
+import com.k.sekiro.musico.playmusic.domain.model.RecentSongsIds_KEY
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
@@ -436,19 +436,19 @@ class PlayerSessionService : MediaSessionService() {
 
     private fun saveRecentPlaylistSongs() {
         scope.launch(Dispatchers.IO){
-            val stringList = Json.encodeToString(recentPlaylist)
-            dataSaver.suspendSave(RecentSongs_KEY, stringList)
+            val stringList = Json.encodeToString(recentPlaylistSongIds)
+            dataSaver.suspendSave(RecentSongsIds_KEY, stringList)
 
         }
     }
 
     companion object{
-        private var recentPlaylist: List<SongUi> = emptyList()
+        private var recentPlaylistSongIds: List<Long> = emptyList()
         private var isSelectedFromPlaylist = false
         var isAlive = false
 
         fun syncRecentPlaylist(songs:List<SongUi>,isSelected:Boolean){
-            recentPlaylist = songs
+            recentPlaylistSongIds = songs.map { it.id }
             isSelectedFromPlaylist = isSelected
         }
 

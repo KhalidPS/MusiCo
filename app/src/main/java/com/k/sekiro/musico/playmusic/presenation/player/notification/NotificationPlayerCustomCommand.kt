@@ -27,7 +27,8 @@ enum class NotificationPlayerCustomCommand(
 
     FAVORITE(
         customAction = CUSTOM_COMMAND_ADD_FAVORITE_ACTION,
-        commandButton = CommandButton.Builder(R.drawable.favorite)
+        commandButton = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+            .setCustomIconResId(R.drawable.favorite)
             .setDisplayName("Add Favorite")
             .setSessionCommand(SessionCommand(CUSTOM_COMMAND_ADD_FAVORITE_ACTION, Bundle()))
             .build()
@@ -35,7 +36,8 @@ enum class NotificationPlayerCustomCommand(
 
     REPEAT_ALL(
         customAction = CUSTOM_COMMAND_REPEAT_ALL_ACTION,
-        commandButton = CommandButton.Builder(R.drawable.repeat_all)
+        commandButton = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+            .setCustomIconResId(R.drawable.repeat_all)
             .setDisplayName("Repeat All")
             .setSessionCommand(
                 SessionCommand(
@@ -48,7 +50,8 @@ enum class NotificationPlayerCustomCommand(
 
     REPEAT_ONE(
         customAction = CUSTOM_COMMAND_REPEAT_ONE_ACTION,
-        commandButton = CommandButton.Builder(R.drawable.repeat_one)
+        commandButton = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+            .setCustomIconResId(R.drawable.repeat_one)
             .setDisplayName("Repeat One")
             .setSessionCommand(SessionCommand(CUSTOM_COMMAND_REPEAT_ONE_ACTION, Bundle()))
             .build()
@@ -56,7 +59,8 @@ enum class NotificationPlayerCustomCommand(
 
     SHUFFLE(
         customAction = CUSTOM_COMMAND_SHUFFLE_ACTION,
-        commandButton = CommandButton.Builder(R.drawable.shuffle)
+        commandButton = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+            .setCustomIconResId(R.drawable.shuffle)
             .setDisplayName("Shuffle")
             .setSessionCommand(SessionCommand(CUSTOM_COMMAND_SHUFFLE_ACTION, Bundle()))
             .build()
@@ -64,7 +68,8 @@ enum class NotificationPlayerCustomCommand(
 
     UNFAVORITE(
         customAction = CUSTOM_COMMAND_REMOVE_FAVORITE_ACTION,
-        commandButton = CommandButton.Builder(R.drawable.unfavorite)
+        commandButton = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+            .setCustomIconResId(R.drawable.unfavorite)
             .setDisplayName("Remove Favorite")
             .setSessionCommand(SessionCommand(CUSTOM_COMMAND_REMOVE_FAVORITE_ACTION, Bundle()))
             .build()
