@@ -31,6 +31,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PauseCircle
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.twotone.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -83,6 +85,7 @@ import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
+import com.k.sekiro.musico.playmusic.presenation.played_song.component.InfoDialog
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTimeText
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.SongSlider
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
@@ -128,20 +131,17 @@ fun SharedTransitionScope.PlayedSongScreen(
 
     var spotColor by remember { mutableStateOf(Color.Cyan) }
 
+    var isShowDialog by remember { mutableStateOf(false) }
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    /*    val infiniteTransition = rememberInfiniteTransition(label = "")
-        val colorAnimation = infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1000),
-                repeatMode = RepeatMode.Reverse
-            ), label = ""
+    if (isShowDialog){
+        InfoDialog(
+            song = songs[pagerState.settledPage],
+            onDismissRequest = { isShowDialog = false },
+            onCloseClicked = { isShowDialog = false },
         )
-        */
-
+    }
 
     val imgWidthPx = 270.dp.toPx(density = density)
     val imgHeightPx = 350.dp.toPx(density = density)
@@ -370,10 +370,12 @@ fun SharedTransitionScope.PlayedSongScreen(
                 }
 
                 IconButton(
-                    onClick = {}
+                    onClick = {
+                        isShowDialog = true
+                    }
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
+                        imageVector = Icons.TwoTone.Info,
                         contentDescription = null,
                         modifier = Modifier.size(30.dp),
                         tint = Color.White

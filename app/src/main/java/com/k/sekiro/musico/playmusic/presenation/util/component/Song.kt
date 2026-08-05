@@ -1,4 +1,4 @@
-package com.k.sekiro.musico.playmusic.presenation.songs_list.component
+package com.k.sekiro.musico.playmusic.presenation.util.component
 
 import android.util.Log
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -37,7 +37,6 @@ import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
-import com.k.sekiro.musico.playmusic.presenation.util.component.OptionMenu
 
 @Composable
 fun Song(
@@ -49,6 +48,7 @@ fun Song(
     onDeleteClicked: () -> Unit = {},
     onAddToPlaylistClicked:() -> Unit = {},
     selectModeEnabled: Boolean = false,
+    showMoreIcon: Boolean = true,
     selectedSongs: List<SongUi> = emptyList()
 ) {
 
@@ -127,16 +127,18 @@ fun Song(
             var isExpanded by remember { mutableStateOf(false) }
 
 
-            IconButton(
-                onClick = {isExpanded = !isExpanded},
-                enabled = !selectModeEnabled
-            ) {
+            if (showMoreIcon){
+                IconButton(
+                    onClick = {isExpanded = !isExpanded},
+                    enabled = !selectModeEnabled
+                ) {
 
 
-                Icon(
-                    imageVector = Icons.TwoTone.MoreVert,
-                    contentDescription = "more action to do for song icon"
-                )
+                    Icon(
+                        imageVector = Icons.TwoTone.MoreVert,
+                        contentDescription = "more action to do for song icon"
+                    )
+                }
             }
 
             OptionMenu(

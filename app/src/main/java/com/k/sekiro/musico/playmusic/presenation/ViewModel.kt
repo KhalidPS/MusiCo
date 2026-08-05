@@ -45,7 +45,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
-import kotlin.coroutines.suspendCoroutine
 
 class ViewModel(
     private val songsRepository: SongsRepository,
@@ -74,7 +73,7 @@ class ViewModel(
             getPlayLists()
             getRecentPlaylistSongs()
             getPlaylistsWithSongs()
-            getSavedRecentPlaylistSongs()
+            getSavedLastPlayedPlaylistSongs()
 
         }
         .stateIn(
@@ -485,7 +484,7 @@ class ViewModel(
         }
     }
 
-    private suspend fun getSavedRecentPlaylistSongs() = coroutineScope {
+    private suspend fun getSavedLastPlayedPlaylistSongs() = coroutineScope {
         if (isSelectedSongFromPlaylist.value) {
             val string = async { dataSaver.suspendGet(RecentSongs_KEY, "") }
 

@@ -80,7 +80,18 @@ fun MultiplePermissionRequest(
     var pendingPermissions by remember {
         mutableStateOf(listOf<String>())
     }
+    var showGoToSettingsUI by remember { mutableStateOf(false) }
+
     Log.e("ks", "is all granted top  :$allPermissionsGranted")
+
+    // Function to check current permission status
+    fun checkPermissionStatus(): Boolean {
+        val notGranted = permissionsToRequest.filter {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+        }
+        return notGranted.isEmpty()
+    }
+
     val multiplePermissionsLauncher =
         rememberLauncherForActivityResult(
             contract =
@@ -90,11 +101,11 @@ fun MultiplePermissionRequest(
                 it
             }.keys.toList()
             val deniedList = permissionsToRequest.filter {
-                it !in
-                        grantedList
+                it !in grantedList
             }
             if (deniedList.isEmpty()) {
                 allPermissionsGranted = true
+                showGoToSettingsUI = false
                 onAllPermissionsGranted()
             } else {
                 pendingPermissions = deniedList
@@ -102,16 +113,17 @@ fun MultiplePermissionRequest(
                 if (firstDeniedPermission != null &&
                     !context.shouldShowRationale(firstDeniedPermission)
                 ) {
-// User has denied and asked not to be asked again, navigate to settings
-                    //navigateToAppSettings(context)
+                    // User has denied and asked not to be asked again, show go to settings UI
+                    showGoToSettingsUI = true
                 } else if (firstDeniedPermission != null) {
                     currentRationalePermission = firstDeniedPermission
                     showPermissionRationaleDialog = true
+                    showGoToSettingsUI = false
                 }
             }
         }
-    LaunchedEffect(lifecycleOwner.lifecycle) {
 
+    LaunchedEffect(lifecycleOwner.lifecycle) {
         launch {
             delay(200) /** this delay is for prevent the requestPermission screen appears as flicker (less than 1 sec)
             when open app for first time and all permissions already granted otherwise (permissions not granted)
@@ -121,49 +133,80 @@ fun MultiplePermissionRequest(
 
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             withContext(Dispatchers.Main.immediate) {
-                // Initial check for permissions
-                val notGranted = permissionsToRequest.filter {
-                    ContextCompat.checkSelfPermission(context, it) !=
-                            android.content.pm.PackageManager.PERMISSION_GRANTED
-                }
-                if (notGranted.isNotEmpty()) {
-                    pendingPermissions = notGranted
-// Launch permission request only if there are permissions to ask for
-                    multiplePermissionsLauncher.launch(notGranted.toTypedArray())
-                } else {
+                // Check permissions every time the app comes to foreground
+                if (checkPermissionStatus()) {
                     allPermissionsGranted = true
+                    showGoToSettingsUI = false
                     onAllPermissionsGranted()
+                } else {
+                    val notGranted = permissionsToRequest.filter {
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            it
+                        ) != PackageManager.PERMISSION_GRANTED
+                    }
+                    pendingPermissions = notGranted
+
+                    // Only launch permission request if we're not already showing go to settings UI
+                    if (!showGoToSettingsUI) {
+                        multiplePermissionsLauncher.launch(notGranted.toTypedArray())
+                    }
                 }
 
                 Log.e("ks", "is all granted1 :$allPermissionsGranted")
-
             }
         }
     }
 
-// Prevent navigation if not all permissions are granted
-    if (!allPermissionsGranted && isDelayDone) {
-// You can display a loading indicator or a message here
+    // Additional effect to monitor lifecycle changes and re-check permissions
+    DisposableEffect(lifecycleOwner) {
+        val lifecycle = lifecycleOwner.lifecycle
+
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    // Re-check permissions when app resumes
+                    if (checkPermissionStatus()) {
+                        allPermissionsGranted = true
+                        showGoToSettingsUI = false
+                        onAllPermissionsGranted()
+                    }
+                }
+
+                else -> {}
+            }
+        }
+
+        lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Show UI only if permissions are not granted and delay is done
+    if (showGoToSettingsUI) {
+    //if (!allPermissionsGranted && isDelayDone) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier.fillMaxSize()
         ) {
-
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Text("Please go to settings and grant the permissions")
-                Button(onClick = { navigateToAppSettings(context) }) {
-                    Text("Go")
+           // if (showGoToSettingsUI) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Text("Please go to settings and grant the permissions")
+                    Button(onClick = { navigateToAppSettings(context) }) {
+                        Text("Go")
+                    }
                 }
-            }
+         //   }
         }
         Log.e("ks", "is all granted2 :$allPermissionsGranted")
-
     }
+
     if (showPermissionRationaleDialog &&
         currentRationalePermission.isNotEmpty()
     ) {
@@ -177,7 +220,8 @@ fun MultiplePermissionRequest(
             },
             onCancelClick = {
                 showPermissionRationaleDialog = false
-// Optionally handle if the user cancels the rationale
+                // Show go to settings UI if user cancels rationale
+                showGoToSettingsUI = true
             }
         )
     }

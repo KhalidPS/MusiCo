@@ -125,7 +125,8 @@ class MainActivity : ComponentActivity() {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                     val intentSender = MediaStore.createDeleteRequest(
                                         contentResolver,
-                                        event.uris)
+                                        event.uris
+                                    )
                                     val request = IntentSenderRequest.Builder(intentSender).build()
                                     deletePermissionLauncher.launch(request)
 
@@ -230,7 +231,7 @@ class MainActivity : ComponentActivity() {
                                             onAddSingleSong = viewModel::addSingleSongToPlaylist,
                                             playlistWithSongs = playlistWithSongs,
                                             onShowcasePlaylists = {
-                                                navController.navigate(PlaylistShowcase){
+                                                navController.navigate(PlaylistShowcase) {
                                                     launchSingleTop = true
                                                     popUpTo(Home)
                                                 }
@@ -239,7 +240,7 @@ class MainActivity : ComponentActivity() {
                                                 viewModel.onCancelAllSelectedSongs()
                                                 navController.navigate(
                                                     PlaylistScreen(it)
-                                                ){
+                                                ) {
                                                     launchSingleTop = true
                                                     popUpTo(Home)
                                                 }
@@ -308,7 +309,12 @@ class MainActivity : ComponentActivity() {
                                         onAction = viewModel::onAction,
                                         index = index,
                                         animatedVisibilityScope = this,
-                                        onDownArrowClicked = { navController.popBackStack() },
+                                        onDownArrowClicked = {
+                                            navController.popBackStack(
+                                                route = Home,
+                                                inclusive = false
+                                            )
+                                        },
                                         onSettledPageChanged = viewModel::addToRecent
                                     )
 
@@ -318,11 +324,16 @@ class MainActivity : ComponentActivity() {
                                     val playlistsWithSongs = state.value.playlistsWithSongs
                                     ShowcasePlaylists(
                                         playlists = playlistsWithSongs,
-                                        onBackButtonClicked = { navController.popBackStack() },
+                                        onBackButtonClicked = {
+                                            navController.popBackStack(
+                                                route = Home,
+                                                inclusive = false
+                                            )
+                                        },
                                         onAddPlaylistClicked = viewModel::addNewPlaylist,
                                         onPlaylistItemClicked = {
                                             viewModel.onCancelAllSelectedSongs()
-                                            navController.navigate(PlaylistScreen(it)){
+                                            navController.navigate(PlaylistScreen(it)) {
                                                 launchSingleTop = true
                                                 popUpTo(PlaylistShowcase)
                                             }
@@ -354,7 +365,12 @@ class MainActivity : ComponentActivity() {
 
                                     PlaylistCollapsingScreen(
                                         playlistWithSongsUi = playlist ?: return@composable,
-                                        onBackButtonClicked = { navController.popBackStack() },
+                                        onBackButtonClicked = {
+                                            val name = playlist.playlist.name.lowercase()
+                                            if (name == "favorite" || name == "recent")
+                                            navController.popBackStack(route = Home, inclusive = false)
+                                            else navController.popBackStack(route = PlaylistShowcase, inclusive = false)
+                                        },
                                         onSongClicked = { index, song ->
                                             //val currentPlayedIndex = playlist.songs.indexOf(state.value.playedSong)
                                             //if (song.path != controller?.currentMediaItem?.mediaId || index != controllerManager.getController()!!.currentMediaItemIndex) {
@@ -381,7 +397,7 @@ class MainActivity : ComponentActivity() {
                                         onConfirmDeletePlaylist = {
                                             viewModel.deletePlaylist(it)
                                             navController.popBackStack()
-                                        }
+                                        },
                                     )
 
                                 }
@@ -434,7 +450,7 @@ class MainActivity : ComponentActivity() {
                 isFromPlaylist = viewModel.isSelectedSongFromPlaylist(),
                 playlistId = viewModel.currentPlaylistId()
             )
-        ){
+        ) {
             launchSingleTop = true
             popUpTo(Home)
         }
@@ -488,7 +504,7 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(index)
             viewModel.addToRecent(song.id)
         }
-        navController.navigate(PlayedSong(index)){
+        navController.navigate(PlayedSong(index)) {
             launchSingleTop = true
             popUpTo(Home)
         }
@@ -547,7 +563,7 @@ class MainActivity : ComponentActivity() {
                 isFromPlaylist = true,
                 playlistId = playlist.playlist.id
             )
-        ){
+        ) {
             launchSingleTop = true
         }
     }

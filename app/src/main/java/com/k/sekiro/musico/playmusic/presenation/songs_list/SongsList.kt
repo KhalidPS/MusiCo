@@ -50,7 +50,7 @@ import com.k.sekiro.musico.playmusic.presenation.util.component.DeleteDialog
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayListBox
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayedSongBottomBar
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.SelectedSongsBar
-import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
+import com.k.sekiro.musico.playmusic.presenation.util.component.Song
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.SongsSearchBar
 import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectionBottomSheet
 import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
@@ -268,7 +268,7 @@ fun SharedTransitionScope.SongsList(
                             songToDelete = song
                             isShowDeleteDialog = true
                         },
-                        onShareClick = { context.shareAudioFile(listOf(song.dataUri.toUri())) },
+                        onShareClick = { context.shareAudioFile(song.dataUri.toUri()) },
                         selectModeEnabled = selectModeEnabled
                     )
                 }

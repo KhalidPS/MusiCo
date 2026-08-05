@@ -135,11 +135,11 @@ fun Palette.getDominantColor(defaultColor: Color = Color.Cyan): Color {
 }
 
 
-fun Context.shareAudioFile(uri: List<Uri>) {
+fun Context.shareAudioFile(uri: Uri) {
 
     val shareIntent = Intent(Intent.ACTION_SEND)
     shareIntent.type = "audio/*"
-    shareIntent.putExtra(Intent.EXTRA_STREAM, uri.toTypedArray())
+    shareIntent.putExtra(Intent.EXTRA_STREAM, uri)
     shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 
     startActivity(Intent.createChooser(shareIntent, "Share Audio File"))

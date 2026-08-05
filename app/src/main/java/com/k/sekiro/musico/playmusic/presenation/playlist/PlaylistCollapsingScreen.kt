@@ -3,14 +3,12 @@ package com.k.sekiro.musico.playmusic.presenation.playlist
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Delete
@@ -49,13 +47,10 @@ import com.k.sekiro.musico.playmusic.presenation.playlist.component.FabMenuItem
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
 import com.k.sekiro.musico.playmusic.presenation.util.component.DeleteDialog
 import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectionBottomSheet
-import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
+import com.k.sekiro.musico.playmusic.presenation.util.component.Song
 import com.k.sekiro.musico.playmusic.presenation.util.component.AddPlaylistDialog
 import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
 import com.k.sekiro.musico.ui.theme.Red
-import com.k.sekiro.musico.ui.theme.Red2
-import com.k.sekiro.musico.ui.theme.Red3
-import com.k.sekiro.musico.ui.theme.RedVarient
 
 // Assuming you have a drawable resource named 'sample_image'
 // For this example, let's use a placeholder.
@@ -200,7 +195,7 @@ fun PlaylistCollapsingScreen(
                         }
                     },
                     onLongClicked = onSelectSong,
-                    onShareClick = { context.shareAudioFile(listOf(song.dataUri.toUri())) },
+                    onShareClick = { context.shareAudioFile(song.dataUri.toUri()) },
                     onDeleteClicked = {
                         songToAddFromMenu = song
                         isShowDeleteDialog = true
@@ -248,20 +243,23 @@ fun PlaylistCollapsingScreen(
         CustomTopBar(
             collapsedToolbarHeight = collapsedToolbarHeight,
             scrollProgress = scrollProgress,
-            isBackEnabled = isBackEnabled
+            isBackEnabled = isBackEnabled,
+            onBackButtonClicked = onBackButtonClicked
         )
 
         
-        IconButton(
-            onClick = { isShowDeletePlaylistDialog = true },
-            modifier = Modifier.zIndex(if (scrollProgress < 1f) 5f else 0f)
-        ) { 
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = null,
-                tint = Red
-            )
-        }
+       if (playlistWithSongsUi.playlist.name.lowercase() != "favorite" && playlistWithSongsUi.playlist.name.lowercase() != "recent"){
+           IconButton(
+               onClick = { isShowDeletePlaylistDialog = true },
+               modifier = Modifier.zIndex(if (scrollProgress < 1f) 5f else 0f)
+           ) {
+               Icon(
+                   imageVector = Icons.Default.Delete,
+                   contentDescription = null,
+                   tint = Red
+               )
+           }
+       }
 
 
         if (selectModeEnabled) {
