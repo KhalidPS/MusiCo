@@ -6,8 +6,8 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.android.test) apply false
     alias(libs.plugins.baselineprofile) apply false
-    id("com.google.gms.google-services") version "4.4.3" apply false
-    id("com.google.firebase.crashlytics") version "3.0.6" apply false
+    id("com.google.gms.google-services") version "4.5.0" apply false
+    id("com.google.firebase.crashlytics") version "3.0.7" apply false
 
 
 }
