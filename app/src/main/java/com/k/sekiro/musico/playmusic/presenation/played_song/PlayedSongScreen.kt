@@ -110,6 +110,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     playType: PlayType,
     isPlaying: Boolean,
     index: Int = 0,
+    launchedFromBottomBar: Boolean = false,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onAction: (UiAction) -> Unit,
     onDownArrowClicked: () -> Unit = {},
@@ -134,6 +135,13 @@ fun SharedTransitionScope.PlayedSongScreen(
     var isShowDialog by remember { mutableStateOf(false) }
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+
+    // The mini player bottom bar and the song list card each have their own shared-element key
+    // namespace (they can be mounted at the same time), so pick the one that matches whichever
+    // element the user actually navigated from.
+    val imageKey = if (launchedFromBottomBar) Constants.IMAGE_KEY else Constants.LIST_IMAGE_KEY
+    val titleKey = if (launchedFromBottomBar) Constants.TITLE_KEY else Constants.LIST_TITLE_KEY
+    val artistKey = if (launchedFromBottomBar) Constants.ARTIST_KEY else Constants.LIST_ARTIST_KEY
 
     if (isShowDialog){
         InfoDialog(
@@ -446,7 +454,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                         contentDescription = null,
                         modifier = Modifier
                             .sharedBounds(
-                                sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_${songs[it].path}"),
+                                sharedContentState = rememberSharedContentState("${imageKey}_${songs[it].path}"),
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 resizeMode = ResizeMode.RemeasureToBounds,
                             )
@@ -502,7 +510,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                     textAlign = TextAlign.Start,
                     modifier = Modifier
                         .sharedBounds(
-                            sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${songs[pagerState.currentPage].path}"),
+                            sharedContentState = rememberSharedContentState("${titleKey}_${songs[pagerState.currentPage].path}"),
                             animatedVisibilityScope = animatedVisibilityScope
                         )
                         .fillMaxWidth()
@@ -522,7 +530,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                     textAlign = TextAlign.Start,
                     modifier = Modifier
                         .sharedBounds(
-                            sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${songs[pagerState.currentPage].path}"),
+                            sharedContentState = rememberSharedContentState("${artistKey}_${songs[pagerState.currentPage].path}"),
                             animatedVisibilityScope = animatedVisibilityScope
                         )
                         .fillMaxWidth()
