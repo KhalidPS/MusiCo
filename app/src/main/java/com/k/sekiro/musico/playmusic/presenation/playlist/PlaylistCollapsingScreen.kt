@@ -2,6 +2,11 @@ package com.k.sekiro.musico.playmusic.presenation.playlist
 
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
@@ -58,9 +63,9 @@ import com.k.sekiro.musico.ui.theme.Red
 // Create a file called `res/drawable/sample_image.jpg` or use a different image resource.
 //import com.your.package.name.R // Replace with your actual package name
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun PlaylistCollapsingScreen(
+fun SharedTransitionScope.PlaylistCollapsingScreen(
     playlistWithSongsUi: PlaylistWithSongsUi,
     onAction: (UiAction) -> Unit = {},
     onAddToNewPlaylist: (String) -> Unit,
@@ -73,6 +78,7 @@ fun PlaylistCollapsingScreen(
     onSelectSong: (SongUi) -> Unit = {},
     selectedSongs: List<SongUi>,
     selectModeEnabled: Boolean,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onConfirmDeletePlaylist:(Playlist) -> Unit = {}
 ) {
 
@@ -205,7 +211,9 @@ fun PlaylistCollapsingScreen(
                         isShowSheet = true
                     },
                     selectedSongs = selectedSongs,
-                    selectModeEnabled = selectModeEnabled
+                    selectModeEnabled = selectModeEnabled,
+                    sharedTransitionScope = this@PlaylistCollapsingScreen,
+                    animatedVisibilityScope = animatedVisibilityScope
                 )
             }
         }
@@ -428,17 +436,23 @@ fun PlaylistCollapsingScreen(
 
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
 private fun CollapsingTitleToolbarPrev() {
-    PlaylistCollapsingScreen(
-        playlistWithSongsUi = mockPlaylists[0],
-        selectedSongs = mockSongs.map { it.toSongUi() },
-        selectModeEnabled = false,
-        playlists = emptyList(),
-        onCancelClicked = {},
-        onAddToExistPlaylist = {},
-        onAddToNewPlaylist = {},
-        onAddSingleSong = { _, _, _ -> }
-    )
+    SharedTransitionLayout {
+        AnimatedVisibility(true) {
+            PlaylistCollapsingScreen(
+                playlistWithSongsUi = mockPlaylists[0],
+                selectedSongs = mockSongs.map { it.toSongUi() },
+                selectModeEnabled = false,
+                playlists = emptyList(),
+                onCancelClicked = {},
+                onAddToExistPlaylist = {},
+                onAddToNewPlaylist = {},
+                onAddSingleSong = { _, _, _ -> },
+                animatedVisibilityScope = this
+            )
+        }
+    }
 }

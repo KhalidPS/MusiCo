@@ -255,16 +255,16 @@ class MainActivity : ComponentActivity() {
 
                                 composable<PlayedSong>(
                                     popEnterTransition = {
-                                        fadeIn(tween(1000, easing = LinearEasing))
+                                        fadeIn(tween(350, easing = LinearEasing))
                                     },
                                     enterTransition = {
-                                        fadeIn(tween(1000, easing = LinearEasing))
+                                        fadeIn(tween(350, easing = LinearEasing))
                                     },
                                     exitTransition = {
-                                        fadeOut(tween(1000, easing = LinearEasing))
+                                        fadeOut(tween(350, easing = LinearEasing))
                                     },
                                     popExitTransition = {
-                                        fadeOut(tween(1000, easing = LinearEasing))
+                                        fadeOut(tween(350, easing = LinearEasing))
                                     }
                                     /*  typeMap = mapOf(
                                           typeOf<DisplayableDuration>() to CustomNavType.DisplayableDurationType
@@ -277,6 +277,7 @@ class MainActivity : ComponentActivity() {
                                     val index = it.toRoute<PlayedSong>().index
                                     val isFromPlaylist = it.toRoute<PlayedSong>().isFromPlaylist
                                     val playlistId = it.toRoute<PlayedSong>().playlistId
+                                    val launchedFromBottomBar = it.toRoute<PlayedSong>().launchedFromBottomBar
 
                                     val progress by rememberUpdatedState(state.value.sliderProgress)
                                     val passedTime by rememberUpdatedState(state.value.passedTimeDuration)
@@ -308,6 +309,7 @@ class MainActivity : ComponentActivity() {
                                         favoriteSongs = favoriteSongs.songs,
                                         onAction = viewModel::onAction,
                                         index = index,
+                                        launchedFromBottomBar = launchedFromBottomBar,
                                         animatedVisibilityScope = this,
                                         onDownArrowClicked = {
                                             navController.popBackStack(
@@ -398,6 +400,7 @@ class MainActivity : ComponentActivity() {
                                             viewModel.deletePlaylist(it)
                                             navController.popBackStack()
                                         },
+                                        animatedVisibilityScope = this,
                                     )
 
                                 }
@@ -448,7 +451,8 @@ class MainActivity : ComponentActivity() {
             PlayedSong(
                 index = index,
                 isFromPlaylist = viewModel.isSelectedSongFromPlaylist(),
-                playlistId = viewModel.currentPlaylistId()
+                playlistId = viewModel.currentPlaylistId(),
+                launchedFromBottomBar = true
             )
         ) {
             launchSingleTop = true

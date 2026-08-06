@@ -269,7 +269,9 @@ fun SharedTransitionScope.SongsList(
                             isShowDeleteDialog = true
                         },
                         onShareClick = { context.shareAudioFile(song.dataUri.toUri()) },
-                        selectModeEnabled = selectModeEnabled
+                        selectModeEnabled = selectModeEnabled,
+                        sharedTransitionScope = this@SongsList,
+                        animatedVisibilityScope = animatedVisibilityScope
                     )
                 }
 
