@@ -552,20 +552,25 @@ class MainActivity : ComponentActivity() {
             playlistId
         )
 
+        val isSameSongAlreadyLoaded = song.path == controller.currentMediaItem?.mediaId
+
         if (
             playlistId != currentPlaylistId ||
-            song.path != controller.currentMediaItem?.mediaId ||
+            !isSameSongAlreadyLoaded ||
             previousPlaylistSongs != playlist.songs
         ) {
             Log.e(
                 "ks",
                 "the index : $index , playlistId: $playlistId"
             )
+            /** Re-clicking the song that's already loaded only needs the controller's list
+            reordered to match the playlist's new order (so prev/next stay correct) - it must
+            resume from where it already was, not restart from 0, since it's the same song.**/
             controller
                 .setMediaItemsList(
                     startIndex = index,
                     songs = playlist.songs,
-                    startProgress = 0L
+                    startProgress = if (isSameSongAlreadyLoaded) controller.currentPosition else 0L
                 )
 
         }
