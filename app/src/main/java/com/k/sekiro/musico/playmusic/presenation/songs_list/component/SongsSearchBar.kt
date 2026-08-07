@@ -101,12 +101,11 @@ fun SongsSearchBar(
             itemsIndexed(
                 filteredSongs,
                 key = { index, item -> item.id}
-            ) { index, song ->
+            ) { _, song ->
                 Song(
                     song = song,
                     onClick = {
-                        //  val index2 = songs.indexOf(it)
-                        onSongClicked(it, index)
+                        onSongClicked(it, songs.indexOf(it))
                     },
                     showMoreIcon = false
                 )

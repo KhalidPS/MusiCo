@@ -532,32 +532,37 @@ class MainActivity : ComponentActivity() {
         val controller = viewModel.getController() ?: return
         if (viewModel.getIsNewCreation()) viewModel.setIsNewCreation(false)
 
-        if (playlistId != currentPlaylistId) {
-            viewModel.updateIsSelectedSongFromPlaylist(
-                true,
-                playlist.songs,
-                playlistId
-            )
+        /** Resync the cached playlist snapshot (currentPlayedPlaylistSong) to the playlist's
+        current order before navigating, even if we don't touch the controller. Otherwise,
+        re-clicking the song that's already playing (song.path == currentMediaItem and
+        playlistId == currentPlaylistId) would leave the ViewModel's cached songs list stale
+        (e.g. from before this song got bumped to the top of Recent), and PlayedSongScreen
+        would read that stale list at the fresh `index`.
 
-            controller?.setMediaItemsList(
-                startIndex = index,
-                songs = playlist.songs,
-                startProgress = 0L
-            )
+        The controller's actual media items must also be resynced whenever the playlist's
+        order changed (`previousPlaylistSongs != playlist.songs`), not just when the song or
+        playlistId changed - otherwise the controller keeps the song at its OLD index, and the
+        pager's settle effect (ChangeToOtherSong) ends up seeking the controller to `index`
+        within that stale, un-reordered list: the UI shows the right song (it's built from the
+        freshly-synced snapshot) but playback comes from whatever used to sit at that index.**/
+        val previousPlaylistSongs = viewModel.currentPlaylistSongs()
+        viewModel.updateIsSelectedSongFromPlaylist(
+            true,
+            playlist.songs,
+            playlistId
+        )
 
-        } else if (song.path != controller?.currentMediaItem?.mediaId) {
-            viewModel.updateIsSelectedSongFromPlaylist(
-                true,
-                playlist.songs,
-                playlistId
-            )
-
+        if (
+            playlistId != currentPlaylistId ||
+            song.path != controller.currentMediaItem?.mediaId ||
+            previousPlaylistSongs != playlist.songs
+        ) {
             Log.e(
                 "ks",
                 "the index : $index , playlistId: $playlistId"
             )
             controller
-                ?.setMediaItemsList(
+                .setMediaItemsList(
                     startIndex = index,
                     songs = playlist.songs,
                     startProgress = 0L
