@@ -2,9 +2,6 @@ package com.k.sekiro.musico
 
 import android.app.Activity
 import android.app.RecoverableSecurityException
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
@@ -28,10 +25,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
@@ -180,6 +179,7 @@ class MainActivity : ComponentActivity() {
                                 composable<Home> {
 
                                     val progress by rememberUpdatedState(state.value.sliderProgress)
+                                    var bottomClicked by rememberSaveable { mutableStateOf(false) }
                                     val currentPosition by rememberUpdatedState(state.value.currentPosition)
                                     val songs = state.value.songs
                                     val isPlaying = state.value.isPlaying
@@ -193,6 +193,7 @@ class MainActivity : ComponentActivity() {
                                         SongsList(
                                             songs = songs,
                                             onSongClicked = { song, index ->
+                                                bottomClicked = false
                                                 handleSongClicked(
                                                     song,
                                                     songs,
@@ -219,6 +220,7 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             },
                                             onBottomBarClicked = {
+                                                bottomClicked = true
                                                 handleBottomBarClicked(
                                                     playedSong, songs, navController
                                                 )
@@ -245,7 +247,8 @@ class MainActivity : ComponentActivity() {
                                                     popUpTo(Home)
                                                 }
                                             },
-                                            recentPlaylistSongs = recentPlaylistSongs
+                                            recentPlaylistSongs = recentPlaylistSongs,
+                                            bottomClicked = bottomClicked
                                         )
                                     } else {
                                         LoadingScreen()
