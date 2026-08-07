@@ -60,7 +60,7 @@ suspend fun getColorFromCover(
     val palette = lurCache[path] ?: run {
         val songCover = convertUriToBitmap(
             cover.toUri(),
-            context.contentResolver,
+            context,
             context.resources
         )
         // Palette.generate() quantizes every pixel - keep it off the caller's dispatcher
@@ -101,7 +101,7 @@ fun rememberDominantColor(
         if (cachedPalette != null) {
             dominantColor.value = cachedPalette.getDominantColor()
         } else {
-            val songCoverBitmap = convertUriToBitmap(song.cover.toUri(), context.contentResolver, context.resources)
+            val songCoverBitmap = convertUriToBitmap(song.cover.toUri(), context, context.resources)
             val palette = withContext(Dispatchers.Default) {
                 Palette.from(songCoverBitmap).generate()
             }
