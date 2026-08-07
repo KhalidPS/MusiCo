@@ -213,7 +213,7 @@ fun SharedTransitionScope.PlayedSongBottomBar(
 
 
                     Text(
-                        text = song.name,
+                        text = song.title,
                         color = Color.White,
                         fontSize = 16.sp,
                         maxLines = 1,
