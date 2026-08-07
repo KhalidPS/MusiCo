@@ -34,7 +34,13 @@ import kotlin.math.sin
 @SuppressLint("UnsafeOptInUsageError")
 val appModule = module{
 
-    single { LruCache<String, Palette>(4*1024*1024)}//4MB
+    /** LruCache's maxSize counts entries (sizeOf() defaults to 1 per entry), not bytes - a
+    size of 4*1024*1024 caps this at ~4 million Palette objects, i.e. effectively unbounded.
+    Palette objects are small (a handful of Swatches), so a plain entry count cap is fine here;
+    this just needs to actually be a cap.**/
+    single { LruCache<String, Palette>(200) }
+
+
 
     singleOf(::PaletteCache)
 

@@ -1,7 +1,11 @@
-package com.k.sekiro.musico.playmusic.presenation.songs_list.component
+package com.k.sekiro.musico.playmusic.presenation.util.component
 
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -37,8 +41,10 @@ import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
-import com.k.sekiro.musico.playmusic.presenation.util.component.OptionMenu
+import com.k.sekiro.musico.playmusic.presenation.util.Constants
+import com.k.sekiro.musico.playmusic.presenation.util.applyIfComposable
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun Song(
     modifier: Modifier = Modifier,
@@ -49,8 +55,15 @@ fun Song(
     onDeleteClicked: () -> Unit = {},
     onAddToPlaylistClicked:() -> Unit = {},
     selectModeEnabled: Boolean = false,
-    selectedSongs: List<SongUi> = emptyList()
+    showMoreIcon: Boolean = true,
+    selectedSongs: List<SongUi> = emptyList(),
+    // Both must be provided to enable the shared-element transition into PlayedSongScreen.
+    // Left null for call sites (e.g. search results) where the same song may already be
+    // rendered elsewhere with the same key, which SharedTransitionScope doesn't allow.
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    val isSharedElementEnabled = sharedTransitionScope != null && animatedVisibilityScope != null
 
     val artist =
         if (song.artist.isBlank() || song.artist.isEmpty()) "Unknown artist" else song.artist
@@ -90,6 +103,15 @@ fun Song(
                 contentDescription = "song album cover",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
+                    .applyIfComposable(isSharedElementEnabled) {
+                        with(sharedTransitionScope!!) {
+                            sharedBounds(
+                                sharedContentState = rememberSharedContentState("${Constants.LIST_IMAGE_KEY}_${song.path}"),
+                                animatedVisibilityScope = animatedVisibilityScope!!,
+                                resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds
+                            )
+                        }
+                    }
                     .clip(RoundedCornerShape(12.dp))
                     .size(70.dp)
 
@@ -106,6 +128,14 @@ fun Song(
                 text = song.title,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
+                    .applyIfComposable(isSharedElementEnabled) {
+                        with(sharedTransitionScope!!) {
+                            sharedBounds(
+                                sharedContentState = rememberSharedContentState("${Constants.LIST_TITLE_KEY}_${song.path}"),
+                                animatedVisibilityScope = animatedVisibilityScope!!,
+                            )
+                        }
+                    }
                     .padding(bottom = 8.dp),
                 maxLines = 1,
 
@@ -116,6 +146,14 @@ fun Song(
                 color = Color.Gray,
                 maxLines = 1,
                 modifier = Modifier
+                    .applyIfComposable(isSharedElementEnabled) {
+                        with(sharedTransitionScope!!) {
+                            sharedBounds(
+                                sharedContentState = rememberSharedContentState("${Constants.LIST_ARTIST_KEY}_${song.path}"),
+                                animatedVisibilityScope = animatedVisibilityScope!!,
+                            )
+                        }
+                    }
 
             )
         }
@@ -127,16 +165,18 @@ fun Song(
             var isExpanded by remember { mutableStateOf(false) }
 
 
-            IconButton(
-                onClick = {isExpanded = !isExpanded},
-                enabled = !selectModeEnabled
-            ) {
+            if (showMoreIcon){
+                IconButton(
+                    onClick = {isExpanded = !isExpanded},
+                    enabled = !selectModeEnabled
+                ) {
 
 
-                Icon(
-                    imageVector = Icons.TwoTone.MoreVert,
-                    contentDescription = "more action to do for song icon"
-                )
+                    Icon(
+                        imageVector = Icons.TwoTone.MoreVert,
+                        contentDescription = "more action to do for song icon"
+                    )
+                }
             }
 
             OptionMenu(
@@ -155,7 +195,13 @@ fun Song(
 @Preview
 @Composable
 private fun SongPrev() {
+    SharedTransitionLayout {
+        AnimatedVisibility(true) {
             Song(
-                song = mockSongs[1].toSongUi()
+                song = mockSongs[1].toSongUi(),
+                sharedTransitionScope = this@SharedTransitionLayout,
+                animatedVisibilityScope = this@AnimatedVisibility
             )
+        }
+    }
 }

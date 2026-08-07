@@ -126,7 +126,7 @@ fun SharedTransitionScope.SongCD(
                     .sharedBounds(
                         sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_$path"),
                         animatedVisibilityScope = animatedVisibilityScope,
-                        resizeMode = ResizeMode.ScaleToBounds(),
+                        resizeMode = ResizeMode.scaleToBounds(),
                     )
                     .size(40.dp)
                     .clip(CircleShape)

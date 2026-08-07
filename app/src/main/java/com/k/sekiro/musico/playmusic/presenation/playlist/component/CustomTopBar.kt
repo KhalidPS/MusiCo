@@ -28,7 +28,8 @@ import androidx.compose.ui.zIndex
 fun CustomTopBar(
     collapsedToolbarHeight: Dp,
     scrollProgress: Float,
-    isBackEnabled: Boolean
+    isBackEnabled: Boolean,
+    onBackButtonClicked:() -> Unit = {}
 ) {
     Surface(
         modifier = Modifier
@@ -45,7 +46,7 @@ fun CustomTopBar(
             verticalAlignment = Alignment.CenterVertically
         ){
             IconButton(
-                onClick = {},
+                onClick = onBackButtonClicked,
                 enabled = isBackEnabled
             ) {
                 Icon(Icons.AutoMirrored.Default.ArrowBack, contentDescription = "Back")

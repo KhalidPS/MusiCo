@@ -84,7 +84,7 @@ fun MediaController?.setMediaItemsList(songs: List<SongUi>) {
                             MediaMetadata.Builder()
                                 .setArtworkUri(song.cover.toUri())
                                 .setTitle(song.artist)
-                                .setDisplayTitle(song.name)
+                                .setDisplayTitle(song.title)
                                 .setAlbumTitle(song.album)
                                 .setArtist(song.artist)
                                 .setDiscNumber(song.id.toInt())

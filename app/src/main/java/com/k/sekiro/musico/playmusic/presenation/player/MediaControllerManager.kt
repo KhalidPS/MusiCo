@@ -2,13 +2,11 @@ package com.k.sekiro.musico.playmusic.presenation.player
 
 import android.content.ComponentName
 import android.content.Context
-import android.content.SharedPreferences
 import android.os.Build
 import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -18,24 +16,16 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
-import com.k.sekiro.musico.playmusic.domain.model.INDEX_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PATH_KEY
-import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PlayMode_KEY
-import com.k.sekiro.musico.playmusic.domain.model.RecentSongs_KEY
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.player.service.PlayerSessionService
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlin.collections.indexOf
 
 class MediaControllerManager(
     private val context: Context,
