@@ -17,9 +17,9 @@
 .bin
 *.xml
 !AndroidManifest.xml
-<<<<<<< HEAD
 local.properties
 /.kotlin
 /app/google-services.json
 /docs
 /.idea
+img.png
