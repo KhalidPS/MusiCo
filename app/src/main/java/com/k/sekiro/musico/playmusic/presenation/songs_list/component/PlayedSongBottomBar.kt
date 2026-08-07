@@ -64,12 +64,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.palette.graphics.Palette
 import com.k.sekiro.musico.playmusic.presenation.util.applyIf
+import com.k.sekiro.musico.playmusic.presenation.util.getColorFromCover
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
-import com.k.sekiro.musico.playmusic.domain.convertUriToBitmap
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.IntOffset
 import com.k.sekiro.musico.playmusic.presenation.util.Constants
 import androidx.core.net.toUri
@@ -83,7 +82,7 @@ import kotlin.math.roundToInt
 @Composable
 fun SharedTransitionScope.PlayedSongBottomBar(
     song: SongUi = mockSongs[0].toSongUi(),
-    lurCache: LruCache<String, Palette> = LruCache(4 * 1024 * 1024),
+    lurCache: LruCache<String, Palette> = LruCache(200),
     isPlaying: Boolean = false,
     progress: () -> Float,
     currentPosition: () -> Long,
@@ -96,7 +95,6 @@ fun SharedTransitionScope.PlayedSongBottomBar(
 
     with(animatedVisibilityScope){
         val context = LocalContext.current
-        val resources = LocalResources.current
         // val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
 
         var bottomBarColor by remember { mutableStateOf(Color.White) }
@@ -153,43 +151,12 @@ fun SharedTransitionScope.PlayedSongBottomBar(
 
 
         LaunchedEffect(song) {
-            val songCover = convertUriToBitmap(
-                song.cover.toUri(),
-                context.contentResolver,
-                resources
+            bottomBarColor = getColorFromCover(
+                lurCache = lurCache,
+                context = context,
+                cover = song.cover,
+                path = song.path
             )
-
-
-            val palette = if (lurCache[song.path] != null) {
-                lurCache[song.path]!!
-            } else {
-                Palette.from(songCover).generate().apply {
-                    lurCache.put(song.path, this)
-                }
-            }
-
-            bottomBarColor =
-                if (palette.vibrantSwatch != null) Color(
-                    palette.vibrantSwatch!!.rgb
-                ) else if (palette.lightVibrantSwatch != null) {
-                    Color(palette.lightVibrantSwatch!!.rgb)
-                } else if (palette.darkVibrantSwatch != null) {
-                    Color(palette.darkVibrantSwatch!!.rgb)
-                } else if (palette.lightMutedSwatch != null) {
-                    Color(palette.lightMutedSwatch!!.rgb)
-                } else if (palette.mutedSwatch != null) {
-                    Color(palette.mutedSwatch!!.rgb)
-                } else if (palette.darkMutedSwatch != null) {
-                    Color(palette.darkMutedSwatch!!.rgb)
-                } else Color.Cyan
-
-
-            /*        bottomBarColor = getColorFromCover(
-                        lurCache = lurCache,
-                        context = context,
-                        song = song
-                    )*/
-
         }
 
 
