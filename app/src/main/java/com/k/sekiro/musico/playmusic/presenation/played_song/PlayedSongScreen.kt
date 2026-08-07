@@ -76,8 +76,8 @@ import androidx.palette.graphics.Palette
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.presenation.util.Constants
 import com.k.sekiro.musico.playmusic.presenation.util.applyIf
+import com.k.sekiro.musico.playmusic.presenation.util.getColorFromCover
 import com.k.sekiro.musico.playmusic.presenation.util.toPx
-import com.k.sekiro.musico.playmusic.domain.convertUriToBitmap
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
@@ -89,8 +89,6 @@ import com.k.sekiro.musico.playmusic.presenation.played_song.component.InfoDialo
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTimeText
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.SongSlider
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -261,43 +259,13 @@ fun SharedTransitionScope.PlayedSongScreen(
 
 
             val song = songs[it]
-            val songCover = async {
-                convertUriToBitmap(
-                    song.cover.toUri(),
-                    context.contentResolver,
-                    resources
-                )
-            }
-
-
-            val palette = if (lurCache[song.path] != null) {
-                Log.e("ks", "$it :${lurCache[song.path]}")
-                lurCache[song.path]!!
-            } else {
-                Palette.from(songCover.await()).generate().apply {
-                    lurCache.put(song.path, this)
-                }
-            }
-
-
-            withContext(Dispatchers.Main.immediate) {
-                outlineColor =
-                    if (palette.vibrantSwatch != null) Color(
-                        palette.vibrantSwatch!!.rgb
-                    ) else if (palette.lightVibrantSwatch != null) {
-                        Color(palette.lightVibrantSwatch!!.rgb)
-                    } else if (palette.darkVibrantSwatch != null) {
-                        Color(palette.darkVibrantSwatch!!.rgb)
-                    } else if (palette.lightMutedSwatch != null) {
-                        Color(palette.lightMutedSwatch!!.rgb)
-                    } else if (palette.mutedSwatch != null) {
-                        Color(palette.mutedSwatch!!.rgb)
-                    } else if (palette.darkMutedSwatch != null) {
-                        Color(palette.darkMutedSwatch!!.rgb)
-                    } else Color.Cyan
-                spotColor = outlineColor
-
-            }
+            outlineColor = getColorFromCover(
+                lurCache = lurCache,
+                context = context,
+                cover = song.cover,
+                path = song.path
+            )
+            spotColor = outlineColor
 
         }
 

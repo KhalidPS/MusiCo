@@ -57,7 +57,7 @@ import com.k.sekiro.musico.playmusic.presenation.util.getColorFromCover
 fun PlaylistItem(
     modifier: Modifier = Modifier,
     playlist: PlaylistWithSongsUi = mockPlaylists[0],
-    lruCache: LruCache<String, Palette> = LruCache(4 * 1024 * 1024),
+    lruCache: LruCache<String, Palette> = LruCache(200),
     onClick:(Long) -> Unit = {}
 ) {
 

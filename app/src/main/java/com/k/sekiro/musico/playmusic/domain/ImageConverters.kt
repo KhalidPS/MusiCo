@@ -72,6 +72,12 @@ fun String.toBitmap(resources: Resources): Bitmap {
 
 
 
+/** This is only ever used to feed androidx.palette's color extraction, which internally
+resizes whatever bitmap it's given down to ~112x112 before quantizing anyway. Decoding the
+cover at full resolution here just to have Palette throw that resolution away wastes CPU and
+memory, so we downsample up front to roughly the size Palette actually needs.**/
+private const val PALETTE_TARGET_LONGEST_SIDE_PX = 200
+
 suspend fun convertUriToBitmap(uri: Uri, contentResolver: ContentResolver,resources: Resources): Bitmap
 = withContext(Dispatchers.Default){
     var bitmap: Bitmap? = null
@@ -99,13 +105,18 @@ suspend fun convertUriToBitmap(uri: Uri, contentResolver: ContentResolver,resour
 
                     decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                     decoder.isMutableRequired = true
+
+                    val longestSide = maxOf(info.size.width, info.size.height)
+                    if (longestSide > PALETTE_TARGET_LONGEST_SIDE_PX) {
+                        decoder.setTargetSampleSize(longestSide / PALETTE_TARGET_LONGEST_SIDE_PX)
+                    }
                 }
             )/**.copy(Bitmap.Config.RGBA_F16,true)*/
         } else {
 
             val inputStream = contentResolver.openInputStream(uri)
             val options = BitmapFactory.Options().apply {
-                inSampleSize = 2
+                inSampleSize = 4
             }
 
             if (inputStream != null) {
