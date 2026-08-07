@@ -9,8 +9,11 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -86,7 +89,8 @@ fun SharedTransitionScope.SongsList(
     onConfirmDeletion: () -> Unit = {},
     playlists: List<Playlist> = emptyList(),
     playlistWithSongs: List<PlaylistWithSongsUi> = emptyList(),
-    recentPlaylistSongs: List<SongUi> = emptyList()
+    recentPlaylistSongs: List<SongUi> = emptyList(),
+    bottomClicked: Boolean = false
 ) {
 
     var songToDelete: SongUi? = null
@@ -104,7 +108,8 @@ fun SharedTransitionScope.SongsList(
                 currentPosition = currentPosition,
                 onClicked = onBottomBarClicked,
                 onAction = onAction,
-                animatedVisibilityScope = animatedVisibilityScope
+                animatedVisibilityScope = animatedVisibilityScope,
+                bottomClicked = bottomClicked
             )
         }
     ) {
@@ -141,7 +146,7 @@ fun SharedTransitionScope.SongsList(
                     },
                     playlists = playlists,
                     onAddToNewPlaylist = onAddToNewPlaylist,
-                    onAddToExistPlaylist = onAddToExistPlaylist
+                    onAddToExistPlaylist = onAddToExistPlaylist,
                 )
             }
 
@@ -171,10 +176,17 @@ fun SharedTransitionScope.SongsList(
 
             Spacer(Modifier.height(16.dp))
 
-
             Row(
                 horizontalArrangement = Arrangement.SpaceAround,
-                modifier = Modifier.fillMaxWidth()
+                modifier = with(animatedVisibilityScope){
+                    Modifier
+                        .fillMaxWidth()
+                        .renderInSharedTransitionScopeOverlay(1f)
+                        .animateEnterExit(
+                            enter = fadeIn() + slideInVertically { startOffset -> -startOffset },
+                            exit = fadeOut() +  slideOutVertically { target -> -target }
+                        )
+                }
             ) {
 
                 //  val filteredPlaylists = remember(playlistWithSongs) { playlistWithSongs.filter { it.playlist.name == "Favorite" || it.playlist.name == "Recent" } }

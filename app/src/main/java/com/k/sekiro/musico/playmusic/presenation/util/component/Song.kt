@@ -108,7 +108,7 @@ fun Song(
                             sharedBounds(
                                 sharedContentState = rememberSharedContentState("${Constants.LIST_IMAGE_KEY}_${song.path}"),
                                 animatedVisibilityScope = animatedVisibilityScope!!,
-                                resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(),
+                                resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds
                             )
                         }
                     }

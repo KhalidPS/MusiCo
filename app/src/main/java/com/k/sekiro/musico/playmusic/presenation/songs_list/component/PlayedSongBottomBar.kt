@@ -8,6 +8,10 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -65,6 +69,7 @@ import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.domain.convertUriToBitmap
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.IntOffset
 import com.k.sekiro.musico.playmusic.presenation.util.Constants
 import androidx.core.net.toUri
@@ -85,242 +90,253 @@ fun SharedTransitionScope.PlayedSongBottomBar(
     onPlayClicked: () -> Unit = {},
     onClicked: () -> Unit = {},
     animatedVisibilityScope: AnimatedVisibilityScope,
+    bottomClicked: Boolean = false,
     onAction: (UiAction) -> Unit = {},
 ) {
 
-    val context = LocalContext.current
-    // val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
+    with(animatedVisibilityScope){
+        val context = LocalContext.current
+        val resources = LocalResources.current
+        // val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
 
-    var bottomBarColor by remember { mutableStateOf(Color.White) }
+        var bottomBarColor by remember { mutableStateOf(Color.White) }
 
-    val draggableState = remember { AnchoredDraggableState(initialValue = DraggableState.Reset) }
+        val draggableState = remember { AnchoredDraggableState(initialValue = DraggableState.Reset) }
 
-    var swipeRightOffset by remember { mutableFloatStateOf(0f) }
-    var swipeLeftOffset by remember { mutableFloatStateOf(0f) }
-    val overScroller = rememberOverscrollEffect()
-    val density = LocalDensity.current
+        var swipeRightOffset by remember { mutableFloatStateOf(0f) }
+        var swipeLeftOffset by remember { mutableFloatStateOf(0f) }
+        val overScroller = rememberOverscrollEffect()
+        val density = LocalDensity.current
 
-    val anchors = remember(density){
-        swipeRightOffset = with(density){ 48.dp.toPx() }
-        swipeLeftOffset = with(density){ -48.dp.toPx() }
-        DraggableAnchors {
-            DraggableState.Reset at 0f
-            DraggableState.SwipeRight at swipeRightOffset
-            DraggableState.SwipeLeft at swipeLeftOffset
-        }
-    }
-
-
-    val progressAnim = key(currentPosition()) {
-        animateFloatAsState(
-            targetValue = progress(),
-            animationSpec = tween(
-                //((song.displayableDuration.durationMillis - currentPosition)).toInt(),
-                (song.displayableDuration.durationMillis * (progress() / 100f)).toInt(),
-                easing = LinearEasing
-            )
-        )
-    }
-
-
-
-    SideEffect { draggableState.updateAnchors(anchors) }
-
-    LaunchedEffect(Unit) {
-        snapshotFlow { draggableState.settledValue }.collectLatest {
-            if (it == DraggableState.SwipeRight){
-                delay(300)
-                draggableState.animateTo(DraggableState.Reset)
-                onAction(UiAction.SeekToNext)
-
-            }else if (it == DraggableState.SwipeLeft){
-                delay(300)
-                draggableState.animateTo(DraggableState.Reset)
-                onAction(UiAction.SeekToPrevious)
+        val anchors = remember(density){
+            swipeRightOffset = with(density){ 48.dp.toPx() }
+            swipeLeftOffset = with(density){ -48.dp.toPx() }
+            DraggableAnchors {
+                DraggableState.Reset at 0f
+                DraggableState.SwipeRight at swipeRightOffset
+                DraggableState.SwipeLeft at swipeLeftOffset
             }
         }
-    }
+
+
+        val progressAnim = key(currentPosition()) {
+            animateFloatAsState(
+                targetValue = progress(),
+                animationSpec = tween(
+                    //((song.displayableDuration.durationMillis - currentPosition)).toInt(),
+                    (song.displayableDuration.durationMillis * (progress() / 100f)).toInt(),
+                    easing = LinearEasing
+                )
+            )
+        }
+
+
+
+        SideEffect { draggableState.updateAnchors(anchors) }
+
+        LaunchedEffect(Unit) {
+            snapshotFlow { draggableState.settledValue }.collectLatest {
+                if (it == DraggableState.SwipeRight){
+                    delay(300)
+                    draggableState.animateTo(DraggableState.Reset)
+                    onAction(UiAction.SeekToNext)
+
+                }else if (it == DraggableState.SwipeLeft){
+                    delay(300)
+                    draggableState.animateTo(DraggableState.Reset)
+                    onAction(UiAction.SeekToPrevious)
+                }
+            }
+        }
 
 
 
 
-    LaunchedEffect(song) {
-        val songCover = convertUriToBitmap(
+        LaunchedEffect(song) {
+            val songCover = convertUriToBitmap(
                 song.cover.toUri(),
                 context.contentResolver,
-                context.resources
+                resources
             )
 
 
-        val palette = if (lurCache[song.path] != null) {
-            lurCache[song.path]!!
-        } else {
-            Palette.from(songCover).generate().apply {
-                lurCache.put(song.path, this)
+            val palette = if (lurCache[song.path] != null) {
+                lurCache[song.path]!!
+            } else {
+                Palette.from(songCover).generate().apply {
+                    lurCache.put(song.path, this)
+                }
             }
+
+            bottomBarColor =
+                if (palette.vibrantSwatch != null) Color(
+                    palette.vibrantSwatch!!.rgb
+                ) else if (palette.lightVibrantSwatch != null) {
+                    Color(palette.lightVibrantSwatch!!.rgb)
+                } else if (palette.darkVibrantSwatch != null) {
+                    Color(palette.darkVibrantSwatch!!.rgb)
+                } else if (palette.lightMutedSwatch != null) {
+                    Color(palette.lightMutedSwatch!!.rgb)
+                } else if (palette.mutedSwatch != null) {
+                    Color(palette.mutedSwatch!!.rgb)
+                } else if (palette.darkMutedSwatch != null) {
+                    Color(palette.darkMutedSwatch!!.rgb)
+                } else Color.Cyan
+
+
+            /*        bottomBarColor = getColorFromCover(
+                        lurCache = lurCache,
+                        context = context,
+                        song = song
+                    )*/
+
         }
 
-        bottomBarColor =
-            if (palette.vibrantSwatch != null) Color(
-                palette.vibrantSwatch!!.rgb
-            ) else if (palette.lightVibrantSwatch != null) {
-                Color(palette.lightVibrantSwatch!!.rgb)
-            } else if (palette.darkVibrantSwatch != null) {
-                Color(palette.darkVibrantSwatch!!.rgb)
-            } else if (palette.lightMutedSwatch != null) {
-                Color(palette.lightMutedSwatch!!.rgb)
-            } else if (palette.mutedSwatch != null) {
-                Color(palette.mutedSwatch!!.rgb)
-            } else if (palette.darkMutedSwatch != null) {
-                Color(palette.darkMutedSwatch!!.rgb)
-            } else Color.Cyan
 
-
-        /*        bottomBarColor = getColorFromCover(
-                    lurCache = lurCache,
-                    context = context,
-                    song = song
-                )*/
-
-    }
-
-
-    Box(
-        contentAlignment = Alignment.CenterStart,
-        modifier = Modifier.clickable(onClick = onClicked)
-    ) {
-        Row(
+        Box(
+            contentAlignment = Alignment.CenterStart,
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .fillMaxWidth()
-                .graphicsLayer {
-                    compositingStrategy = CompositingStrategy.Offscreen
-                }
-                .drawWithContent {
-                    drawRect(
-                        color = bottomBarColor,
-                        topLeft = Offset(12.dp.toPx(), 0f)
+                .clickable(onClick = onClicked)
+                .applyIf(!bottomClicked){
+                    renderInSharedTransitionScopeOverlay(1f)
+                    .animateEnterExit(
+                        enter = fadeIn() + slideInVertically { it },
+                        exit = fadeOut() + slideOutVertically { it }
                     )
-
-                    drawContent()
-
-
                 }
-                .padding(start = 60.dp),
-            verticalAlignment = Alignment.CenterVertically
         ) {
-
-            Column(
-                verticalArrangement = Arrangement.Center,
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .anchoredDraggable(
-                        state = draggableState,
-                        orientation = Orientation.Horizontal,
-                        overscrollEffect = overScroller
-                    )
-                    .offset {
-                        IntOffset(
-                            x = draggableState.requireOffset().roundToInt(),
-                            y = 0
-                        )
+                    .clip(RoundedCornerShape(12.dp))
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        compositingStrategy = CompositingStrategy.Offscreen
                     }
-                    .overscroll(overScroller)
+                    .drawWithContent {
+                        drawRect(
+                            color = bottomBarColor,
+                            topLeft = Offset(12.dp.toPx(), 0f)
+                        )
+
+                        drawContent()
+
+
+                    }
+                    .padding(start = 60.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
 
-
-                Text(
-                    text = song.name,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    maxLines = 1,
+                Column(
+                    verticalArrangement = Arrangement.Center,
                     modifier = Modifier
-                        .sharedBounds(
-                            sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${song.path}"),
-                            animatedVisibilityScope = animatedVisibilityScope,
+                        .weight(1f)
+                        .anchoredDraggable(
+                            state = draggableState,
+                            orientation = Orientation.Horizontal,
+                            overscrollEffect = overScroller
                         )
-                        .applyIf(
-                            song.name.length >= 30,
-                            modifier = {
-                                basicMarquee(
-                                    iterations = Int.MAX_VALUE,
-                                    initialDelayMillis = 0,
-                                    repeatDelayMillis = 1000
-                                )
-                            }
-                        )
-                )
-                Text(
-                    text = song.artist,
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .sharedBounds(
-                            sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${song.path}"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                )
-            }
-
-
-            /** Here the modifier code for box was for icon without box but I added the box to make
-             * the Icon size smaller than the circular progress size as in mi app**/
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(24.dp)
-                    .weight(.5f)
-                    .clickable(
-                        onClick = onPlayClicked,
-                        indication = null,
-                        interactionSource = null
-
-                    )
-                    .drawBehind {
-                        drawCircle(
-                            color = Color.White.copy(alpha = .3f),
-                            style = Stroke(
-                                width = 2.dp.toPx()
+                        .offset {
+                            IntOffset(
+                                x = draggableState.requireOffset().roundToInt(),
+                                y = 0
                             )
-                        )
-                        drawArc(
-                            color = Color.White,
-                            useCenter = false,
-                            style = Stroke(
-                                width = 2.dp.toPx()
-                            ),
-                            startAngle = -90f,
-                            sweepAngle = progressAnim.value * 360f / 100f,
-                            size = Size(size.minDimension, size.minDimension),
-                            topLeft = Offset((size.width - size.minDimension)/2, 0f)
+                        }
+                        .overscroll(overScroller)
+                ) {
+
+
+                    Text(
+                        text = song.name,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .sharedBounds(
+                                sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${song.path}"),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                            )
+                            .applyIf(
+                                song.name.length >= 30,
+                                modifier = {
+                                    basicMarquee(
+                                        iterations = Int.MAX_VALUE,
+                                        initialDelayMillis = 0,
+                                        repeatDelayMillis = 1000
+                                    )
+                                }
+                            )
+                    )
+                    Text(
+                        text = song.artist,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .sharedBounds(
+                                sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${song.path}"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
+                    )
+                }
+
+
+                /** Here the modifier code for box was for icon without box but I added the box to make
+                 * the Icon size smaller than the circular progress size as in mi app**/
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .weight(.5f)
+                        .clickable(
+                            onClick = onPlayClicked,
+                            indication = null,
+                            interactionSource = null
 
                         )
+                        .drawBehind {
+                            drawCircle(
+                                color = Color.White.copy(alpha = .3f),
+                                style = Stroke(
+                                    width = 2.dp.toPx()
+                                )
+                            )
+                            drawArc(
+                                color = Color.White,
+                                useCenter = false,
+                                style = Stroke(
+                                    width = 2.dp.toPx()
+                                ),
+                                startAngle = -90f,
+                                sweepAngle = progressAnim.value * 360f / 100f,
+                                size = Size(size.minDimension, size.minDimension),
+                                topLeft = Offset((size.width - size.minDimension) / 2, 0f)
+
+                            )
 
 
-                    }
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = "play icon",
-                    modifier = Modifier.size(16.dp),
-                    tint = Color.White
+                        }
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = "play icon",
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.White
 
-                )
+                    )
+                }
+
+
             }
 
-
+            SongCD(
+                song.cover.toUri(),
+                isPlaying = isPlaying,
+                animatedVisibilityScope = animatedVisibilityScope,
+                path = song.path
+            )
         }
-
-        SongCD(
-            song.cover.toUri(),
-            isPlaying = isPlaying,
-            animatedVisibilityScope = animatedVisibilityScope,
-            path = song.path
-        )
     }
-
 
 }
 
