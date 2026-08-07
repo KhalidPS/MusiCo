@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlinx.serialization)
@@ -14,7 +13,7 @@ plugins {
 
 android {
     namespace = "com.k.sekiro.musico"
-    compileSdk = 36
+    compileSdk = 37
 
     lint {
         disable.add("NullSafeMutableLiveData")
@@ -33,7 +32,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -42,15 +42,15 @@ android {
     }
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     /*kotlinOptions {
         jvmTarget = "11"
     }*/
     kotlin {
-        compilerOptions { 
-            jvmTarget.set(JvmTarget.JVM_11)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
         }
     }
     buildFeatures {
@@ -70,7 +70,7 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+    implementation(libs.coil.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.datastore.preferences)
@@ -80,10 +80,10 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.profileinstaller)
-    implementation("androidx.compose.runtime:runtime-tracing")
+    implementation(libs.androidx.compose.runtime.tracing)
     "baselineProfile"(project(":baselineprofile"))
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    implementation(libs.kotlinx.datetime)
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -92,8 +92,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-crashlytics-ndk")
-    implementation("com.google.firebase:firebase-analytics")
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics.ndk)
+    implementation(libs.google.firebase.analytics)
 }

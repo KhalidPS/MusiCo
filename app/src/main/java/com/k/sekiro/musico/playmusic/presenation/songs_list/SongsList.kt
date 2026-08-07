@@ -9,8 +9,11 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,7 +36,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -45,18 +47,17 @@ import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.model.DeletionType
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
-import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
 import com.k.sekiro.musico.playmusic.presenation.util.component.DeleteDialog
-import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayListBox
+import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlaylistShelfCard
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.PlayedSongBottomBar
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.SelectedSongsBar
-import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
+import com.k.sekiro.musico.playmusic.presenation.util.component.Song
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.SongsSearchBar
 import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectionBottomSheet
 import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
-import com.k.sekiro.musico.ui.theme.Green2
-import com.k.sekiro.musico.ui.theme.Red2
-import com.k.sekiro.musico.ui.theme.SkyBlue
+import com.k.sekiro.musico.ui.theme.Blue
+import com.k.sekiro.musico.ui.theme.FavoritePlaylistColor
+import com.k.sekiro.musico.ui.theme.RecentPlayListColor
 
 @SuppressLint("RememberReturnType")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -86,7 +87,8 @@ fun SharedTransitionScope.SongsList(
     onConfirmDeletion: () -> Unit = {},
     playlists: List<Playlist> = emptyList(),
     playlistWithSongs: List<PlaylistWithSongsUi> = emptyList(),
-    recentPlaylistSongs: List<SongUi> = emptyList()
+    recentPlaylistSongs: List<SongUi> = emptyList(),
+    bottomClicked: Boolean = false
 ) {
 
     var songToDelete: SongUi? = null
@@ -104,7 +106,8 @@ fun SharedTransitionScope.SongsList(
                 currentPosition = currentPosition,
                 onClicked = onBottomBarClicked,
                 onAction = onAction,
-                animatedVisibilityScope = animatedVisibilityScope
+                animatedVisibilityScope = animatedVisibilityScope,
+                bottomClicked = bottomClicked
             )
         }
     ) {
@@ -141,7 +144,7 @@ fun SharedTransitionScope.SongsList(
                     },
                     playlists = playlists,
                     onAddToNewPlaylist = onAddToNewPlaylist,
-                    onAddToExistPlaylist = onAddToExistPlaylist
+                    onAddToExistPlaylist = onAddToExistPlaylist,
                 )
             }
 
@@ -171,48 +174,59 @@ fun SharedTransitionScope.SongsList(
 
             Spacer(Modifier.height(16.dp))
 
-
             Row(
-                horizontalArrangement = Arrangement.SpaceAround,
-                modifier = Modifier.fillMaxWidth()
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = with(animatedVisibilityScope){
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .renderInSharedTransitionScopeOverlay(1f)
+                        .animateEnterExit(
+                            enter = fadeIn() + slideInVertically { startOffset -> -startOffset },
+                            exit = fadeOut() +  slideOutVertically { target -> -target }
+                        )
+                }
             ) {
 
-                //  val filteredPlaylists = remember(playlistWithSongs) { playlistWithSongs.filter { it.playlist.name == "Favorite" || it.playlist.name == "Recent" } }
-                /*                Log.e("ks", "Non filtered : $playlistWithSongs")
-                                Log.e("ks", "filtered : $filteredPlaylists")
-                                Log.e("ks","Non filtered size  : ${playlistWithSongs.size}")*/
+                if (playlistWithSongs.isEmpty()) return@Row
 
-                val playlist = remember(playlistWithSongs) {
-                    if (playlistWithSongs.isNotEmpty()) {
-                        if (playlistWithSongs.size > 2) playlistWithSongs.first { it.playlist.name != "Favorite" && it.playlist.name != "Recent" }
-                        else playlistWithSongs[0]
-                    } else mockPlaylists[0]
+                val favoritePlaylist = playlistWithSongs[0]
+                val otherPlaylist = remember(playlistWithSongs) {
+                    if (playlistWithSongs.size > 2) {
+                        playlistWithSongs.first { it.playlist.name != "Favorite" && it.playlist.name != "Recent" }
+                    } else playlistWithSongs[0]
                 }
+                val otherPlaylistsCount = (playlistWithSongs.size - 2).coerceAtLeast(0)
+                val recentPlaylistId = playlistWithSongs.getOrNull(1)?.playlist?.id ?: 2L
 
-                PlayListBox(
-                    boxColor = SkyBlue,
-                    playListIconTint = Color.Red,
-                    playListIcon = Icons.Default.Favorite,
-
-                    playlist = if (playlistWithSongs.isNotEmpty()) playlistWithSongs[0] else return@Row,
-                    onClick = { onClickFavOrRecent(it) }
+                PlaylistShelfCard(
+                    modifier = Modifier.weight(1f),
+                    accentColor = FavoritePlaylistColor,
+                    icon = Icons.Default.Favorite,
+                    title = "Favorite",
+                    subtitle = "${favoritePlaylist.songs.size} songs",
+                    coverUrl = favoritePlaylist.songs.firstOrNull()?.cover.orEmpty(),
+                    onClick = { onClickFavOrRecent(favoritePlaylist.playlist.id) }
                 )
 
-
-                PlayListBox(
-                    boxColor = Red2,
-                    playListIcon = Icons.AutoMirrored.Default.List,
-                    onClick = { onShowcasePlaylists() },
-                    playlist = playlist,
-                    playlistName = "Playlists"
+                PlaylistShelfCard(
+                    modifier = Modifier.weight(1f),
+                    accentColor = Blue,
+                    icon = Icons.AutoMirrored.Default.List,
+                    title = "Playlists",
+                    subtitle = if (otherPlaylistsCount == 0) "None yet" else "$otherPlaylistsCount playlists",
+                    coverUrl = otherPlaylist.songs.firstOrNull()?.cover.orEmpty(),
+                    onClick = onShowcasePlaylists
                 )
 
-
-                PlayListBox(
-                    boxColor = Green2,
-                    playListIcon = Icons.TwoTone.Refresh,
-                    onClick = onClickFavOrRecent,
-                    playlist = playlistWithSongs[1].copy(songs = recentPlaylistSongs)
+                PlaylistShelfCard(
+                    modifier = Modifier.weight(1f),
+                    accentColor = RecentPlayListColor,
+                    icon = Icons.TwoTone.Refresh,
+                    title = "Recent",
+                    subtitle = "${recentPlaylistSongs.size} songs",
+                    coverUrl = recentPlaylistSongs.firstOrNull()?.cover.orEmpty(),
+                    onClick = { onClickFavOrRecent(recentPlaylistId) }
                 )
 
             }
@@ -268,8 +282,10 @@ fun SharedTransitionScope.SongsList(
                             songToDelete = song
                             isShowDeleteDialog = true
                         },
-                        onShareClick = { context.shareAudioFile(listOf(song.dataUri.toUri())) },
-                        selectModeEnabled = selectModeEnabled
+                        onShareClick = { context.shareAudioFile(song.dataUri.toUri()) },
+                        selectModeEnabled = selectModeEnabled,
+                        sharedTransitionScope = this@SongsList,
+                        animatedVisibilityScope = animatedVisibilityScope
                     )
                 }
 

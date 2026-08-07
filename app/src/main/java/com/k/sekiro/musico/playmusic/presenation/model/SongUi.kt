@@ -9,6 +9,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.domain.model.Song
@@ -20,6 +21,7 @@ import java.util.concurrent.TimeUnit
 
 @Serializable
 @Stable
+@Immutable
 data class SongUi(
     val name: String,
     val title: String = "",

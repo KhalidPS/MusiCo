@@ -15,7 +15,7 @@ import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
 import com.k.sekiro.musico.playmusic.domain.model.IsSelectedFromPlaylist_KEY
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
-import com.k.sekiro.musico.playmusic.domain.model.RecentSongs_KEY
+import com.k.sekiro.musico.playmusic.domain.model.RecentSongsIds_KEY
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
@@ -45,7 +45,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
-import kotlin.coroutines.suspendCoroutine
 
 class ViewModel(
     private val songsRepository: SongsRepository,
@@ -74,7 +73,7 @@ class ViewModel(
             getPlayLists()
             getRecentPlaylistSongs()
             getPlaylistsWithSongs()
-            getSavedRecentPlaylistSongs()
+            getSavedLastPlayedPlaylistSongs()
 
         }
         .stateIn(
@@ -485,25 +484,28 @@ class ViewModel(
         }
     }
 
-    private suspend fun getSavedRecentPlaylistSongs() = coroutineScope {
+    private suspend fun getSavedLastPlayedPlaylistSongs() = coroutineScope {
         if (isSelectedSongFromPlaylist.value) {
-            val string = async { dataSaver.suspendGet(RecentSongs_KEY, "") }
+            val string = async { dataSaver.suspendGet(RecentSongsIds_KEY, "") }
 
-            val recentSongs: List<SongUi> = try {
+            val songIds: List<Long> = try {
                 Json.decodeFromString(string.await())
             } catch (ex: SerializationException) {
                 emptyList()
             } catch (ex: Exception) {
                 emptyList()
             }
+
+            // preserves the saved order; songs deleted since saving are dropped via mapNotNull
+            val recentSongs = songIds.mapNotNull { songsRepository.getSong(it) }.map { it.toSongUi() }
             Log.e("ks", "my current :$recentSongs")
             currentPlayedPlaylistSong.update { recentSongs }
         }
     }
 
     suspend fun saveRecentPlaylistSongs() {
-        val stringList = Json.encodeToString(currentPlayedPlaylistSong.value)
-        dataSaver.suspendSave(RecentSongs_KEY, stringList)
+        val stringList = Json.encodeToString(currentPlayedPlaylistSong.value.map { it.id })
+        dataSaver.suspendSave(RecentSongsIds_KEY, stringList)
     }
 
 

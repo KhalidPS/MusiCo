@@ -2,9 +2,6 @@ package com.k.sekiro.musico
 
 import android.app.Activity
 import android.app.RecoverableSecurityException
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
@@ -28,10 +25,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
@@ -125,7 +124,8 @@ class MainActivity : ComponentActivity() {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                     val intentSender = MediaStore.createDeleteRequest(
                                         contentResolver,
-                                        event.uris)
+                                        event.uris
+                                    )
                                     val request = IntentSenderRequest.Builder(intentSender).build()
                                     deletePermissionLauncher.launch(request)
 
@@ -179,6 +179,7 @@ class MainActivity : ComponentActivity() {
                                 composable<Home> {
 
                                     val progress by rememberUpdatedState(state.value.sliderProgress)
+                                    var bottomClicked by rememberSaveable { mutableStateOf(false) }
                                     val currentPosition by rememberUpdatedState(state.value.currentPosition)
                                     val songs = state.value.songs
                                     val isPlaying = state.value.isPlaying
@@ -192,6 +193,7 @@ class MainActivity : ComponentActivity() {
                                         SongsList(
                                             songs = songs,
                                             onSongClicked = { song, index ->
+                                                bottomClicked = false
                                                 handleSongClicked(
                                                     song,
                                                     songs,
@@ -218,6 +220,7 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             },
                                             onBottomBarClicked = {
+                                                bottomClicked = true
                                                 handleBottomBarClicked(
                                                     playedSong, songs, navController
                                                 )
@@ -230,7 +233,7 @@ class MainActivity : ComponentActivity() {
                                             onAddSingleSong = viewModel::addSingleSongToPlaylist,
                                             playlistWithSongs = playlistWithSongs,
                                             onShowcasePlaylists = {
-                                                navController.navigate(PlaylistShowcase){
+                                                navController.navigate(PlaylistShowcase) {
                                                     launchSingleTop = true
                                                     popUpTo(Home)
                                                 }
@@ -239,12 +242,13 @@ class MainActivity : ComponentActivity() {
                                                 viewModel.onCancelAllSelectedSongs()
                                                 navController.navigate(
                                                     PlaylistScreen(it)
-                                                ){
+                                                ) {
                                                     launchSingleTop = true
                                                     popUpTo(Home)
                                                 }
                                             },
-                                            recentPlaylistSongs = recentPlaylistSongs
+                                            recentPlaylistSongs = recentPlaylistSongs,
+                                            bottomClicked = bottomClicked
                                         )
                                     } else {
                                         LoadingScreen()
@@ -254,16 +258,16 @@ class MainActivity : ComponentActivity() {
 
                                 composable<PlayedSong>(
                                     popEnterTransition = {
-                                        fadeIn(tween(1000, easing = LinearEasing))
+                                        fadeIn(tween(350, easing = LinearEasing))
                                     },
                                     enterTransition = {
-                                        fadeIn(tween(1000, easing = LinearEasing))
+                                        fadeIn(tween(350, easing = LinearEasing))
                                     },
                                     exitTransition = {
-                                        fadeOut(tween(1000, easing = LinearEasing))
+                                        fadeOut(tween(350, easing = LinearEasing))
                                     },
                                     popExitTransition = {
-                                        fadeOut(tween(1000, easing = LinearEasing))
+                                        fadeOut(tween(350, easing = LinearEasing))
                                     }
                                     /*  typeMap = mapOf(
                                           typeOf<DisplayableDuration>() to CustomNavType.DisplayableDurationType
@@ -276,6 +280,7 @@ class MainActivity : ComponentActivity() {
                                     val index = it.toRoute<PlayedSong>().index
                                     val isFromPlaylist = it.toRoute<PlayedSong>().isFromPlaylist
                                     val playlistId = it.toRoute<PlayedSong>().playlistId
+                                    val launchedFromBottomBar = it.toRoute<PlayedSong>().launchedFromBottomBar
 
                                     val progress by rememberUpdatedState(state.value.sliderProgress)
                                     val passedTime by rememberUpdatedState(state.value.passedTimeDuration)
@@ -307,8 +312,14 @@ class MainActivity : ComponentActivity() {
                                         favoriteSongs = favoriteSongs.songs,
                                         onAction = viewModel::onAction,
                                         index = index,
+                                        launchedFromBottomBar = launchedFromBottomBar,
                                         animatedVisibilityScope = this,
-                                        onDownArrowClicked = { navController.popBackStack() },
+                                        onDownArrowClicked = {
+                                            navController.popBackStack(
+                                                route = Home,
+                                                inclusive = false
+                                            )
+                                        },
                                         onSettledPageChanged = viewModel::addToRecent
                                     )
 
@@ -318,11 +329,16 @@ class MainActivity : ComponentActivity() {
                                     val playlistsWithSongs = state.value.playlistsWithSongs
                                     ShowcasePlaylists(
                                         playlists = playlistsWithSongs,
-                                        onBackButtonClicked = { navController.popBackStack() },
+                                        onBackButtonClicked = {
+                                            navController.popBackStack(
+                                                route = Home,
+                                                inclusive = false
+                                            )
+                                        },
                                         onAddPlaylistClicked = viewModel::addNewPlaylist,
                                         onPlaylistItemClicked = {
                                             viewModel.onCancelAllSelectedSongs()
-                                            navController.navigate(PlaylistScreen(it)){
+                                            navController.navigate(PlaylistScreen(it)) {
                                                 launchSingleTop = true
                                                 popUpTo(PlaylistShowcase)
                                             }
@@ -354,7 +370,12 @@ class MainActivity : ComponentActivity() {
 
                                     PlaylistCollapsingScreen(
                                         playlistWithSongsUi = playlist ?: return@composable,
-                                        onBackButtonClicked = { navController.popBackStack() },
+                                        onBackButtonClicked = {
+                                            val name = playlist.playlist.name.lowercase()
+                                            if (name == "favorite" || name == "recent")
+                                            navController.popBackStack(route = Home, inclusive = false)
+                                            else navController.popBackStack(route = PlaylistShowcase, inclusive = false)
+                                        },
                                         onSongClicked = { index, song ->
                                             //val currentPlayedIndex = playlist.songs.indexOf(state.value.playedSong)
                                             //if (song.path != controller?.currentMediaItem?.mediaId || index != controllerManager.getController()!!.currentMediaItemIndex) {
@@ -381,7 +402,8 @@ class MainActivity : ComponentActivity() {
                                         onConfirmDeletePlaylist = {
                                             viewModel.deletePlaylist(it)
                                             navController.popBackStack()
-                                        }
+                                        },
+                                        animatedVisibilityScope = this,
                                     )
 
                                 }
@@ -432,9 +454,10 @@ class MainActivity : ComponentActivity() {
             PlayedSong(
                 index = index,
                 isFromPlaylist = viewModel.isSelectedSongFromPlaylist(),
-                playlistId = viewModel.currentPlaylistId()
+                playlistId = viewModel.currentPlaylistId(),
+                launchedFromBottomBar = true
             )
-        ){
+        ) {
             launchSingleTop = true
             popUpTo(Home)
         }
@@ -488,7 +511,7 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(index)
             viewModel.addToRecent(song.id)
         }
-        navController.navigate(PlayedSong(index)){
+        navController.navigate(PlayedSong(index)) {
             launchSingleTop = true
             popUpTo(Home)
         }
@@ -509,35 +532,45 @@ class MainActivity : ComponentActivity() {
         val controller = viewModel.getController() ?: return
         if (viewModel.getIsNewCreation()) viewModel.setIsNewCreation(false)
 
-        if (playlistId != currentPlaylistId) {
-            viewModel.updateIsSelectedSongFromPlaylist(
-                true,
-                playlist.songs,
-                playlistId
-            )
+        /** Resync the cached playlist snapshot (currentPlayedPlaylistSong) to the playlist's
+        current order before navigating, even if we don't touch the controller. Otherwise,
+        re-clicking the song that's already playing (song.path == currentMediaItem and
+        playlistId == currentPlaylistId) would leave the ViewModel's cached songs list stale
+        (e.g. from before this song got bumped to the top of Recent), and PlayedSongScreen
+        would read that stale list at the fresh `index`.
 
-            controller?.setMediaItemsList(
-                startIndex = index,
-                songs = playlist.songs,
-                startProgress = 0L
-            )
+        The controller's actual media items must also be resynced whenever the playlist's
+        order changed (`previousPlaylistSongs != playlist.songs`), not just when the song or
+        playlistId changed - otherwise the controller keeps the song at its OLD index, and the
+        pager's settle effect (ChangeToOtherSong) ends up seeking the controller to `index`
+        within that stale, un-reordered list: the UI shows the right song (it's built from the
+        freshly-synced snapshot) but playback comes from whatever used to sit at that index.**/
+        val previousPlaylistSongs = viewModel.currentPlaylistSongs()
+        viewModel.updateIsSelectedSongFromPlaylist(
+            true,
+            playlist.songs,
+            playlistId
+        )
 
-        } else if (song.path != controller?.currentMediaItem?.mediaId) {
-            viewModel.updateIsSelectedSongFromPlaylist(
-                true,
-                playlist.songs,
-                playlistId
-            )
+        val isSameSongAlreadyLoaded = song.path == controller.currentMediaItem?.mediaId
 
+        if (
+            playlistId != currentPlaylistId ||
+            !isSameSongAlreadyLoaded ||
+            previousPlaylistSongs != playlist.songs
+        ) {
             Log.e(
                 "ks",
                 "the index : $index , playlistId: $playlistId"
             )
+            /** Re-clicking the song that's already loaded only needs the controller's list
+            reordered to match the playlist's new order (so prev/next stay correct) - it must
+            resume from where it already was, not restart from 0, since it's the same song.**/
             controller
-                ?.setMediaItemsList(
+                .setMediaItemsList(
                     startIndex = index,
                     songs = playlist.songs,
-                    startProgress = 0L
+                    startProgress = if (isSameSongAlreadyLoaded) controller.currentPosition else 0L
                 )
 
         }
@@ -547,7 +580,7 @@ class MainActivity : ComponentActivity() {
                 isFromPlaylist = true,
                 playlistId = playlist.playlist.id
             )
-        ){
+        ) {
             launchSingleTop = true
         }
     }

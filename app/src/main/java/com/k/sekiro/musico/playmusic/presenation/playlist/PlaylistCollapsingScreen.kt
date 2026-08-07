@@ -2,15 +2,18 @@ package com.k.sekiro.musico.playmusic.presenation.playlist
 
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Delete
@@ -49,13 +52,10 @@ import com.k.sekiro.musico.playmusic.presenation.playlist.component.FabMenuItem
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
 import com.k.sekiro.musico.playmusic.presenation.util.component.DeleteDialog
 import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectionBottomSheet
-import com.k.sekiro.musico.playmusic.presenation.songs_list.component.Song
+import com.k.sekiro.musico.playmusic.presenation.util.component.Song
 import com.k.sekiro.musico.playmusic.presenation.util.component.AddPlaylistDialog
 import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
 import com.k.sekiro.musico.ui.theme.Red
-import com.k.sekiro.musico.ui.theme.Red2
-import com.k.sekiro.musico.ui.theme.Red3
-import com.k.sekiro.musico.ui.theme.RedVarient
 
 // Assuming you have a drawable resource named 'sample_image'
 // For this example, let's use a placeholder.
@@ -63,9 +63,9 @@ import com.k.sekiro.musico.ui.theme.RedVarient
 // Create a file called `res/drawable/sample_image.jpg` or use a different image resource.
 //import com.your.package.name.R // Replace with your actual package name
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun PlaylistCollapsingScreen(
+fun SharedTransitionScope.PlaylistCollapsingScreen(
     playlistWithSongsUi: PlaylistWithSongsUi,
     onAction: (UiAction) -> Unit = {},
     onAddToNewPlaylist: (String) -> Unit,
@@ -78,6 +78,7 @@ fun PlaylistCollapsingScreen(
     onSelectSong: (SongUi) -> Unit = {},
     selectedSongs: List<SongUi>,
     selectModeEnabled: Boolean,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onConfirmDeletePlaylist:(Playlist) -> Unit = {}
 ) {
 
@@ -200,7 +201,7 @@ fun PlaylistCollapsingScreen(
                         }
                     },
                     onLongClicked = onSelectSong,
-                    onShareClick = { context.shareAudioFile(listOf(song.dataUri.toUri())) },
+                    onShareClick = { context.shareAudioFile(song.dataUri.toUri()) },
                     onDeleteClicked = {
                         songToAddFromMenu = song
                         isShowDeleteDialog = true
@@ -210,7 +211,9 @@ fun PlaylistCollapsingScreen(
                         isShowSheet = true
                     },
                     selectedSongs = selectedSongs,
-                    selectModeEnabled = selectModeEnabled
+                    selectModeEnabled = selectModeEnabled,
+                    sharedTransitionScope = this@PlaylistCollapsingScreen,
+                    animatedVisibilityScope = animatedVisibilityScope
                 )
             }
         }
@@ -248,20 +251,23 @@ fun PlaylistCollapsingScreen(
         CustomTopBar(
             collapsedToolbarHeight = collapsedToolbarHeight,
             scrollProgress = scrollProgress,
-            isBackEnabled = isBackEnabled
+            isBackEnabled = isBackEnabled,
+            onBackButtonClicked = onBackButtonClicked
         )
 
         
-        IconButton(
-            onClick = { isShowDeletePlaylistDialog = true },
-            modifier = Modifier.zIndex(if (scrollProgress < 1f) 5f else 0f)
-        ) { 
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = null,
-                tint = Red
-            )
-        }
+       if (playlistWithSongsUi.playlist.name.lowercase() != "favorite" && playlistWithSongsUi.playlist.name.lowercase() != "recent"){
+           IconButton(
+               onClick = { isShowDeletePlaylistDialog = true },
+               modifier = Modifier.zIndex(if (scrollProgress < 1f) 5f else 0f)
+           ) {
+               Icon(
+                   imageVector = Icons.Default.Delete,
+                   contentDescription = null,
+                   tint = Red
+               )
+           }
+       }
 
 
         if (selectModeEnabled) {
@@ -430,17 +436,23 @@ fun PlaylistCollapsingScreen(
 
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
 private fun CollapsingTitleToolbarPrev() {
-    PlaylistCollapsingScreen(
-        playlistWithSongsUi = mockPlaylists[0],
-        selectedSongs = mockSongs.map { it.toSongUi() },
-        selectModeEnabled = false,
-        playlists = emptyList(),
-        onCancelClicked = {},
-        onAddToExistPlaylist = {},
-        onAddToNewPlaylist = {},
-        onAddSingleSong = { _, _, _ -> }
-    )
+    SharedTransitionLayout {
+        AnimatedVisibility(true) {
+            PlaylistCollapsingScreen(
+                playlistWithSongsUi = mockPlaylists[0],
+                selectedSongs = mockSongs.map { it.toSongUi() },
+                selectModeEnabled = false,
+                playlists = emptyList(),
+                onCancelClicked = {},
+                onAddToExistPlaylist = {},
+                onAddToNewPlaylist = {},
+                onAddSingleSong = { _, _, _ -> },
+                animatedVisibilityScope = this
+            )
+        }
+    }
 }

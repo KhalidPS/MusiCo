@@ -31,6 +31,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PauseCircle
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.twotone.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -74,8 +76,8 @@ import androidx.palette.graphics.Palette
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.presenation.util.Constants
 import com.k.sekiro.musico.playmusic.presenation.util.applyIf
+import com.k.sekiro.musico.playmusic.presenation.util.getColorFromCover
 import com.k.sekiro.musico.playmusic.presenation.util.toPx
-import com.k.sekiro.musico.playmusic.domain.convertUriToBitmap
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
@@ -83,11 +85,10 @@ import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
+import com.k.sekiro.musico.playmusic.presenation.played_song.component.InfoDialog
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTimeText
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.SongSlider
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -107,6 +108,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     playType: PlayType,
     isPlaying: Boolean,
     index: Int = 0,
+    launchedFromBottomBar: Boolean = false,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onAction: (UiAction) -> Unit,
     onDownArrowClicked: () -> Unit = {},
@@ -128,20 +130,24 @@ fun SharedTransitionScope.PlayedSongScreen(
 
     var spotColor by remember { mutableStateOf(Color.Cyan) }
 
+    var isShowDialog by remember { mutableStateOf(false) }
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    /*    val infiniteTransition = rememberInfiniteTransition(label = "")
-        val colorAnimation = infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1000),
-                repeatMode = RepeatMode.Reverse
-            ), label = ""
-        )
-        */
+    // The mini player bottom bar and the song list card each have their own shared-element key
+    // namespace (they can be mounted at the same time), so pick the one that matches whichever
+    // element the user actually navigated from.
+    val imageKey = if (launchedFromBottomBar) Constants.IMAGE_KEY else Constants.LIST_IMAGE_KEY
+    val titleKey = if (launchedFromBottomBar) Constants.TITLE_KEY else Constants.LIST_TITLE_KEY
+    val artistKey = if (launchedFromBottomBar) Constants.ARTIST_KEY else Constants.LIST_ARTIST_KEY
 
+    if (isShowDialog){
+        InfoDialog(
+            song = songs[pagerState.settledPage],
+            onDismissRequest = { isShowDialog = false },
+            onCloseClicked = { isShowDialog = false },
+        )
+    }
 
     val imgWidthPx = 270.dp.toPx(density = density)
     val imgHeightPx = 350.dp.toPx(density = density)
@@ -253,43 +259,13 @@ fun SharedTransitionScope.PlayedSongScreen(
 
 
             val song = songs[it]
-            val songCover = async {
-                convertUriToBitmap(
-                    song.cover.toUri(),
-                    context.contentResolver,
-                    resources
-                )
-            }
-
-
-            val palette = if (lurCache[song.path] != null) {
-                Log.e("ks", "$it :${lurCache[song.path]}")
-                lurCache[song.path]!!
-            } else {
-                Palette.from(songCover.await()).generate().apply {
-                    lurCache.put(song.path, this)
-                }
-            }
-
-
-            withContext(Dispatchers.Main.immediate) {
-                outlineColor =
-                    if (palette.vibrantSwatch != null) Color(
-                        palette.vibrantSwatch!!.rgb
-                    ) else if (palette.lightVibrantSwatch != null) {
-                        Color(palette.lightVibrantSwatch!!.rgb)
-                    } else if (palette.darkVibrantSwatch != null) {
-                        Color(palette.darkVibrantSwatch!!.rgb)
-                    } else if (palette.lightMutedSwatch != null) {
-                        Color(palette.lightMutedSwatch!!.rgb)
-                    } else if (palette.mutedSwatch != null) {
-                        Color(palette.mutedSwatch!!.rgb)
-                    } else if (palette.darkMutedSwatch != null) {
-                        Color(palette.darkMutedSwatch!!.rgb)
-                    } else Color.Cyan
-                spotColor = outlineColor
-
-            }
+            outlineColor = getColorFromCover(
+                lurCache = lurCache,
+                context = context,
+                cover = song.cover,
+                path = song.path
+            )
+            spotColor = outlineColor
 
         }
 
@@ -370,10 +346,12 @@ fun SharedTransitionScope.PlayedSongScreen(
                 }
 
                 IconButton(
-                    onClick = {}
+                    onClick = {
+                        isShowDialog = true
+                    }
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
+                        imageVector = Icons.TwoTone.Info,
                         contentDescription = null,
                         modifier = Modifier.size(30.dp),
                         tint = Color.White
@@ -444,7 +422,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                         contentDescription = null,
                         modifier = Modifier
                             .sharedBounds(
-                                sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_${songs[it].path}"),
+                                sharedContentState = rememberSharedContentState("${imageKey}_${songs[it].path}"),
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 resizeMode = ResizeMode.RemeasureToBounds,
                             )
@@ -500,7 +478,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                     textAlign = TextAlign.Start,
                     modifier = Modifier
                         .sharedBounds(
-                            sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${songs[pagerState.currentPage].path}"),
+                            sharedContentState = rememberSharedContentState("${titleKey}_${songs[pagerState.currentPage].path}"),
                             animatedVisibilityScope = animatedVisibilityScope
                         )
                         .fillMaxWidth()
@@ -520,7 +498,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                     textAlign = TextAlign.Start,
                     modifier = Modifier
                         .sharedBounds(
-                            sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${songs[pagerState.currentPage].path}"),
+                            sharedContentState = rememberSharedContentState("${artistKey}_${songs[pagerState.currentPage].path}"),
                             animatedVisibilityScope = animatedVisibilityScope
                         )
                         .fillMaxWidth()

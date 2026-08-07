@@ -1,21 +1,20 @@
 package com.k.sekiro.musico.playmusic.domain
 
-import android.content.ContentResolver
 import android.content.Context
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.ImageDecoder
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import android.os.Build
 import android.util.Log
 import androidx.annotation.DrawableRes
+import coil3.imageLoader
+import coil3.request.ErrorResult
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import coil3.toBitmap
 import com.k.sekiro.musico.R
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okio.FileNotFoundException
-import okio.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import androidx.core.net.toUri
@@ -72,62 +71,32 @@ fun String.toBitmap(resources: Resources): Bitmap {
 
 
 
-suspend fun convertUriToBitmap(uri: Uri, contentResolver: ContentResolver,resources: Resources): Bitmap
-= withContext(Dispatchers.Default){
-    var bitmap: Bitmap? = null
-    try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val imageDecoder = ImageDecoder.createSource(contentResolver, uri)
+/** This is only ever used to feed androidx.palette's color extraction, which internally
+resizes whatever bitmap it's given down to ~112x112 before quantizing anyway - no need to
+decode anywhere near full resolution for it.**/
+private const val PALETTE_TARGET_SIZE_PX = 200
 
-            bitmap = ImageDecoder.decodeBitmap(
-                imageDecoder,
-                ImageDecoder.OnHeaderDecodedListener{ decoder, info, source ->
-                    /**This recommended from official documentation if you want
-                    to access the pixels from the final result for example
-                    our case, The palette class access the pixels to get the main
-                    color for photo so, here without (ImageDecoder.OnHeaderDecodedListener)
-                    and these 2 property decoder.allocator, decoder.isMutableRequired
-                    we will get exception when the execution arrive Palette code in the PlayedSongScreen
-                    isMutableRequired is important here cuz the default returned type is immutable bitmap
-                    so it won't be able to access the pixels from immutable one
-                    see "https://developer.android.com/reference/kotlin/android/graphics/ImageDecoder"
+/** Routed through the app's shared Coil ImageLoader (and its memory/disk cache) rather than
+decoding independently: this cover art has almost always already been decoded by an AsyncImage
+displaying it elsewhere on screen (song row, bottom bar, PlayedSongScreen's big cover), so this
+can reuse that cached bitmap instead of paying for a second decode of the same file.**/
+suspend fun convertUriToBitmap(uri: Uri, context: Context, resources: Resources): Bitmap {
+    val request = ImageRequest.Builder(context)
+        .data(uri)
+        .allowHardware(false) // Palette reads raw pixels - HARDWARE bitmaps can't provide that
+        .size(PALETTE_TARGET_SIZE_PX, PALETTE_TARGET_SIZE_PX)
+        .build()
 
-                    another option without ImageDecoder.OnHeaderDecodedListener is to copy the resul bitmap
-                    and change the config and set true for isMutable like this: copy(Bitmap.Config.RGBA_F16,true)
-                    but first option is better
-                     **/
-
-                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                    decoder.isMutableRequired = true
-                }
-            )/**.copy(Bitmap.Config.RGBA_F16,true)*/
-        } else {
-
-            val inputStream = contentResolver.openInputStream(uri)
-            val options = BitmapFactory.Options().apply {
-                inSampleSize = 2
-            }
-
-            if (inputStream != null) {
-                bitmap = BitmapFactory.decodeStream(inputStream, null, options)
-                inputStream.close()
+    return try {
+        when (val result = context.imageLoader.execute(request)) {
+            is SuccessResult -> result.image.toBitmap()
+            is ErrorResult -> {
+                Log.e("ks", "${result.throwable.message}")
+                BitmapFactory.decodeResource(resources, R.drawable.logo_2)
             }
         }
-
-
-    } catch (ex: FileNotFoundException){
-        Log.e("ks", "${ex.message}")
-        bitmap = BitmapFactory.decodeResource(resources,R.drawable.logo_2)
-    } catch (ex: IOException){
-        Log.e("ks", "${ex.message}")
-        bitmap = BitmapFactory.decodeResource(resources,R.drawable.logo_2)
-
     } catch (ex: Exception) {
         Log.e("ks", "${ex.message}")
-        bitmap = BitmapFactory.decodeResource(resources,R.drawable.logo_2)
-
-
+        BitmapFactory.decodeResource(resources, R.drawable.logo_2)
     }
-
-    bitmap!!
 }
