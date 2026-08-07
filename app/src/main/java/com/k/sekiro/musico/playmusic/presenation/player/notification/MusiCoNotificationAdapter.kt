@@ -8,7 +8,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerNotificationManager
 import coil3.Image
-import coil3.ImageLoader
+import coil3.imageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
@@ -36,7 +36,10 @@ class MusiCoNotificationAdapter(
         callback: PlayerNotificationManager.BitmapCallback
     ): Bitmap? {
         var bitmap: Bitmap? = null
-        val imageLoader = ImageLoader(context)
+        // Reuse the app's shared Coil ImageLoader (and its memory/disk cache) instead of
+        // constructing a fresh one - a new ImageLoader on every notification update has an
+        // empty cache and can't benefit from artwork already decoded elsewhere in the app.
+        val imageLoader = context.imageLoader
         val request = ImageRequest.Builder(
             context
         )
