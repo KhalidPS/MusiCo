@@ -142,7 +142,7 @@ fun SharedTransitionScope.BrowseDetailScreen(
 
         AsyncImage(
             model = coverUrl,
-            error = painterResource(id = R.drawable.logo_2),
+            error = painterResource(id = R.drawable.logo_musico3),
             contentDescription = "$title cover",
             contentScale = ContentScale.Crop,
             modifier = Modifier

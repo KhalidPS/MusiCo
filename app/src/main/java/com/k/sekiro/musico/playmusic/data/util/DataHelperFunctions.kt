@@ -85,7 +85,7 @@ suspend fun getSongsByUri(context: Context,uri: Uri) =
                 val lastModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
 
 
-                val placeholder = getUriFromDrawable(context, R.drawable.logo_2)
+                val placeholder = getUriFromDrawable(context, R.drawable.logo_musico3)
                 while (cursor.moveToNext()) {
 
 

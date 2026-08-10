@@ -166,11 +166,11 @@ fun SharedTransitionScope.PlayedSongScreen(
 
         val painter = when (painterState.value) {
             is AsyncImagePainter.State.Empty -> {
-                painterResource(R.drawable.logo_2)
+                painterResource(R.drawable.logo_musico3)
             }
 
             is AsyncImagePainter.State.Error -> {
-                painterResource(R.drawable.logo_2)
+                painterResource(R.drawable.logo_musico3)
             }
 
             else -> {
@@ -285,8 +285,8 @@ fun SharedTransitionScope.PlayedSongScreen(
              * the image itself with alpha for it else the image with blur*/
             AsyncImage(
                 model = songs[pagerState.currentPage].cover,
-                error = painterResource(R.drawable.logo_2),
-                placeholder = painterResource(R.drawable.logo_2),
+                error = painterResource(R.drawable.logo_musico3),
+                placeholder = painterResource(R.drawable.logo_musico3),
                 //bitmap = songs[pagerState.currentPage].cover.asImageBitmap(),
                 contentDescription = null,
                 modifier = Modifier
@@ -312,8 +312,8 @@ fun SharedTransitionScope.PlayedSongScreen(
             AsyncImage(
                 model = songs[pagerState.currentPage].cover,
                 //bitmap = songs[pagerState.currentPage].cover.asImageBitmap(),
-                error = painterResource(R.drawable.logo_2),
-                placeholder = painterResource(R.drawable.logo_2),
+                error = painterResource(R.drawable.logo_musico3),
+                placeholder = painterResource(R.drawable.logo_musico3),
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
@@ -412,14 +412,14 @@ fun SharedTransitionScope.PlayedSongScreen(
                                         }*/
 
 
-                    //  val songCover = songs[it].cover?:convertResToBitmap(context,R.drawable.logo_2)
+                    //  val songCover = songs[it].cover?:convertResToBitmap(context,R.drawable.logo_musico3)
 
 
                     AsyncImage(
                         model = songs[it].cover,
                         //bitmap = songs[it].cover.asImageBitmap(),
-                        error = painterResource(R.drawable.logo_2),
-                        placeholder = painterResource(R.drawable.logo_2),
+                        error = painterResource(R.drawable.logo_musico3),
+                        placeholder = painterResource(R.drawable.logo_musico3),
                         contentDescription = null,
                         modifier = Modifier
                             // Only the settled page should participate in the shared-element
