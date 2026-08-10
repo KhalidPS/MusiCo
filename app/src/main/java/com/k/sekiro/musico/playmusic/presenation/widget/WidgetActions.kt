@@ -17,7 +17,9 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.k.sekiro.musico.playmusic.presenation.player.notification.CUSTOM_COMMAND_ADD_FAVORITE_ACTION
 import com.k.sekiro.musico.playmusic.presenation.player.notification.CUSTOM_COMMAND_REMOVE_FAVORITE_ACTION
 import com.k.sekiro.musico.playmusic.presenation.player.service.PlayerSessionService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -27,33 +29,39 @@ Glance's ActionCallback execution model doesn't support holding a persistent con
 across taps, and the resulting binder round-trip latency on rapid double-taps is expected,
 not a bug.**/
 private suspend fun withMediaController(context: Context, block: suspend (MediaController) -> Unit) {
-    Log.e("ks", "widget: connecting MediaController")
-    // ActionCallback's context is a ReceiverRestrictedContext (Glance routes action
-    // execution through its internal BroadcastReceiver) - bindService() (which
-    // MediaController.Builder does internally to connect to PlayerSessionService) is
-    // hard-blocked from that context with ReceiverCallNotAllowedException.
-    // applicationContext is never receiver-restricted.
-    val appContext = context.applicationContext
-    val sessionToken = SessionToken(appContext, ComponentName(appContext, PlayerSessionService::class.java))
-    val controllerFuture = MediaController.Builder(appContext, sessionToken).buildAsync()
-    try {
-        val controller = suspendCancellableCoroutine { cont ->
-            controllerFuture.addListener({
-                try {
-                    cont.resume(controllerFuture.get())
-                } catch (ex: Exception) {
-                    Log.e("ks", "widget: MediaController connect failed: ${ex.message}", ex)
-                    cont.resumeWithException(ex)
-                }
-            }, MoreExecutors.directExecutor())
+    // MediaController enforces same-thread access for every method call, verified against
+    // whatever thread it was *built* on - and that thread must have a Looper. Glance invokes
+    // ActionCallback.onAction on a background dispatcher, not main, so both the build and
+    // every subsequent controller call must be explicitly forced onto Dispatchers.Main.
+    withContext(Dispatchers.Main) {
+        Log.e("ks", "widget: connecting MediaController")
+        // ActionCallback's context is a ReceiverRestrictedContext (Glance routes action
+        // execution through its internal BroadcastReceiver) - bindService() (which
+        // MediaController.Builder does internally to connect to PlayerSessionService) is
+        // hard-blocked from that context with ReceiverCallNotAllowedException.
+        // applicationContext is never receiver-restricted.
+        val appContext = context.applicationContext
+        val sessionToken = SessionToken(appContext, ComponentName(appContext, PlayerSessionService::class.java))
+        val controllerFuture = MediaController.Builder(appContext, sessionToken).buildAsync()
+        try {
+            val controller = suspendCancellableCoroutine { cont ->
+                controllerFuture.addListener({
+                    try {
+                        cont.resume(controllerFuture.get())
+                    } catch (ex: Exception) {
+                        Log.e("ks", "widget: MediaController connect failed: ${ex.message}", ex)
+                        cont.resumeWithException(ex)
+                    }
+                }, MoreExecutors.directExecutor())
+            }
+            Log.e("ks", "widget: MediaController connected, running command")
+            block(controller)
+            Log.e("ks", "widget: command sent")
+        } catch (ex: Exception) {
+            Log.e("ks", "widget: withMediaController failed: ${ex.message}", ex)
+        } finally {
+            MediaController.releaseFuture(controllerFuture)
         }
-        Log.e("ks", "widget: MediaController connected, running command")
-        block(controller)
-        Log.e("ks", "widget: command sent")
-    } catch (ex: Exception) {
-        Log.e("ks", "widget: withMediaController failed: ${ex.message}", ex)
-    } finally {
-        MediaController.releaseFuture(controllerFuture)
     }
 }
 
