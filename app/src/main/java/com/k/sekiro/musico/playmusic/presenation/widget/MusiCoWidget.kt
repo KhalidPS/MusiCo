@@ -6,8 +6,10 @@ import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
@@ -56,6 +58,7 @@ class MusiCoWidget : GlanceAppWidget() {
 private val WidgetBackground = ColorProvider(color = Color(0xFF1A1A1A))
 private val WidgetTextPrimary = ColorProvider(color = Color.White)
 private val WidgetTextSecondary = ColorProvider(color = Color(0xFFB3B3B3))
+private val WidgetFavoriteActive = ColorProvider(color = Color(0xFFFF4D67))
 
 @Composable
 private fun WidgetContent(prefs: Preferences) {
@@ -163,10 +166,16 @@ private fun PlayingState(prefs: Preferences) {
                     contentDescription = "Next",
                     onClick = actionRunCallback<NextAction>()
                 )
+                Spacer(modifier = GlanceModifier.width(4.dp))
                 WidgetIconButton(
+                    // Same filled-vs-outline heart as before, but now also tinted so the
+                    // "on" state pops against the black background instead of relying on
+                    // fill-vs-outline alone (which read as "not clear" at a glance).
                     resId = if (isFavorite) R.drawable.favorite else R.drawable.unfavorite,
                     contentDescription = "Favorite",
-                    onClick = actionRunCallback<FavoriteAction>()
+                    onClick = actionRunCallback<FavoriteAction>(),
+                    tint = if (isFavorite) WidgetFavoriteActive else WidgetTextSecondary,
+                    size = 30.dp
                 )
             }
         }
@@ -177,13 +186,16 @@ private fun PlayingState(prefs: Preferences) {
 private fun WidgetIconButton(
     resId: Int,
     contentDescription: String,
-    onClick: Action
+    onClick: Action,
+    tint: ColorProvider = WidgetTextPrimary,
+    size: Dp = 34.dp
 ) {
     Image(
         provider = ImageProvider(resId),
         contentDescription = contentDescription,
+        colorFilter = ColorFilter.tint(tint),
         modifier = GlanceModifier
-            .size(28.dp)
+            .size(size)
             .padding(4.dp)
             .clickable(onClick)
     )
