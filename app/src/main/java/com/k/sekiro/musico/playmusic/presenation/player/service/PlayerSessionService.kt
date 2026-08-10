@@ -39,6 +39,7 @@ import com.k.sekiro.musico.playmusic.presenation.player.notification.MusiCoNotif
 import com.k.sekiro.musico.playmusic.presenation.player.notification.NotificationPlayerCustomCommand
 import com.k.sekiro.musico.playmusic.presenation.player.startProgressUpdate
 import com.k.sekiro.musico.playmusic.presenation.player.stopProgressUpdate
+import com.k.sekiro.musico.playmusic.presenation.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -89,6 +90,11 @@ class PlayerSessionService : MediaSessionService() {
                         }
                     }
 
+                // Pushed here (after isFavorite resolves), not from a separate listener
+                // reacting to the same onMediaItemTransition event - a separate listener
+                // would race this async lookup and could push the *previous* song's
+                // isFavorite value alongside the new song's title/artist/cover.
+                pushWidgetState()
 
             }
             Log.e("ks","service onMediaItemTransition")
@@ -97,6 +103,7 @@ class PlayerSessionService : MediaSessionService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             Log.e("ks","service onIsPlayingChanged")
+            pushWidgetState()
 
             if (!isPlaying) {
                 job?.cancel()
@@ -206,6 +213,7 @@ class PlayerSessionService : MediaSessionService() {
                         scope.launch {
                             playlistSongRepo.deletePlaylistSongRef(PlaylistSong(favoritePlaylistId,songId))
                             isFavorite = false
+                            pushWidgetState()
                         }
                     }
                 }
@@ -217,6 +225,7 @@ class PlayerSessionService : MediaSessionService() {
                         scope.launch {
                             playlistSongRepo.addPlaylistSongRef(PlaylistSong(favoritePlaylistId,songId))
                             isFavorite = true
+                            pushWidgetState()
                         }
                     }
                 }
@@ -401,10 +410,34 @@ class PlayerSessionService : MediaSessionService() {
 
     override fun onDestroy() {
         mediaSession?.run {
+            // Snapshot before releasing anything - once the session/player are released
+            // there's nothing left to read the last-playing song's info from.
+            val teardownMediaItem = player.currentMediaItem
+            val teardownCoverUri = teardownMediaItem?.mediaMetadata?.artworkUri
+            val teardownTitle = teardownMediaItem?.mediaMetadata?.displayTitle?.toString().orEmpty()
+            val teardownArtist = teardownMediaItem?.mediaMetadata?.artist?.toString().orEmpty()
+            val teardownIsFavorite = isFavorite
+
             release()
             player.removeListener(listener)
             player.release()
             Log.e("ks", "Service Destroyed ^_^")
+
+            // scope.cancel() below would cancel a push launched on it before it ever runs
+            // (launch only schedules, it doesn't run synchronously) - this teardown push
+            // needs its own short-lived scope, independent of the one about to be cancelled.
+            if (teardownCoverUri != null) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    WidgetUpdater.push(
+                        context = this@PlayerSessionService,
+                        title = teardownTitle,
+                        artist = teardownArtist,
+                        isPlaying = false,
+                        isFavorite = teardownIsFavorite,
+                        coverUri = teardownCoverUri
+                    )
+                }
+            }
 
             scope.cancel()
             //mediaSession = null
@@ -413,6 +446,32 @@ class PlayerSessionService : MediaSessionService() {
         super.onDestroy()
     }
 
+
+    /** Reads current title/artist/cover straight off the player's currentMediaItem rather
+    than threading them through as parameters - every call site (onIsPlayingChanged, the
+    resolved-isFavorite branch of onMediaItemTransition, the two favorite custom-command
+    branches) already has a live mediaSession to read from. No-ops if there's no media item
+    or artwork yet (nothing meaningful to show).**/
+    private fun pushWidgetState() {
+        val player = mediaSession?.player ?: return
+        val mediaItem = player.currentMediaItem ?: return
+        val artworkUri = mediaItem.mediaMetadata.artworkUri ?: return
+        // mediaMetadata.title actually holds the artist (see setMediaItemsList in
+        // PlaybackExtenstions.kt) - displayTitle/artist are the correct fields to read.
+        val title = mediaItem.mediaMetadata.displayTitle?.toString().orEmpty()
+        val artist = mediaItem.mediaMetadata.artist?.toString().orEmpty()
+
+        scope.launch {
+            WidgetUpdater.push(
+                context = this@PlayerSessionService,
+                title = title,
+                artist = artist,
+                isPlaying = player.isPlaying,
+                isFavorite = isFavorite,
+                coverUri = artworkUri
+            )
+        }
+    }
 
     private fun saveCurrentSongData(){
         val currentSong = mediaSession!!.player.currentMediaItemIndex
