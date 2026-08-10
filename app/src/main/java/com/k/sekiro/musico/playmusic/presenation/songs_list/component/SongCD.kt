@@ -120,8 +120,8 @@ fun SharedTransitionScope.SongCD(
         trace("CD Image"){
             AsyncImage(
                 model = cover,
-                error = painterResource(R.drawable.logo_2),
-                placeholder = painterResource(R.drawable.logo_2),
+                error = painterResource(R.drawable.logo_musico3),
+                placeholder = painterResource(R.drawable.logo_musico3),
                 contentDescription = "song cover",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

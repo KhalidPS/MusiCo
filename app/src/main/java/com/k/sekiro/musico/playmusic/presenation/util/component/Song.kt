@@ -96,8 +96,8 @@ fun Song(
         trace("song Image"){
             AsyncImage(
                 model = song.cover,
-                error = painterResource(R.drawable.logo_2),
-                placeholder = painterResource(R.drawable.logo_2),
+                error = painterResource(R.drawable.logo_musico3),
+                placeholder = painterResource(R.drawable.logo_musico3),
 
                 // bitmap = songCover.asImageBitmap(),
                 contentDescription = "song album cover",

@@ -118,7 +118,7 @@ private fun PlayingState(prefs: Preferences) {
     val coverProvider = remember(coverPath, coverVersion) {
         val decoded = coverPath.takeIf { it.isNotBlank() }
             ?.let { path -> runCatching { BitmapFactory.decodeFile(path) }.getOrNull() }
-        if (decoded != null) ImageProvider(decoded) else ImageProvider(R.drawable.logo_2)
+        if (decoded != null) ImageProvider(decoded) else ImageProvider(R.drawable.logo_musico3)
     }
 
     Row(

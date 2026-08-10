@@ -79,7 +79,7 @@ fun BrowseGroupItem(
         ) {
         AsyncImage(
             model = coverUrl,
-            error = painterResource(R.drawable.logo_2),
+            error = painterResource(R.drawable.logo_musico3),
             contentDescription = "$title cover",
             contentScale = ContentScale.Crop,
             modifier = Modifier

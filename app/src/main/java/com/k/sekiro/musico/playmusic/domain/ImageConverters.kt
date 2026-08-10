@@ -64,7 +64,7 @@ fun String.toBitmap(resources: Resources): Bitmap {
     } else {
         Log.e("ks", "after embeddedPicture inside else block")
 
-        return BitmapFactory.decodeResource(resources, R.drawable.logo_2)
+        return BitmapFactory.decodeResource(resources, R.drawable.logo_musico3)
     }
 }
 
@@ -92,11 +92,11 @@ suspend fun convertUriToBitmap(uri: Uri, context: Context, resources: Resources)
             is SuccessResult -> result.image.toBitmap()
             is ErrorResult -> {
                 Log.e("ks", "${result.throwable.message}")
-                BitmapFactory.decodeResource(resources, R.drawable.logo_2)
+                BitmapFactory.decodeResource(resources, R.drawable.logo_musico3)
             }
         }
     } catch (ex: Exception) {
         Log.e("ks", "${ex.message}")
-        BitmapFactory.decodeResource(resources, R.drawable.logo_2)
+        BitmapFactory.decodeResource(resources, R.drawable.logo_musico3)
     }
 }

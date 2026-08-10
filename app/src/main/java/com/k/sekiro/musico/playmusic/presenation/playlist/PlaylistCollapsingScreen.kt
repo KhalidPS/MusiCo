@@ -164,7 +164,7 @@ fun SharedTransitionScope.PlaylistCollapsingScreen(
         // --- Collapsing Image ---
         AsyncImage(
             model = if (playlistWithSongsUi.songs.isNotEmpty()) playlistWithSongsUi.songs[0].cover else "",
-            error = painterResource(id = R.drawable.logo_2),
+            error = painterResource(id = R.drawable.logo_musico3),
             contentDescription = "playlist Image",
             contentScale = ContentScale.Crop,
             modifier = Modifier

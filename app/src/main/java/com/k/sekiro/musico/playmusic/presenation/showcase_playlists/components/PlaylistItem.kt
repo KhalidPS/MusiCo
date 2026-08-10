@@ -93,7 +93,7 @@ fun PlaylistItem(
     ) {
         AsyncImage(
             model = if (playlist.songs.isNotEmpty()) playlist.songs[0].cover else "",
-            error = painterResource(R.drawable.logo_2),
+            error = painterResource(R.drawable.logo_musico3),
             contentDescription = "playlist cover",
             contentScale = ContentScale.Crop,
             modifier = Modifier
