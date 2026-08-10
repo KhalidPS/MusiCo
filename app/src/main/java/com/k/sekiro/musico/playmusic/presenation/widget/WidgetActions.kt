@@ -3,6 +3,7 @@ package com.k.sekiro.musico.playmusic.presenation.widget
 import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.datastore.preferences.core.Preferences
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
@@ -26,19 +27,31 @@ Glance's ActionCallback execution model doesn't support holding a persistent con
 across taps, and the resulting binder round-trip latency on rapid double-taps is expected,
 not a bug.**/
 private suspend fun withMediaController(context: Context, block: suspend (MediaController) -> Unit) {
-    val sessionToken = SessionToken(context, ComponentName(context, PlayerSessionService::class.java))
-    val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+    Log.e("ks", "widget: connecting MediaController")
+    // ActionCallback's context is a ReceiverRestrictedContext (Glance routes action
+    // execution through its internal BroadcastReceiver) - bindService() (which
+    // MediaController.Builder does internally to connect to PlayerSessionService) is
+    // hard-blocked from that context with ReceiverCallNotAllowedException.
+    // applicationContext is never receiver-restricted.
+    val appContext = context.applicationContext
+    val sessionToken = SessionToken(appContext, ComponentName(appContext, PlayerSessionService::class.java))
+    val controllerFuture = MediaController.Builder(appContext, sessionToken).buildAsync()
     try {
         val controller = suspendCancellableCoroutine { cont ->
             controllerFuture.addListener({
                 try {
                     cont.resume(controllerFuture.get())
                 } catch (ex: Exception) {
+                    Log.e("ks", "widget: MediaController connect failed: ${ex.message}", ex)
                     cont.resumeWithException(ex)
                 }
             }, MoreExecutors.directExecutor())
         }
+        Log.e("ks", "widget: MediaController connected, running command")
         block(controller)
+        Log.e("ks", "widget: command sent")
+    } catch (ex: Exception) {
+        Log.e("ks", "widget: withMediaController failed: ${ex.message}", ex)
     } finally {
         MediaController.releaseFuture(controllerFuture)
     }
@@ -46,6 +59,7 @@ private suspend fun withMediaController(context: Context, block: suspend (MediaC
 
 class PlayPauseAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        Log.e("ks", "widget: PlayPauseAction.onAction fired")
         withMediaController(context) { controller ->
             if (controller.isPlaying) controller.pause() else controller.play()
         }
@@ -54,18 +68,21 @@ class PlayPauseAction : ActionCallback {
 
 class NextAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        Log.e("ks", "widget: NextAction.onAction fired")
         withMediaController(context) { controller -> controller.seekToNext() }
     }
 }
 
 class PreviousAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        Log.e("ks", "widget: PreviousAction.onAction fired")
         withMediaController(context) { controller -> controller.seekToPrevious() }
     }
 }
 
 class FavoriteAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        Log.e("ks", "widget: FavoriteAction.onAction fired")
         val prefs = getAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId)
         val isFavorite = prefs[WidgetStateKeys.IsFavorite] ?: false
         // Mirrors PlayerSessionService.favoriteOrUnFavoriteCommand: despite the confusing
