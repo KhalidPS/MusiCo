@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.util.trace
 import coil3.compose.AsyncImage
 import com.k.sekiro.musico.playmusic.presenation.util.Constants
+import com.k.sekiro.musico.playmusic.presenation.util.applyIfComposable
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -48,7 +49,8 @@ fun SharedTransitionScope.SongCD(
     path: String = "",
     radius: Dp = 60.dp,
     isPlaying: Boolean = true,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    bottomClicked: Boolean = false
 ) {
 
 
@@ -123,11 +125,17 @@ fun SharedTransitionScope.SongCD(
                 contentDescription = "song cover",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .sharedBounds(
-                        sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_$path"),
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        resizeMode = ResizeMode.scaleToBounds(),
-                    )
+                    // Same reasoning as PlayedSongBottomBar's Title/Artist: only an actual
+                    // bottom-bar-originated PlayedSong transition should pull this into the
+                    // shared-element transition - otherwise it's an untracked/orphaned
+                    // participant (list-row navigation matches on LIST_IMAGE_KEY instead).
+                    .applyIfComposable(condition = bottomClicked) {
+                        sharedBounds(
+                            sharedContentState = rememberSharedContentState("${Constants.IMAGE_KEY}_$path"),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            resizeMode = ResizeMode.scaleToBounds(),
+                        )
+                    }
                     .size(40.dp)
                     .clip(CircleShape)
             )
