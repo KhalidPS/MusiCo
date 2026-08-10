@@ -76,6 +76,7 @@ import androidx.palette.graphics.Palette
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.presenation.util.Constants
 import com.k.sekiro.musico.playmusic.presenation.util.applyIf
+import com.k.sekiro.musico.playmusic.presenation.util.applyIfComposable
 import com.k.sekiro.musico.playmusic.presenation.util.getColorFromCover
 import com.k.sekiro.musico.playmusic.presenation.util.toPx
 import androidx.core.net.toUri
@@ -421,11 +422,21 @@ fun SharedTransitionScope.PlayedSongScreen(
                         placeholder = painterResource(R.drawable.logo_2),
                         contentDescription = null,
                         modifier = Modifier
-                            .sharedBounds(
-                                sharedContentState = rememberSharedContentState("${imageKey}_${songs[it].path}"),
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                resizeMode = ResizeMode.RemeasureToBounds,
-                            )
+                            // Only the settled page should participate in the shared-element
+                            // transition - the pager also composes the peeking prev/next pages
+                            // (contentPadding makes them partially visible), and giving every
+                            // composed page a sharedBounds tied to the same
+                            // animatedVisibilityScope pulled all of them into the list->player
+                            // transition at once, which is what caused the lag.
+                            .applyIfComposable(
+                                condition = pagerState.settledPage == it
+                            ) {
+                                sharedBounds(
+                                    sharedContentState = rememberSharedContentState("${imageKey}_${songs[it].path}"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    resizeMode = ResizeMode.RemeasureToBounds,
+                                )
+                            }
                             .applyIf(
                                 condition = pagerState.currentPage == it && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
                                 modifier = {
