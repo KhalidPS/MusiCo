@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.palette.graphics.Palette
 import com.k.sekiro.musico.playmusic.presenation.util.applyIf
+import com.k.sekiro.musico.playmusic.presenation.util.applyIfComposable
 import com.k.sekiro.musico.playmusic.presenation.util.getColorFromCover
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
@@ -218,10 +219,19 @@ fun SharedTransitionScope.PlayedSongBottomBar(
                         fontSize = 16.sp,
                         maxLines = 1,
                         modifier = Modifier
-                            .sharedBounds(
-                                sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${song.path}"),
-                                animatedVisibilityScope = animatedVisibilityScope,
-                            )
+                            // Only participate in the shared-element transition when this
+                            // PlayedSong navigation actually originated from/returns to the
+                            // bottom bar - otherwise (list-row navigation, which matches on the
+                            // LIST_* key namespace instead) this is an orphaned shared element
+                            // with no matching partner, and it was still being tracked/measured
+                            // every frame during the transition, adding jank on top of the
+                            // intended list-row<->PlayedSong match.
+                            .applyIfComposable(condition = bottomClicked) {
+                                sharedBounds(
+                                    sharedContentState = rememberSharedContentState("${Constants.TITLE_KEY}_${song.path}"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                )
+                            }
                             .applyIf(
                                 song.name.length >= 30,
                                 modifier = {
@@ -240,10 +250,12 @@ fun SharedTransitionScope.PlayedSongBottomBar(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
-                            .sharedBounds(
-                                sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${song.path}"),
-                                animatedVisibilityScope = animatedVisibilityScope
-                            )
+                            .applyIfComposable(condition = bottomClicked) {
+                                sharedBounds(
+                                    sharedContentState = rememberSharedContentState("${Constants.ARTIST_KEY}_${song.path}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                            }
                     )
                 }
 
@@ -300,7 +312,8 @@ fun SharedTransitionScope.PlayedSongBottomBar(
                 song.cover.toUri(),
                 isPlaying = isPlaying,
                 animatedVisibilityScope = animatedVisibilityScope,
-                path = song.path
+                path = song.path,
+                bottomClicked = bottomClicked
             )
         }
     }
