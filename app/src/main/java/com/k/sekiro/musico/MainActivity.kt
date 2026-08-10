@@ -43,7 +43,15 @@ import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.presenation.UiAction
 import com.k.sekiro.musico.playmusic.presenation.UiEvents
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
+import com.k.sekiro.musico.playmusic.presenation.browse.BrowseDetailScreen
+import com.k.sekiro.musico.playmusic.presenation.browse.BrowseShowcaseScreen
+import com.k.sekiro.musico.playmusic.presenation.browse.groupByAlbum
+import com.k.sekiro.musico.playmusic.presenation.browse.groupByArtist
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
+import com.k.sekiro.musico.playmusic.presenation.model.AlbumDetail
+import com.k.sekiro.musico.playmusic.presenation.model.AlbumsShowcase
+import com.k.sekiro.musico.playmusic.presenation.model.ArtistDetail
+import com.k.sekiro.musico.playmusic.presenation.model.ArtistsShowcase
 import com.k.sekiro.musico.playmusic.presenation.model.DeletionType
 import com.k.sekiro.musico.playmusic.presenation.model.Home
 import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
@@ -238,6 +246,18 @@ class MainActivity : ComponentActivity() {
                                                     popUpTo(Home)
                                                 }
                                             },
+                                            onShowcaseArtists = {
+                                                navController.navigate(ArtistsShowcase) {
+                                                    launchSingleTop = true
+                                                    popUpTo(Home)
+                                                }
+                                            },
+                                            onShowcaseAlbums = {
+                                                navController.navigate(AlbumsShowcase) {
+                                                    launchSingleTop = true
+                                                    popUpTo(Home)
+                                                }
+                                            },
                                             onClickFavOrRecent = {
                                                 viewModel.onCancelAllSelectedSongs()
                                                 navController.navigate(
@@ -343,6 +363,142 @@ class MainActivity : ComponentActivity() {
                                                 popUpTo(PlaylistShowcase)
                                             }
                                         }
+                                    )
+                                }
+
+                                composable<ArtistsShowcase> {
+                                    val groups = remember(state.value.songs) {
+                                        state.value.songs.groupByArtist()
+                                    }
+                                    BrowseShowcaseScreen(
+                                        title = "Artists",
+                                        groups = groups,
+                                        lruCache = lruCache,
+                                        onBackButtonClicked = {
+                                            navController.popBackStack(route = Home, inclusive = false)
+                                        },
+                                        onGroupClicked = { key ->
+                                            navController.navigate(ArtistDetail(key)) {
+                                                launchSingleTop = true
+                                                popUpTo(ArtistsShowcase)
+                                            }
+                                        }
+                                    )
+                                }
+
+                                composable<AlbumsShowcase> {
+                                    val groups = remember(state.value.songs) {
+                                        state.value.songs.groupByAlbum()
+                                    }
+                                    BrowseShowcaseScreen(
+                                        title = "Albums",
+                                        groups = groups,
+                                        lruCache = lruCache,
+                                        onBackButtonClicked = {
+                                            navController.popBackStack(route = Home, inclusive = false)
+                                        },
+                                        onGroupClicked = { key ->
+                                            navController.navigate(AlbumDetail(key)) {
+                                                launchSingleTop = true
+                                                popUpTo(AlbumsShowcase)
+                                            }
+                                        }
+                                    )
+                                }
+
+                                composable<ArtistDetail> {
+                                    val artistKey = it.toRoute<ArtistDetail>().artist
+                                    val groupSongs = remember(state.value.songs, artistKey) {
+                                        state.value.songs.filter { s -> s.artist.trim() == artistKey }
+                                    }
+                                    val title = artistKey.ifBlank { "Unknown Artist" }
+                                    // Negative, hash-derived id: guaranteed disjoint from real
+                                    // (positive, autoGenerate) Playlist ids. Never persisted -
+                                    // only used in-memory by the ViewModel's "same queue
+                                    // already loaded" check via handelPlaylistSongClicked.
+                                    val syntheticId = remember(artistKey) {
+                                        -(1_000_000_000L + artistKey.hashCode().toLong())
+                                    }
+                                    val selectedSongs = state.value.selectedSongs
+                                    val selectModeEnabled = state.value.selectModeEnabled
+                                    val playlists = state.value.playlists
+
+                                    BrowseDetailScreen(
+                                        title = title,
+                                        coverUrl = groupSongs.firstOrNull()?.cover.orEmpty(),
+                                        songs = groupSongs,
+                                        onSongClicked = { index, song ->
+                                            handelPlaylistSongClicked(
+                                                index = index,
+                                                song = song,
+                                                playlist = PlaylistWithSongsUi(
+                                                    Playlist(title, syntheticId),
+                                                    groupSongs
+                                                ),
+                                                playlistId = syntheticId,
+                                                currentPlaylistId = viewModel.currentPlaylistId(),
+                                                navController = navController
+                                            )
+                                        },
+                                        onBackButtonClicked = {
+                                            navController.popBackStack(route = ArtistsShowcase, inclusive = false)
+                                        },
+                                        onAction = viewModel::onAction,
+                                        onSelectSong = viewModel::onSelectSong,
+                                        selectedSongs = selectedSongs,
+                                        selectModeEnabled = selectModeEnabled,
+                                        onCancelClicked = viewModel::onCancelAllSelectedSongs,
+                                        playlists = playlists,
+                                        onAddToExistPlaylist = viewModel::onAddToExistPlaylist,
+                                        onAddToNewPlaylist = viewModel::onAddToNewPlaylist,
+                                        onAddSingleSong = viewModel::addSingleSongToPlaylist,
+                                        animatedVisibilityScope = this,
+                                    )
+                                }
+
+                                composable<AlbumDetail> {
+                                    val albumKey = it.toRoute<AlbumDetail>().album
+                                    val groupSongs = remember(state.value.songs, albumKey) {
+                                        state.value.songs.filter { s -> s.album.trim() == albumKey }
+                                    }
+                                    val title = albumKey.ifBlank { "Unknown Album" }
+                                    val syntheticId = remember(albumKey) {
+                                        -(2_000_000_000L + albumKey.hashCode().toLong())
+                                    }
+                                    val selectedSongs = state.value.selectedSongs
+                                    val selectModeEnabled = state.value.selectModeEnabled
+                                    val playlists = state.value.playlists
+
+                                    BrowseDetailScreen(
+                                        title = title,
+                                        coverUrl = groupSongs.firstOrNull()?.cover.orEmpty(),
+                                        songs = groupSongs,
+                                        onSongClicked = { index, song ->
+                                            handelPlaylistSongClicked(
+                                                index = index,
+                                                song = song,
+                                                playlist = PlaylistWithSongsUi(
+                                                    Playlist(title, syntheticId),
+                                                    groupSongs
+                                                ),
+                                                playlistId = syntheticId,
+                                                currentPlaylistId = viewModel.currentPlaylistId(),
+                                                navController = navController
+                                            )
+                                        },
+                                        onBackButtonClicked = {
+                                            navController.popBackStack(route = AlbumsShowcase, inclusive = false)
+                                        },
+                                        onAction = viewModel::onAction,
+                                        onSelectSong = viewModel::onSelectSong,
+                                        selectedSongs = selectedSongs,
+                                        selectModeEnabled = selectModeEnabled,
+                                        onCancelClicked = viewModel::onCancelAllSelectedSongs,
+                                        playlists = playlists,
+                                        onAddToExistPlaylist = viewModel::onAddToExistPlaylist,
+                                        onAddToNewPlaylist = viewModel::onAddToNewPlaylist,
+                                        onAddSingleSong = viewModel::addSingleSongToPlaylist,
+                                        animatedVisibilityScope = this,
                                     )
                                 }
 

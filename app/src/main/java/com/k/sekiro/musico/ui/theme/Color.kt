@@ -21,4 +21,6 @@ val Orange1 = Color(0xFFFFBBAD)
 val Red2 = Color(0xFFFF9595)
 val Red3 = Color(0xFFFE6262)
 val Green2 = Color(0xFFADFFC4)
+val ArtistShelfColor = Color(0xFF2ECC71)
+val AlbumShelfColor = Color(0xFFFF7043)
 
