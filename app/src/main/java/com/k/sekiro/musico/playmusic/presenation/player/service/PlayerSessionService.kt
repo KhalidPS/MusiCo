@@ -451,25 +451,35 @@ class PlayerSessionService : MediaSessionService() {
     than threading them through as parameters - every call site (onIsPlayingChanged, the
     resolved-isFavorite branch of onMediaItemTransition, the two favorite custom-command
     branches) already has a live mediaSession to read from. No-ops if there's no media item
-    or artwork yet (nothing meaningful to show).**/
-    private fun pushWidgetState() {
-        val player = mediaSession?.player ?: return
-        val mediaItem = player.currentMediaItem ?: return
-        val artworkUri = mediaItem.mediaMetadata.artworkUri ?: return
-        // mediaMetadata.title actually holds the artist (see setMediaItemsList in
-        // PlaybackExtenstions.kt) - displayTitle/artist are the correct fields to read.
-        val title = mediaItem.mediaMetadata.displayTitle?.toString().orEmpty()
-        val artist = mediaItem.mediaMetadata.artist?.toString().orEmpty()
+    or artwork yet (nothing meaningful to show).
 
-        scope.launch {
-            WidgetUpdater.push(
-                context = this@PlayerSessionService,
-                title = title,
-                artist = artist,
-                isPlaying = player.isPlaying,
-                isFavorite = isFavorite,
-                coverUri = artworkUri
-            )
+    Some call sites (the two above that are themselves inside a scope.launch on `scope`,
+    which defaults to Dispatchers.IO) invoke this from a background thread, but Player must
+    only ever be touched on its application thread (main, here) - hence the explicit hop to
+    Dispatchers.Main before reading anything off the player, then back to Dispatchers.IO for
+    WidgetUpdater.push's actual file/bitmap/DataStore work.**/
+    private fun pushWidgetState() {
+        scope.launch(Dispatchers.Main) {
+            val player = mediaSession?.player ?: return@launch
+            val mediaItem = player.currentMediaItem ?: return@launch
+            val artworkUri = mediaItem.mediaMetadata.artworkUri ?: return@launch
+            // mediaMetadata.title actually holds the artist (see setMediaItemsList in
+            // PlaybackExtenstions.kt) - displayTitle/artist are the correct fields to read.
+            val title = mediaItem.mediaMetadata.displayTitle?.toString().orEmpty()
+            val artist = mediaItem.mediaMetadata.artist?.toString().orEmpty()
+            val playing = player.isPlaying
+            val favorite = isFavorite
+
+            withContext(Dispatchers.IO) {
+                WidgetUpdater.push(
+                    context = this@PlayerSessionService,
+                    title = title,
+                    artist = artist,
+                    isPlaying = playing,
+                    isFavorite = favorite,
+                    coverUri = artworkUri
+                )
+            }
         }
     }
 
