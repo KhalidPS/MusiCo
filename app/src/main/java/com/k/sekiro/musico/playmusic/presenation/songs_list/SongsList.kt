@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,11 +24,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.twotone.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -55,6 +60,8 @@ import com.k.sekiro.musico.playmusic.presenation.util.component.Song
 import com.k.sekiro.musico.playmusic.presenation.songs_list.component.SongsSearchBar
 import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectionBottomSheet
 import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
+import com.k.sekiro.musico.ui.theme.AlbumShelfColor
+import com.k.sekiro.musico.ui.theme.ArtistShelfColor
 import com.k.sekiro.musico.ui.theme.Blue
 import com.k.sekiro.musico.ui.theme.FavoritePlaylistColor
 import com.k.sekiro.musico.ui.theme.RecentPlayListColor
@@ -83,6 +90,8 @@ fun SharedTransitionScope.SongsList(
     onAddToExistPlaylist: (Playlist) -> Unit = {},
     onAddSingleSong: (Long, Playlist?, String?) -> Unit,
     onShowcasePlaylists: () -> Unit = {},
+    onShowcaseArtists: () -> Unit = {},
+    onShowcaseAlbums: () -> Unit = {},
     onClickFavOrRecent: (Long) -> Unit = {},
     onConfirmDeletion: () -> Unit = {},
     playlists: List<Playlist> = emptyList(),
@@ -179,6 +188,7 @@ fun SharedTransitionScope.SongsList(
                 modifier = with(animatedVisibilityScope){
                     Modifier
                         .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp)
                         .renderInSharedTransitionScopeOverlay(1f)
                         .animateEnterExit(
@@ -200,7 +210,7 @@ fun SharedTransitionScope.SongsList(
                 val recentPlaylistId = playlistWithSongs.getOrNull(1)?.playlist?.id ?: 2L
 
                 PlaylistShelfCard(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.width(130.dp),
                     accentColor = FavoritePlaylistColor,
                     icon = Icons.Default.Favorite,
                     title = "Favorite",
@@ -210,7 +220,7 @@ fun SharedTransitionScope.SongsList(
                 )
 
                 PlaylistShelfCard(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.width(130.dp),
                     accentColor = Blue,
                     icon = Icons.AutoMirrored.Default.List,
                     title = "Playlists",
@@ -220,13 +230,33 @@ fun SharedTransitionScope.SongsList(
                 )
 
                 PlaylistShelfCard(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.width(130.dp),
                     accentColor = RecentPlayListColor,
                     icon = Icons.TwoTone.Refresh,
                     title = "Recent",
                     subtitle = "${recentPlaylistSongs.size} songs",
                     coverUrl = recentPlaylistSongs.firstOrNull()?.cover.orEmpty(),
                     onClick = { onClickFavOrRecent(recentPlaylistId) }
+                )
+
+                PlaylistShelfCard(
+                    modifier = Modifier.width(130.dp),
+                    accentColor = ArtistShelfColor,
+                    icon = Icons.Default.Person,
+                    title = "Artists",
+                    subtitle = "${songs.map { it.artist.trim() }.distinct().size} artists",
+                    coverUrl = songs.firstOrNull()?.cover.orEmpty(),
+                    onClick = onShowcaseArtists
+                )
+
+                PlaylistShelfCard(
+                    modifier = Modifier.width(130.dp),
+                    accentColor = AlbumShelfColor,
+                    icon = Icons.Default.Album,
+                    title = "Albums",
+                    subtitle = "${songs.map { it.album.trim() }.distinct().size} albums",
+                    coverUrl = songs.firstOrNull()?.cover.orEmpty(),
+                    onClick = onShowcaseAlbums
                 )
 
             }
