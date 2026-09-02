@@ -31,8 +31,12 @@ import com.k.sekiro.musico.playmusic.domain.model.PROGRESS_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PlayMode_KEY
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.model.RecentSongsIds_KEY
+import com.k.sekiro.musico.playmusic.domain.model.SleepTimerDeadline_KEY
+import com.k.sekiro.musico.playmusic.domain.model.SleepTimerMode_KEY
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.presenation.PlayType
+import com.k.sekiro.musico.playmusic.presenation.model.SleepTimerMode
+import com.k.sekiro.musico.playmusic.presenation.model.SleepTimerState
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.player.notification.CUSTOM_COMMAND_REPEAT_ALL_ACTION
 import com.k.sekiro.musico.playmusic.presenation.player.notification.MusiCoNotificationManager
@@ -48,6 +52,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -66,6 +72,7 @@ class PlayerSessionService : MediaSessionService() {
 
     private var job: Job? = null
     private var playModeJob: Job? = null
+    private var sleepTimerJob: Job? = null
 
     private var isFavorite: Boolean = false
 
@@ -77,6 +84,14 @@ class PlayerSessionService : MediaSessionService() {
             mediaItem: MediaItem?,
             reason: Int
         ) {
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                val timer = _sleepTimerState.value
+                if (timer is SleepTimerState.Active && timer.mode is SleepTimerMode.EndOfTrack) {
+                    mediaSession?.player?.pause()
+                    clearSleepTimer()
+                }
+            }
+
             val songId = mediaItem?.mediaMetadata?.discNumber?.let { it.toLong() } ?: return
 
             scope.launch {
@@ -163,6 +178,16 @@ class PlayerSessionService : MediaSessionService() {
             val availableSessionCommand = connectionResult.availableSessionCommands.buildUpon()
             notificationPlayerCustomCommandButtons.forEach { commandButton ->
                 commandButton.sessionCommand?.let(availableSessionCommand::add)
+            }
+            // Media3 silently drops any custom command not in this allow-list before
+            // onCustomCommand ever runs - the sleep timer commands aren't notification
+            // buttons so they're not covered by the loop above and need adding explicitly.
+            listOf(
+                CUSTOM_COMMAND_START_SLEEP_TIMER_ACTION,
+                CUSTOM_COMMAND_START_SLEEP_TIMER_END_OF_TRACK_ACTION,
+                CUSTOM_COMMAND_CANCEL_SLEEP_TIMER_ACTION
+            ).forEach { action ->
+                availableSessionCommand.add(SessionCommand(action, Bundle()))
             }
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(availableSessionCommand.build())
@@ -272,6 +297,18 @@ class PlayerSessionService : MediaSessionService() {
                     session.player.repeatMode = Player.REPEAT_MODE_ALL
                 }
 
+                CUSTOM_COMMAND_START_SLEEP_TIMER_ACTION -> {
+                    startSleepTimer(args.getLong(SLEEP_TIMER_DURATION_ARG))
+                }
+
+                CUSTOM_COMMAND_START_SLEEP_TIMER_END_OF_TRACK_ACTION -> {
+                    startSleepTimerEndOfTrack()
+                }
+
+                CUSTOM_COMMAND_CANCEL_SLEEP_TIMER_ACTION -> {
+                    cancelSleepTimer()
+                }
+
             }
 
             Log.e("ks","custom Action is ${customCommand.customAction}")
@@ -363,6 +400,8 @@ class PlayerSessionService : MediaSessionService() {
             mediaSession = mediaSession!!,
             mediaSessionService = this
         )*/
+        restoreSleepTimerIfNeeded()
+
         Log.e("ks", "create service......")
     }
 
@@ -511,10 +550,89 @@ class PlayerSessionService : MediaSessionService() {
         }
     }
 
+    /** The countdown lives on `scope` (the service's own SupervisorJob), not on anything tied to
+    the Activity/ViewModel - it must keep running (and actually call pause()) while the app is
+    backgrounded and the UI is gone, as long as this foreground service is alive. The UI only
+    ever mirrors [sleepTimerState] read-only; it never owns the countdown. **/
+    private fun startSleepTimer(durationMillis: Long) {
+        sleepTimerJob?.cancel()
+        val deadline = System.currentTimeMillis() + durationMillis
+        sleepTimerJob = scope.launch {
+            dataSaver.suspendSave(
+                SleepTimerMode_KEY to SLEEP_TIMER_MODE_DURATION,
+                SleepTimerDeadline_KEY to deadline
+            )
+            runDurationCountdown(deadline, durationMillis)
+        }
+    }
+
+    private suspend fun runDurationCountdown(deadline: Long, totalMillis: Long) {
+        while (true) {
+            val remaining = deadline - System.currentTimeMillis()
+            if (remaining <= 0) break
+            _sleepTimerState.value = SleepTimerState.Active(SleepTimerMode.Duration(totalMillis), remaining)
+            delay(1000)
+        }
+        withContext(Dispatchers.Main) {
+            mediaSession?.player?.pause()
+        }
+        clearSleepTimer()
+    }
+
+    private fun startSleepTimerEndOfTrack() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        _sleepTimerState.value = SleepTimerState.Active(SleepTimerMode.EndOfTrack, 0L)
+        scope.launch {
+            dataSaver.suspendSave(SleepTimerMode_KEY, SLEEP_TIMER_MODE_END_OF_TRACK)
+        }
+    }
+
+    private fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        clearSleepTimer()
+    }
+
+    private fun clearSleepTimer() {
+        sleepTimerJob = null
+        _sleepTimerState.value = SleepTimerState.Off
+        scope.launch {
+            dataSaver.suspendSave(SleepTimerMode_KEY, SLEEP_TIMER_MODE_OFF)
+        }
+    }
+
+    /** Reconstructs the timer after the service itself was recreated (e.g. process death) while
+    a timer was pending - read from prefs since the in-memory [_sleepTimerState] is gone with the
+    old process. A duration timer whose deadline already passed while dead fires immediately. **/
+    private fun restoreSleepTimerIfNeeded() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = scope.launch {
+            when (dataSaver.suspendGet(SleepTimerMode_KEY, SLEEP_TIMER_MODE_OFF)) {
+                SLEEP_TIMER_MODE_DURATION -> {
+                    val deadline = dataSaver.suspendGet(SleepTimerDeadline_KEY, 0L)
+                    val remaining = deadline - System.currentTimeMillis()
+                    if (remaining > 0) {
+                        runDurationCountdown(deadline, remaining)
+                    } else {
+                        withContext(Dispatchers.Main) { mediaSession?.player?.pause() }
+                        clearSleepTimer()
+                    }
+                }
+
+                SLEEP_TIMER_MODE_END_OF_TRACK -> {
+                    _sleepTimerState.value = SleepTimerState.Active(SleepTimerMode.EndOfTrack, 0L)
+                }
+            }
+        }
+    }
+
     companion object{
         private var recentPlaylistSongIds: List<Long> = emptyList()
         private var isSelectedFromPlaylist = false
         var isAlive = false
+
+        private val _sleepTimerState = MutableStateFlow<SleepTimerState>(SleepTimerState.Off)
+        val sleepTimerState: StateFlow<SleepTimerState> = _sleepTimerState.asStateFlow()
 
         fun syncRecentPlaylist(songs:List<SongUi>,isSelected:Boolean){
             recentPlaylistSongIds = songs.map { it.id }

@@ -30,6 +30,7 @@ import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -84,10 +85,12 @@ import coil3.compose.AsyncImage
 import com.k.sekiro.musico.playmusic.domain.model.mockSongs
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.UiAction
+import com.k.sekiro.musico.playmusic.presenation.model.SleepTimerState
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.InfoDialog
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTimeText
+import com.k.sekiro.musico.playmusic.presenation.played_song.component.SleepTimerDialog
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.SongSlider
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
 import kotlinx.coroutines.delay
@@ -108,6 +111,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     passedTimeDuration: () -> String,
     playType: PlayType,
     isPlaying: Boolean,
+    sleepTimer: SleepTimerState = SleepTimerState.Off,
     index: Int = 0,
     launchedFromBottomBar: Boolean = false,
     animatedVisibilityScope: AnimatedVisibilityScope,
@@ -132,6 +136,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     var spotColor by remember { mutableStateOf(Color.Cyan) }
 
     var isShowDialog by remember { mutableStateOf(false) }
+    var isShowSleepTimerDialog by remember { mutableStateOf(false) }
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
@@ -147,6 +152,18 @@ fun SharedTransitionScope.PlayedSongScreen(
             song = songs[pagerState.settledPage],
             onDismissRequest = { isShowDialog = false },
             onCloseClicked = { isShowDialog = false },
+        )
+    }
+
+    if (isShowSleepTimerDialog) {
+        SleepTimerDialog(
+            sleepTimer = sleepTimer,
+            accentColor = spotColor,
+            coverUrl = songs[pagerState.settledPage].cover,
+            onDismissRequest = { isShowSleepTimerDialog = false },
+            onDurationSelected = { onAction(UiAction.StartSleepTimer(it)) },
+            onEndOfTrackSelected = { onAction(UiAction.StartSleepTimerEndOfTrack) },
+            onCancelTimer = { onAction(UiAction.CancelSleepTimer) },
         )
     }
 
@@ -346,17 +363,32 @@ fun SharedTransitionScope.PlayedSongScreen(
                     )
                 }
 
-                IconButton(
-                    onClick = {
-                        isShowDialog = true
+                Row {
+                    IconButton(
+                        onClick = {
+                            isShowSleepTimerDialog = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bedtime,
+                            contentDescription = null,
+                            modifier = Modifier.size(26.dp),
+                            tint = if (sleepTimer is SleepTimerState.Active) Color.White else Color.White.copy(alpha = .7f)
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.TwoTone.Info,
-                        contentDescription = null,
-                        modifier = Modifier.size(30.dp),
-                        tint = Color.White
-                    )
+
+                    IconButton(
+                        onClick = {
+                            isShowDialog = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.TwoTone.Info,
+                            contentDescription = null,
+                            modifier = Modifier.size(30.dp),
+                            tint = Color.White
+                        )
+                    }
                 }
             }
 

@@ -18,6 +18,10 @@ sealed interface UiAction {
     object OnMoreActionClicked: UiAction
     object OnDownArrowClicked: UiAction
     data class DeletionConfirmClicked(val deletionType: DeletionType) : UiAction
+
+    data class StartSleepTimer(val durationMillis: Long) : UiAction
+    object StartSleepTimerEndOfTrack : UiAction
+    object CancelSleepTimer : UiAction
 }
 
 

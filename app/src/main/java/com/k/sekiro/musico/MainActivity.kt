@@ -325,6 +325,7 @@ class MainActivity : ComponentActivity() {
                                         lurCache = lruCache,
                                         sliderProgress = { progress },
                                         isPlaying = isPlaying,
+                                        sleepTimer = state.value.sleepTimer,
                                         playType = state.value.playType,
                                         passedTimeDuration = { passedTime },
                                         playedSong = playedSong,
