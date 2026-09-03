@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# ZXing core (QR generation + decoding for offline playlist exchange)
+-keep class com.google.zxing.** { *; }
+-dontwarn com.google.zxing.**

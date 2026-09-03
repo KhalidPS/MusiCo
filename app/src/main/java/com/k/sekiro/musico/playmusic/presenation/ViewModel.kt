@@ -16,9 +16,13 @@ import com.k.sekiro.musico.playmusic.domain.model.IsSelectedFromPlaylist_KEY
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.model.RecentSongsIds_KEY
+import com.k.sekiro.musico.playmusic.domain.exchange.MatchResult
+import com.k.sekiro.musico.playmusic.domain.exchange.SongMatcher
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
+import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistImportPreview
+import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistQrCodec
 import com.k.sekiro.musico.playmusic.presenation.model.DeletionType
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
@@ -383,6 +387,75 @@ class ViewModel(
 
         }
 
+    }
+
+    // --- Offline playlist exchange (QR / file import) ---------------------------------------
+
+    /** Resolved match awaiting the user's confirm in the import-preview dialog. */
+    private var pendingImport: MatchResult? = null
+
+    /**
+     * Decodes a scanned QR string (or the text of an imported `.json` file), matches it against
+     * the local library and shows the import-preview dialog. Called from the scan screen.
+     */
+    fun preparePlaylistImport(raw: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val export = PlaylistQrCodec.decode(raw)
+            if (export == null) {
+                _events.send(UiEvents.Message("Couldn't read this playlist code"))
+                return@launch
+            }
+            val library = songsRepository.getSongsFromRoom()
+            val result = SongMatcher.matchAll(export, library)
+            pendingImport = result
+            _state.update {
+                it.copy(
+                    importPreview = PlaylistImportPreview(
+                        name = result.playlistName,
+                        matchedCount = result.matched.size,
+                        totalCount = result.matched.size + result.unmatched.size,
+                        unmatchedTitles = result.unmatched.map { fp ->
+                            fp.title.ifBlank { "Unknown" }
+                        }
+                    )
+                )
+            }
+        }
+    }
+
+    /** Creates the playlist from the matched songs. Called when the user confirms the preview. */
+    fun confirmPlaylistImport() {
+        val result = pendingImport ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val name = uniquePlaylistName(result.playlistName.ifBlank { "Imported playlist" })
+            val playlistId = playlistRepository.addPlaylist(Playlist(name = name))
+            for (song in result.matched) {
+                playlistSongRepository.addPlaylistSongRef(
+                    PlaylistSong(playlistId = playlistId, songId = song.id)
+                )
+            }
+            pendingImport = null
+            _state.update { it.copy(importPreview = null) }
+            _events.send(
+                UiEvents.Message(
+                    "Imported \"$name\" — ${result.matched.size} of " +
+                        "${result.matched.size + result.unmatched.size} songs"
+                )
+            )
+        }
+    }
+
+    fun dismissPlaylistImport() {
+        pendingImport = null
+        _state.update { it.copy(importPreview = null) }
+    }
+
+    private fun uniquePlaylistName(base: String): String {
+        val existing = _state.value.playlists.map { it.name }.toHashSet()
+        if (base !in existing) return base
+        var n = 2
+        while ("$base ($n)" in existing) n++
+        return "$base ($n)"
     }
 
     private fun getRecentPlaylistSongs() {

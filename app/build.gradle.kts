@@ -80,6 +80,8 @@ dependencies {
     implementation(libs.bundles.koin)
     implementation(libs.androidx.room.runtime)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.zxing.core)
+    implementation(libs.bundles.camerax)
     implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.compose.runtime.tracing)
     "baselineProfile"(project(":baselineprofile"))

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -79,7 +80,8 @@ fun SharedTransitionScope.PlaylistCollapsingScreen(
     selectedSongs: List<SongUi>,
     selectModeEnabled: Boolean,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    onConfirmDeletePlaylist:(Playlist) -> Unit = {}
+    onConfirmDeletePlaylist:(Playlist) -> Unit = {},
+    onExportQrClicked: () -> Unit = {}
 ) {
 
     BackHandler(selectModeEnabled) {
@@ -257,15 +259,24 @@ fun SharedTransitionScope.PlaylistCollapsingScreen(
 
         
        if (playlistWithSongsUi.playlist.name.lowercase() != "favorite" && playlistWithSongsUi.playlist.name.lowercase() != "recent"){
-           IconButton(
-               onClick = { isShowDeletePlaylistDialog = true },
-               modifier = Modifier.zIndex(if (scrollProgress < 1f) 5f else 0f)
+           Row(
+               modifier = Modifier
+                   .align(Alignment.TopEnd)
+                   .zIndex(if (scrollProgress < 1f) 5f else 0f)
            ) {
-               Icon(
-                   imageVector = Icons.Default.Delete,
-                   contentDescription = null,
-                   tint = Red
-               )
+               IconButton(onClick = onExportQrClicked) {
+                   Icon(
+                       imageVector = Icons.Default.QrCode2,
+                       contentDescription = "Share playlist as QR code",
+                   )
+               }
+               IconButton(onClick = { isShowDeletePlaylistDialog = true }) {
+                   Icon(
+                       imageVector = Icons.Default.Delete,
+                       contentDescription = null,
+                       tint = Red
+                   )
+               }
            }
        }
 

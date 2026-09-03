@@ -55,10 +55,14 @@ import com.k.sekiro.musico.playmusic.presenation.model.ArtistsShowcase
 import com.k.sekiro.musico.playmusic.presenation.model.DeletionType
 import com.k.sekiro.musico.playmusic.presenation.model.Home
 import com.k.sekiro.musico.playmusic.presenation.model.PlayedSong
+import com.k.sekiro.musico.playmusic.presenation.model.PlaylistQrExport
+import com.k.sekiro.musico.playmusic.presenation.model.PlaylistQrScan
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistScreen
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistShowcase
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
+import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistQrExportScreen
+import com.k.sekiro.musico.playmusic.presenation.exchange.QrScanScreen
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
 import com.k.sekiro.musico.playmusic.presenation.player.setMediaItemsList
 import com.k.sekiro.musico.playmusic.presenation.playlist.PlaylistCollapsingScreen
@@ -362,7 +366,48 @@ class MainActivity : ComponentActivity() {
                                                 launchSingleTop = true
                                                 popUpTo(PlaylistShowcase)
                                             }
+                                        },
+                                        onScanQrClicked = {
+                                            navController.navigate(PlaylistQrScan) {
+                                                launchSingleTop = true
+                                            }
                                         }
+                                    )
+                                }
+
+                                composable<PlaylistQrScan> {
+                                    QrScanScreen(
+                                        importPreview = state.value.importPreview,
+                                        onDecoded = viewModel::preparePlaylistImport,
+                                        onConfirmImport = viewModel::confirmPlaylistImport,
+                                        onDismissImport = viewModel::dismissPlaylistImport,
+                                        onBack = {
+                                            navController.popBackStack(
+                                                route = PlaylistShowcase,
+                                                inclusive = false
+                                            )
+                                        }
+                                    )
+                                }
+
+                                composable<PlaylistQrExport> {
+                                    val exportId = it.toRoute<PlaylistQrExport>().playlistId
+                                    val exportPlaylist = remember(
+                                        state.value.playlistsWithSongs,
+                                        state.value.recentPlaylistSongs
+                                    ) {
+                                        if (exportId != 2L) {
+                                            state.value.playlistsWithSongs.find { p -> p.playlist.id == exportId }
+                                        } else {
+                                            PlaylistWithSongsUi(
+                                                playlist = Playlist("Recent", 2L),
+                                                songs = state.value.recentPlaylistSongs
+                                            )
+                                        }
+                                    }
+                                    PlaylistQrExportScreen(
+                                        playlistWithSongs = exportPlaylist ?: return@composable,
+                                        onBack = { navController.popBackStack() }
                                     )
                                 }
 
@@ -558,6 +603,11 @@ class MainActivity : ComponentActivity() {
                                         onConfirmDeletePlaylist = {
                                             viewModel.deletePlaylist(it)
                                             navController.popBackStack()
+                                        },
+                                        onExportQrClicked = {
+                                            navController.navigate(PlaylistQrExport(playlistId)) {
+                                                launchSingleTop = true
+                                            }
                                         },
                                         animatedVisibilityScope = this,
                                     )

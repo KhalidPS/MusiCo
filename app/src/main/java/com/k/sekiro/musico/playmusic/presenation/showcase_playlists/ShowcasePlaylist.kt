@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.LibraryAdd
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -40,7 +41,8 @@ fun ShowcasePlaylists(
     playlists: List<PlaylistWithSongsUi> = emptyList(),
     onBackButtonClicked: () -> Unit = {},
     onAddPlaylistClicked: (String) -> Unit = {},
-    onPlaylistItemClicked:(Long) -> Unit = {}
+    onPlaylistItemClicked:(Long) -> Unit = {},
+    onScanQrClicked: () -> Unit = {}
 ) {
 
     var isShowDialog by remember { mutableStateOf(false) }
@@ -84,13 +86,24 @@ fun ShowcasePlaylists(
                     textAlign = TextAlign.Center
                 )
 
-                IconButton(
-                    onClick = { isShowDialog = true },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LibraryAdd,
-                        contentDescription = "",
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onScanQrClicked,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = "Import playlist from QR",
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { isShowDialog = true },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LibraryAdd,
+                            contentDescription = "",
+                        )
+                    }
                 }
 
             }
