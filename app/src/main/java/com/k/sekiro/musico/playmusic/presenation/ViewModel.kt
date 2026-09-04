@@ -1,9 +1,11 @@
 package com.k.sekiro.musico.playmusic.presenation
 
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -18,11 +20,20 @@ import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.model.RecentSongsIds_KEY
 import com.k.sekiro.musico.playmusic.domain.exchange.MatchResult
 import com.k.sekiro.musico.playmusic.domain.exchange.SongMatcher
+import com.k.sekiro.musico.playmusic.domain.exchange.TransferManifest
+import com.k.sekiro.musico.playmusic.domain.exchange.TransferMatchResult
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
+import com.k.sekiro.musico.playmusic.data.exchange.TransferHttpClient
+import com.k.sekiro.musico.playmusic.data.exchange.TransferPairingCodec
+import com.k.sekiro.musico.playmusic.data.exchange.TransferPairingPayload
+import com.k.sekiro.musico.playmusic.data.exchange.TransferWifiCredentials
+import com.k.sekiro.musico.playmusic.data.exchange.WifiDirectTransport
 import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistImportPreview
 import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistQrCodec
+import com.k.sekiro.musico.playmusic.presenation.exchange.TransferOffer
+import com.k.sekiro.musico.playmusic.presenation.exchange.TransferService
 import com.k.sekiro.musico.playmusic.presenation.model.DeletionType
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
@@ -57,6 +68,7 @@ class ViewModel(
     private val dataSaver: SimpleDataSaver,
     private val controllerManager: MediaControllerManager,
     private val savedStateHandle: SavedStateHandle,
+    private val context: Context,
 ) : ViewModel() {
 
 
@@ -102,6 +114,11 @@ class ViewModel(
         viewModelScope.launch {
             isSelectedSongFromPlaylist.update {
                 dataSaver.suspendGet(IsSelectedFromPlaylist_KEY, false)
+            }
+        }
+        viewModelScope.launch {
+            TransferService.state.collectLatest { transferState ->
+                _state.update { it.copy(transfer = transferState) }
             }
         }
 
@@ -448,6 +465,145 @@ class ViewModel(
     fun dismissPlaylistImport() {
         pendingImport = null
         _state.update { it.copy(importPreview = null) }
+    }
+
+    // --- Audio transfer (v2 of the exchange above - sends the actual bytes) -----------------
+
+    private val transferJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+    /** Resolved manifest + match + still-joined Wi-Fi link, awaiting the user's confirm. */
+    private var pendingTransfer: PendingTransfer? = null
+
+    private data class PendingTransfer(
+        val manifest: TransferManifest,
+        val matchResult: TransferMatchResult,
+        val payload: TransferPairingPayload,
+        val wifiDirectTransport: WifiDirectTransport,
+    )
+
+    /**
+     * Decodes a scanned `MUSICO-XFER-1:` QR, joins the sender's private Wi-Fi link, fetches and
+     * verifies its manifest, matches it against the local library and shows the (extended)
+     * import-preview dialog. Called from the scan screen instead of [preparePlaylistImport] when
+     * [com.k.sekiro.musico.playmusic.data.exchange.TransferPairingCodec.isTransferPayload] is true.
+     */
+    fun connectAndPreviewTransfer(raw: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val payload = TransferPairingCodec.decode(raw)
+            if (payload == null) {
+                _events.send(UiEvents.Message("Couldn't read this transfer code"))
+                return@launch
+            }
+
+            val transport = WifiDirectTransport(context)
+            val joined = transport.joinGroup(
+                TransferWifiCredentials(ssid = payload.ssid, passphrase = payload.pass, host = payload.host)
+            )
+            if (!joined) {
+                _events.send(UiEvents.Message("Couldn't connect to the other device's Wi-Fi"))
+                return@launch
+            }
+
+            val client = TransferHttpClient(baseUrl = "http://${payload.host}:${payload.port}", token = payload.tok)
+            val manifest = try {
+                client.fetchManifest()
+            } catch (_: Exception) {
+                transport.leaveGroup()
+                _events.send(UiEvents.Message("Couldn't fetch the playlist from the other device"))
+                return@launch
+            } finally {
+                client.close()
+            }
+
+            val manifestJson = transferJson.encodeToString(TransferManifest.serializer(), manifest)
+            val actualHash = sha256Hex(manifestJson.toByteArray(Charsets.UTF_8))
+            if (actualHash != payload.man) {
+                transport.leaveGroup()
+                _events.send(UiEvents.Message("The playlist data didn't match - try scanning again"))
+                return@launch
+            }
+
+            val library = songsRepository.getSongsFromRoom()
+            val result = SongMatcher.matchAll(manifest, library)
+            pendingTransfer = PendingTransfer(manifest, result, payload, transport)
+            _state.update {
+                it.copy(
+                    importPreview = PlaylistImportPreview(
+                        name = result.playlistName,
+                        matchedCount = result.matched.size,
+                        totalCount = result.matched.size + result.unmatched.size,
+                        unmatchedTitles = result.unmatched.map { s -> s.title.ifBlank { "Unknown" } },
+                        transferOffer = TransferOffer(
+                            newTrackCount = result.unmatched.size,
+                            totalBytes = result.unmatched.sumOf { s -> s.sizeBytes },
+                        ),
+                    )
+                )
+            }
+        }
+    }
+
+    /** Adds the matched songs immediately and starts [TransferService] downloading the rest. */
+    fun confirmTransferImport() {
+        val pending = pendingTransfer ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val name = uniquePlaylistName(pending.matchResult.playlistName.ifBlank { "Imported playlist" })
+            val playlistId = playlistRepository.addPlaylist(Playlist(name = name))
+
+            val unmatchedSet = pending.matchResult.unmatched.toHashSet()
+            val wantedIndices = pending.manifest.songs
+                .withIndex()
+                .filter { (_, song) -> song in unmatchedSet }
+                .map { it.index }
+                .toIntArray()
+            val matchedIds = pending.matchResult.matched.map { it.id }.toLongArray()
+
+            ContextCompat.startForegroundService(
+                context,
+                TransferService.downloadIntent(
+                    context = context,
+                    playlistId = playlistId,
+                    manifestJson = transferJson.encodeToString(TransferManifest.serializer(), pending.manifest),
+                    wantedIndices = wantedIndices,
+                    matchedSongIds = matchedIds,
+                    host = pending.payload.host,
+                    port = pending.payload.port,
+                    token = pending.payload.tok,
+                )
+            )
+
+            pendingTransfer = null
+            _state.update { it.copy(importPreview = null) }
+        }
+    }
+
+    fun dismissTransferImport() {
+        pendingTransfer?.wifiDirectTransport?.leaveGroup()
+        pendingTransfer = null
+        _state.update { it.copy(importPreview = null, transfer = null) }
+    }
+
+    fun cancelTransfer() {
+        context.startService(TransferService.cancelIntent(context))
+        pendingTransfer?.wifiDirectTransport?.leaveGroup()
+        pendingTransfer = null
+    }
+
+    /** Sender: starts advertising [playlistId] for another device to connect and pull songs from. */
+    fun startTransferAdvertise(playlistId: Long) {
+        ContextCompat.startForegroundService(context, TransferService.advertiseIntent(context, playlistId))
+    }
+
+    /** Clears a terminal `Done`/`Failed` transfer state so the sender's export screen goes back to
+     * showing the plain playlist QR - `TransferService.state` isn't touched, so this only affects
+     * the local UI until the next real transfer starts. */
+    fun dismissTransferState() {
+        _state.update { it.copy(transfer = null) }
+    }
+
+    private fun sha256Hex(bytes: ByteArray): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        return digest.digest(bytes).joinToString("") { "%02x".format(it) }
     }
 
     private fun uniquePlaylistName(base: String): String {

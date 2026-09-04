@@ -13,6 +13,18 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera.any" android:required="false"/>
 
+    <!-- Audio transfer: a private device-to-device Wi-Fi link only, never a remote/internet API -
+         see docs/2026-08-24-feature-roadmap-plan.md's Constraint amendment (2026-09-02). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+
     <application
         android:requestLegacyExternalStorage="true"
         android:requestRawExternalStorageAccess="true"
@@ -50,6 +62,11 @@
                 <action android:name="androidx.media3.session.MediaSessionService"/>
             </intent-filter>
         </service>
+
+        <service
+            android:name=".playmusic.presenation.exchange.TransferService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"/>
 
         <receiver
             android:name=".playmusic.presenation.widget.MusiCoWidgetReceiver"

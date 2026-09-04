@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,12 +28,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistImportPreview
+import com.k.sekiro.musico.playmusic.presenation.exchange.TransferState
+
+private fun formatMb(bytes: Long): String = "%.1f MB".format(bytes / 1_000_000.0)
 
 @Composable
 fun ImportPreviewDialog(
     preview: PlaylistImportPreview,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    transferState: TransferState? = null,
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -55,6 +60,56 @@ fun ImportPreviewDialog(
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            preview.transferOffer?.let { offer ->
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "+ ${offer.newTrackCount} new song${if (offer.newTrackCount == 1) "" else "s"}" +
+                        " (${formatMb(offer.totalBytes)}) can be sent from the other device",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+
+            if (transferState != null && transferState !is TransferState.Idle) {
+                Spacer(Modifier.height(12.dp))
+                when (transferState) {
+                    // Advertising is sender-only - this dialog only ever shows on the receiver.
+                    is TransferState.Advertising -> {}
+                    is TransferState.Connecting -> Text("Connecting…", fontSize = 13.sp)
+                    is TransferState.Downloading -> {
+                        val percent = if (transferState.bytesTotal > 0) {
+                            ((transferState.bytesDone * 100) / transferState.bytesTotal).toInt()
+                        } else 0
+                        val positionSuffix = if (transferState.count > 0) {
+                            " (${transferState.index + 1}/${transferState.count})"
+                        } else ""
+                        Text(
+                            "Receiving ${transferState.title}$positionSuffix — $percent%",
+                            fontSize = 13.sp,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        val fraction = if (transferState.bytesTotal > 0) {
+                            (transferState.bytesDone.toFloat() / transferState.bytesTotal).coerceIn(0f, 1f)
+                        } else 0f
+                        LinearProgressIndicator(
+                            progress = { fraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    is TransferState.Verifying -> Text("Verifying…", fontSize = 13.sp)
+                    is TransferState.Done -> Text(
+                        "Received ${transferState.added} song${if (transferState.added == 1) "" else "s"}",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    is TransferState.Failed -> Text(
+                        transferState.reason,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
 
             if (preview.unmatchedTitles.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
@@ -91,7 +146,15 @@ fun ImportPreviewDialog(
                 Spacer(Modifier.width(8.dp))
                 Button(
                     onClick = onConfirm,
-                    enabled = preview.matchedCount > 0,
+                    // A transfer offer can fetch every unmatched song from the other device, so
+                    // it only needs *some* song in the playlist to exist (matched locally or
+                    // offered over the wire) - unlike a plain (no-transfer) import, which can only
+                    // ever add songs already matched in this device's own library.
+                    enabled = if (preview.transferOffer != null) {
+                        preview.totalCount > 0
+                    } else {
+                        preview.matchedCount > 0
+                    },
                 ) { Text("Import") }
             }
         }

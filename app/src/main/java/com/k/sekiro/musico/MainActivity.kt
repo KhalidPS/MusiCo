@@ -61,12 +61,14 @@ import com.k.sekiro.musico.playmusic.presenation.model.PlaylistScreen
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistShowcase
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
+import com.k.sekiro.musico.playmusic.data.exchange.TransferPairingCodec
 import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistQrExportScreen
 import com.k.sekiro.musico.playmusic.presenation.exchange.QrScanScreen
 import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
 import com.k.sekiro.musico.playmusic.presenation.player.setMediaItemsList
 import com.k.sekiro.musico.playmusic.presenation.playlist.PlaylistCollapsingScreen
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.PermissionGate
+import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.TransferPermissionGate
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.ShowcasePlaylists
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.playmusic.presenation.util.ObserveAsEvent
@@ -376,17 +378,49 @@ class MainActivity : ComponentActivity() {
                                 }
 
                                 composable<PlaylistQrScan> {
+                                    var pendingTransferRaw by rememberSaveable { mutableStateOf<String?>(null) }
+
+                                    pendingTransferRaw?.let { raw ->
+                                        TransferPermissionGate(
+                                            onGranted = {
+                                                pendingTransferRaw = null
+                                                viewModel.connectAndPreviewTransfer(raw)
+                                            },
+                                            onCancelled = { pendingTransferRaw = null },
+                                            content = {},
+                                        )
+                                    }
+
                                     QrScanScreen(
                                         importPreview = state.value.importPreview,
-                                        onDecoded = viewModel::preparePlaylistImport,
-                                        onConfirmImport = viewModel::confirmPlaylistImport,
-                                        onDismissImport = viewModel::dismissPlaylistImport,
+                                        onDecoded = { raw ->
+                                            if (TransferPairingCodec.isTransferPayload(raw)) {
+                                                pendingTransferRaw = raw
+                                            } else {
+                                                viewModel.preparePlaylistImport(raw)
+                                            }
+                                        },
+                                        onConfirmImport = {
+                                            if (state.value.importPreview?.transferOffer != null) {
+                                                viewModel.confirmTransferImport()
+                                            } else {
+                                                viewModel.confirmPlaylistImport()
+                                            }
+                                        },
+                                        onDismissImport = {
+                                            if (state.value.importPreview?.transferOffer != null) {
+                                                viewModel.dismissTransferImport()
+                                            } else {
+                                                viewModel.dismissPlaylistImport()
+                                            }
+                                        },
                                         onBack = {
                                             navController.popBackStack(
                                                 route = PlaylistShowcase,
                                                 inclusive = false
                                             )
-                                        }
+                                        },
+                                        transferState = state.value.transfer,
                                     )
                                 }
 
@@ -407,7 +441,13 @@ class MainActivity : ComponentActivity() {
                                     }
                                     PlaylistQrExportScreen(
                                         playlistWithSongs = exportPlaylist ?: return@composable,
-                                        onBack = { navController.popBackStack() }
+                                        onBack = { navController.popBackStack() },
+                                        onSendWithSongsClicked = { playlistId ->
+                                            viewModel.startTransferAdvertise(playlistId)
+                                        },
+                                        onCancelTransferClicked = { viewModel.cancelTransfer() },
+                                        onDismissTransferState = { viewModel.dismissTransferState() },
+                                        transferState = state.value.transfer,
                                     )
                                 }
 

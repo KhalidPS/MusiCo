@@ -17,6 +17,7 @@ import com.k.sekiro.musico.playmusic.data.local.room.RoomCallback
 import com.k.sekiro.musico.playmusic.data.repository.PlaylistRepositoryImpl
 import com.k.sekiro.musico.playmusic.data.repository.PlaylistSongRepositoryImpl
 import com.k.sekiro.musico.playmusic.data.repository.SongsRepositoryImpl
+import com.k.sekiro.musico.playmusic.data.exchange.MediaImporter
 import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
@@ -140,6 +141,8 @@ val appModule = module{
     single { MediaControllerManager(androidContext(),get()) }
 
     singleOf(::PreferencesDataStoreSaver) bind SimpleDataSaver::class
+
+    singleOf(::MediaImporter)
 
 }
 

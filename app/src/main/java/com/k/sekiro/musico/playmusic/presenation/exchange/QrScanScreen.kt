@@ -57,6 +57,7 @@ fun QrScanScreen(
     onConfirmImport: () -> Unit,
     onDismissImport: () -> Unit,
     onBack: () -> Unit,
+    transferState: TransferState? = null,
 ) {
     val context = LocalContext.current
 
@@ -154,6 +155,7 @@ fun QrScanScreen(
                     onDismissImport()
                     scanGeneration++
                 },
+                transferState = transferState,
             )
         }
     }

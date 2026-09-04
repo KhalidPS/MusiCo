@@ -82,6 +82,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.zxing.core)
     implementation(libs.bundles.camerax)
+    implementation(libs.bundles.ktor.server)
+    implementation(libs.bundles.ktor.client)
     implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.compose.runtime.tracing)
     "baselineProfile"(project(":baselineprofile"))

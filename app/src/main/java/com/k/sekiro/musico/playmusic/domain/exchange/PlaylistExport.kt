@@ -13,11 +13,11 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class SongFingerprint(
-    @SerialName("t") val title: String,
-    @SerialName("a") val artist: String,
-    @SerialName("al") val album: String,
-    @SerialName("d") val durationMs: Long,
-)
+    @SerialName("t") override val title: String,
+    @SerialName("a") override val artist: String,
+    @SerialName("al") override val album: String,
+    @SerialName("d") override val durationMs: Long,
+) : SongKey
 
 /**
  * The full exported-playlist payload. [version] is the payload-schema version (independent of the

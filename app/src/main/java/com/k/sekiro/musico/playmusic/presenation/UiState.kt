@@ -2,6 +2,7 @@ package com.k.sekiro.musico.playmusic.presenation
 
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
 import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistImportPreview
+import com.k.sekiro.musico.playmusic.presenation.exchange.TransferState
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 
@@ -20,7 +21,9 @@ data class UiState(
     val playlistsWithSongs: List<PlaylistWithSongsUi> = emptyList(),
     val recentPlaylistSongs: List<SongUi> = emptyList(),
     /** Non-null while the QR/file import-preview dialog is showing. */
-    val importPreview: PlaylistImportPreview? = null
+    val importPreview: PlaylistImportPreview? = null,
+    /** Mirrors `TransferService.state` - non-null only during an audio-transfer session. */
+    val transfer: TransferState? = null,
 )
 
 

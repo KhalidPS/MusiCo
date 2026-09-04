@@ -238,6 +238,9 @@ fun PermissionRationaleDialog(
         Manifest.permission.READ_MEDIA_AUDIO -> "This app needs audio files access to show all audios"
         Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK -> "This app needs to be run in the background for playing audios while app in background"
         Manifest.permission.POST_NOTIFICATIONS -> "This app needs to send notifications to keep playing sound while the app in background."
+        Manifest.permission.ACCESS_FINE_LOCATION -> "Android requires location access to discover the other device's Wi-Fi link for sending/receiving songs."
+        Manifest.permission.WRITE_EXTERNAL_STORAGE -> "This app needs storage access to save the songs it receives."
+        Manifest.permission.NEARBY_WIFI_DEVICES -> "Android requires nearby Wi-Fi device access to connect to the other device for sending/receiving songs."
         else -> "This app requires this permission."
     }
     AlertDialog(

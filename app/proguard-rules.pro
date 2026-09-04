@@ -20,6 +20,9 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
+-dontwarn java.lang.management.ManagementFactory
+-dontwarn java.lang.management.RuntimeMXBean
+
 # ZXing core (QR generation + decoding for offline playlist exchange)
 -keep class com.google.zxing.** { *; }
 -dontwarn com.google.zxing.**

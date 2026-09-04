@@ -3,6 +3,8 @@ package com.k.sekiro.musico.exchange
 import com.k.sekiro.musico.playmusic.domain.exchange.PlaylistExport
 import com.k.sekiro.musico.playmusic.domain.exchange.SongFingerprint
 import com.k.sekiro.musico.playmusic.domain.exchange.SongMatcher
+import com.k.sekiro.musico.playmusic.domain.exchange.TransferManifest
+import com.k.sekiro.musico.playmusic.domain.exchange.TransferSong
 import com.k.sekiro.musico.playmusic.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -29,6 +31,23 @@ class SongMatcherTest {
 
     private fun fp(title: String, artist: String, album: String, durationMs: Long) =
         SongFingerprint(title, artist, album, durationMs)
+
+    private fun transferSong(
+        title: String,
+        artist: String = "Artist",
+        album: String = "Album",
+        durationMs: Long = 200_000,
+        sha256: String = "",
+    ) = TransferSong(
+        title = title,
+        artist = artist,
+        album = album,
+        durationMs = durationMs,
+        sizeBytes = 1_000,
+        mime = "audio/mpeg",
+        sha256 = sha256,
+        fileName = "$title.mp3",
+    )
 
     @Test
     fun `exact metadata plus duration within tolerance matches`() {
@@ -94,5 +113,40 @@ class SongMatcherTest {
         val result = SongMatcher.matchAll(export, library)
         assertEquals(1, result.matched.size)
         assertTrue(result.unmatched.isEmpty())
+    }
+
+    @Test
+    fun `transfer matchAll uses sha256 tier 0 even when metadata differs`() {
+        val library = listOf(song("Totally Different Title", "Someone Else", "Other Album", 999_000, 5))
+        val manifest = TransferManifest(
+            name = "Mix",
+            songs = listOf(transferSong("Original Title", sha256 = "deadbeef")),
+        )
+        val result = SongMatcher.matchAll(manifest, library, libraryHashes = mapOf(5L to "deadbeef"))
+        assertEquals(listOf(5L), result.matched.map { it.id })
+        assertTrue(result.unmatched.isEmpty())
+    }
+
+    @Test
+    fun `transfer matchAll falls back to fuzzy tiers when hash is unknown`() {
+        val library = listOf(song("Song A", "Artist", "Album", 200_000, 1))
+        val manifest = TransferManifest(
+            name = "Mix",
+            songs = listOf(transferSong("Song A", "Artist", "Album", 200_500, sha256 = "unknown-hash")),
+        )
+        val result = SongMatcher.matchAll(manifest, library)
+        assertEquals(listOf(1L), result.matched.map { it.id })
+    }
+
+    @Test
+    fun `transfer matchAll reports unmatched when neither hash nor fuzzy tiers hit`() {
+        val library = listOf(song("Song A", "Artist", "Album", 200_000, 1))
+        val manifest = TransferManifest(
+            name = "Mix",
+            songs = listOf(transferSong("Completely Unrelated", "Nobody", "Nothing", 50_000, sha256 = "x")),
+        )
+        val result = SongMatcher.matchAll(manifest, library)
+        assertTrue(result.matched.isEmpty())
+        assertEquals(1, result.unmatched.size)
     }
 }

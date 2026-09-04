@@ -29,6 +29,7 @@ baselineprofile = "1.4.1"
 profileinstaller = "1.4.1"
 zxingCore = "3.5.3"
 camerax = "1.4.1"
+ktor = "3.5.2"
 
 [libraries]
 androidx-compose-runtime-tracing = { module = "androidx.compose.runtime:runtime-tracing" }
@@ -79,6 +80,10 @@ androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
+ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 
 
 [plugins]
@@ -110,4 +115,14 @@ camerax = [
     "androidx-camera-camera2",
     "androidx-camera-lifecycle",
     "androidx-camera-view"
+]
+
+ktor-server = [
+    "ktor-server-core",
+    "ktor-server-cio"
+]
+
+ktor-client = [
+    "ktor-client-core",
+    "ktor-client-cio"
 ]
