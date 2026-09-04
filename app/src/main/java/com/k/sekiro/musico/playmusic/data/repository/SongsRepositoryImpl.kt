@@ -110,6 +110,13 @@ class SongsRepositoryImpl(
 
     override fun startObservingSongChanges(onChange:() -> Unit) {
         val contentResolver = context.contentResolver
+        // Release any previous observer first. Overwriting the field without unregistering leaks
+        // the old one: it stays registered with the resolver (still firing its own rescan on every
+        // MediaStore change) while the only reference to it is gone, so stopObservingSongChanges()
+        // can never unregister it. This is called from the state flow's onStart, which re-runs
+        // whenever subscribers drop to zero for the WhileSubscribed timeout and come back - i.e.
+        // on every background/resume - so without this the rescans multiply the longer the app runs.
+        stopObservingSongChanges()
         contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
                 super.onChange(selfChange)

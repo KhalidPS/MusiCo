@@ -47,11 +47,14 @@ import com.k.sekiro.musico.playmusic.presenation.player.service.PlayerSessionSer
 import com.k.sekiro.musico.playmusic.presenation.player.startProgressUpdate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -80,12 +83,33 @@ class ViewModel(
     private val stateKey = "uiState"
 
 
+    /**
+     * Coalesces MediaStore change notifications into library rescans.
+     *
+     * Every change fires the observer, and a rescan is expensive (a full MediaStore query plus a
+     * per-song album-art URI check, then Room writes) - an audio transfer importing 14 files used
+     * to kick off 14 overlapping rescans. Two things keep that bounded: [debounce] collapses rapid
+     * bursts, and the single sequential collector below plus a 1-slot [BufferOverflow.DROP_OLDEST]
+     * buffer means at most one rescan runs while at most one more sits queued, no matter how many
+     * changes arrive in the meantime.
+     */
+    private val librarySyncRequests = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    private companion object {
+        /** Long enough to swallow a burst of writes, short enough that a song added by another app
+         * still shows up while the user is looking at the screen. */
+        const val LIBRARY_RESCAN_DEBOUNCE_MS = 800L
+    }
+
     private val _state = MutableStateFlow<UiState>(UiState())
     val state = _state
         .onStart {
             Log.e("ks", "heyyyy I'm in onStart flow")
             getAllSongsFromLocal()
-            songsRepository.startObservingSongChanges { getAllSongsFromLocal() }
+            songsRepository.startObservingSongChanges { librarySyncRequests.tryEmit(Unit) }
             getPlayLists()
             getRecentPlaylistSongs()
             getPlaylistsWithSongs()
@@ -120,6 +144,13 @@ class ViewModel(
             TransferService.state.collectLatest { transferState ->
                 _state.update { it.copy(transfer = transferState) }
             }
+        }
+        // Plain collect, not collectLatest: rescans run to completion one at a time. See
+        // librarySyncRequests' KDoc for how bursts are coalesced.
+        viewModelScope.launch {
+            librarySyncRequests
+                .debounce(LIBRARY_RESCAN_DEBOUNCE_MS)
+                .collect { syncLibraryWithStorage() }
         }
 
     }
@@ -229,7 +260,13 @@ class ViewModel(
     }
 
     private fun getAllSongsFromLocal() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch { syncLibraryWithStorage() }
+    }
+
+    /** Reconciles Room against MediaStore. Suspends until done so the caller in [init] can keep
+     * rescans strictly sequential - see [librarySyncRequests]. */
+    private suspend fun syncLibraryWithStorage() {
+        withContext(Dispatchers.IO) {
 
 
             val roomSongs = songsRepository.getSongsFromRoom()
