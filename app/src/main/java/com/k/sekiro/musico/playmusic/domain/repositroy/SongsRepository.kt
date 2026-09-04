@@ -12,15 +12,15 @@ interface SongsRepository {
 
     fun deleteSongsFromLocal(songsUri: List<Uri>)
 
-    fun getSongsFromRoom(): List<Song>
+    suspend fun getSongsFromRoom(): List<Song>
 
-    fun addSongs(songs: List<Song>)
+    suspend fun addSongs(songs: List<Song>)
 
-    fun addSong(song: Song)
+    suspend fun addSong(song: Song)
 
-    fun deleteSong(song: Song)
+    suspend fun deleteSong(song: Song)
 
-    fun deleteSongs(songs: List<Song>)
+    suspend fun deleteSongs(songs: List<Song>)
 
     suspend fun getSong(songId: Long): Song?
 

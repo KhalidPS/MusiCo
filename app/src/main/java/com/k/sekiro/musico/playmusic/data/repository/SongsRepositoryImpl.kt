@@ -76,23 +76,23 @@ class SongsRepositoryImpl(
 
     }
 
-    override fun getSongsFromRoom(): List<Song>{
+    override suspend fun getSongsFromRoom(): List<Song>{
         return songsDao.getAllSongs()
     }
 
-    override fun addSongs(songs: List<Song>) {
+    override suspend fun addSongs(songs: List<Song>) {
         songsDao.addSongs(songs)
     }
 
-    override fun addSong(song: Song) {
+    override suspend fun addSong(song: Song) {
         songsDao.addSong(song)
     }
 
-    override fun deleteSong(song: Song) {
+    override suspend fun deleteSong(song: Song) {
         songsDao.deleteSong(song)
     }
 
-    override fun deleteSongs(songs: List<Song>) {
+    override suspend fun deleteSongs(songs: List<Song>) {
         songsDao.deleteSongs(songs)
     }
 
