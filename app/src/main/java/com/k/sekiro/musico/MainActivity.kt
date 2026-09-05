@@ -68,7 +68,10 @@ import com.k.sekiro.musico.playmusic.presenation.played_song.PlayedSongScreen
 import com.k.sekiro.musico.playmusic.presenation.player.setMediaItemsList
 import com.k.sekiro.musico.playmusic.presenation.playlist.PlaylistCollapsingScreen
 import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.PermissionGate
-import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.TransferPermissionGate
+import androidx.compose.ui.platform.LocalContext
+import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.TransferPreparationsScreen
+import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.TransferRole
+import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.unsatisfiedBlocking
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.ShowcasePlaylists
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.playmusic.presenation.util.ObserveAsEvent
@@ -379,23 +382,34 @@ class MainActivity : ComponentActivity() {
 
                                 composable<PlaylistQrScan> {
                                     var pendingTransferRaw by rememberSaveable { mutableStateOf<String?>(null) }
+                                    val scanContext = LocalContext.current
+                                    val pendingRaw = pendingTransferRaw
 
-                                    pendingTransferRaw?.let { raw ->
-                                        TransferPermissionGate(
-                                            onGranted = {
+                                    if (pendingRaw != null) {
+                                        // NEXT resumes this exact scan, so fixing Wi-Fi/Location
+                                        // never costs the user a second trip to the camera.
+                                        TransferPreparationsScreen(
+                                            role = TransferRole.Receiver,
+                                            onNext = {
                                                 pendingTransferRaw = null
-                                                viewModel.connectAndPreviewTransfer(raw)
+                                                viewModel.connectAndPreviewTransfer(pendingRaw)
                                             },
-                                            onCancelled = { pendingTransferRaw = null },
-                                            content = {},
+                                            onBack = { pendingTransferRaw = null },
                                         )
+                                        return@composable
                                     }
 
                                     QrScanScreen(
                                         importPreview = state.value.importPreview,
                                         onDecoded = { raw ->
                                             if (TransferPairingCodec.isTransferPayload(raw)) {
-                                                pendingTransferRaw = raw
+                                                // A plain playlist QR needs none of this, so only
+                                                // the transfer path consults the checklist.
+                                                if (unsatisfiedBlocking(scanContext, TransferRole.Receiver).isEmpty()) {
+                                                    viewModel.connectAndPreviewTransfer(raw)
+                                                } else {
+                                                    pendingTransferRaw = raw
+                                                }
                                             } else {
                                                 viewModel.preparePlaylistImport(raw)
                                             }

@@ -86,6 +86,15 @@ class WifiDirectTransport(private val context: Context) {
             return !LocationManagerCompat.isLocationEnabled(locationManager)
         }
 
+        /** The Wi-Fi radio must be on for both halves of a transfer - Wi-Fi Direct and the
+         * local-only-hotspot fallback alike. Exposed statically so the pre-transfer checklist can
+         * ask without owning a transport instance. */
+        fun wifiRadioOff(context: Context): Boolean {
+            val wifiManager = context.applicationContext
+                .getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return false
+            return !wifiManager.isWifiEnabled
+        }
+
         fun unbindProcessNetwork(context: Context) {
             try {
                 val connectivityManager =
@@ -123,7 +132,7 @@ class WifiDirectTransport(private val context: Context) {
      * with a clear reason beats attempting (and failing partway through) the full fallback chain.
      */
     suspend fun createGroup(): WifiGroupResult {
-        if (!wifiManager.isWifiEnabled) {
+        if (wifiRadioOff(context)) {
             return WifiGroupResult.Failed("Wi-Fi is turned off - turn it on to send songs")
         }
         if (locationServicesRequiredButOff(context)) {

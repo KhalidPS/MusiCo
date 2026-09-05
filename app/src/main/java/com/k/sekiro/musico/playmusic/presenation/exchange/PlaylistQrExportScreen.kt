@@ -54,8 +54,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.k.sekiro.musico.playmusic.domain.exchange.PlaylistExport
 import com.k.sekiro.musico.playmusic.domain.exchange.SongFingerprint
+import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.TransferPreparationsScreen
+import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.TransferRole
+import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.unsatisfiedBlocking
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
-import com.k.sekiro.musico.playmusic.presenation.request_permission_screen.TransferPermissionGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -76,7 +78,19 @@ fun PlaylistQrExportScreen(
     transferState: TransferState? = null,
 ) {
     val context = LocalContext.current
-    var requestingTransferPermissions by remember { mutableStateOf(false) }
+    var showPreparations by remember { mutableStateOf(false) }
+
+    if (showPreparations) {
+        TransferPreparationsScreen(
+            role = TransferRole.Sender,
+            onNext = {
+                showPreparations = false
+                onSendWithSongsClicked(playlistWithSongs.playlist.id)
+            },
+            onBack = { showPreparations = false },
+        )
+        return
+    }
 
     // Drops a leftover Done/Failed from a past, unrelated transfer session so this fresh visit
     // starts on the plain QR instead of inheriting another session's outcome - see
@@ -214,7 +228,16 @@ fun PlaylistQrExportScreen(
                             Text("Save as file")
                         }
                         OutlinedButton(
-                            onClick = { requestingTransferPermissions = true },
+                            onClick = {
+                                // Checked at tap time, not composition time: it reflects whatever
+                                // the user just changed in Settings, and skips the checklist
+                                // entirely when there's nothing to fix.
+                                if (unsatisfiedBlocking(context, TransferRole.Sender).isEmpty()) {
+                                    onSendWithSongsClicked(playlistWithSongs.playlist.id)
+                                } else {
+                                    showPreparations = true
+                                }
+                            },
                         ) {
                             Text("Send with songs")
                         }
@@ -335,17 +358,6 @@ fun PlaylistQrExportScreen(
                     }
                 }
             }
-        }
-
-        if (requestingTransferPermissions) {
-            TransferPermissionGate(
-                onGranted = {
-                    requestingTransferPermissions = false
-                    onSendWithSongsClicked(playlistWithSongs.playlist.id)
-                },
-                onCancelled = { requestingTransferPermissions = false },
-                content = {},
-            )
         }
     }
 }
