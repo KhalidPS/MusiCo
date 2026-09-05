@@ -55,6 +55,26 @@ class WifiDirectTransport(private val context: Context) {
         private const val GROUP_INFO_RETRY_ATTEMPTS = 5
         private const val GROUP_INFO_RETRY_DELAY_MS = 200L
 
+        /**
+         * Restores normal process-wide routing after [joinGroup]'s
+         * [ConnectivityManager.bindProcessToNetwork], without needing the instance that bound it.
+         *
+         * The receiver binds in the ViewModel (`connectAndPreviewTransfer`) but hands the session
+         * off to `TransferService`, which owns no transport on the download path - so instance-level
+         * [leaveGroup] can't be what releases it. Left bound, the process stays pinned to the
+         * sender's Wi-Fi Direct network; once that network goes away *every* subsequent socket in
+         * the process fails with `SocketException: Machine is not on the network` - including the
+         * `TransferHttpServer` bind when this device later tries to send something itself.
+         */
+        fun unbindProcessNetwork(context: Context) {
+            try {
+                val connectivityManager =
+                    context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                connectivityManager.bindProcessToNetwork(null)
+            } catch (_: Exception) {
+            }
+        }
+
         // API 29-30 shows a system "Connect to this network?" dialog before onAvailable() can ever
         // fire - if it's missed/declined, or an OEM's Wi-Fi stack just never resolves the ephemeral
         // request, plain requestNetwork(request, callback) (no timeout) can hang forever with

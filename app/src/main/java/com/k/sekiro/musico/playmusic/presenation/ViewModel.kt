@@ -144,6 +144,10 @@ class ViewModel(
         viewModelScope.launch {
             TransferService.state.collectLatest { transferState ->
                 _state.update { it.copy(transfer = transferState) }
+                if (transferState is TransferState.Done || transferState is TransferState.Failed) {
+                    activeReceiveTransport?.leaveGroup()
+                    activeReceiveTransport = null
+                }
             }
         }
         // Plain collect, not collectLatest: rescans run to completion one at a time. See
@@ -513,6 +517,13 @@ class ViewModel(
     /** Resolved manifest + match + still-joined Wi-Fi link, awaiting the user's confirm. */
     private var pendingTransfer: PendingTransfer? = null
 
+    /**
+     * The joined link handed off to `TransferService` by [confirmTransferImport], kept only so its
+     * `NetworkCallback`/ephemeral network request can be released once the download reaches a
+     * terminal state - the service can't do it, since it owns no transport on the receive path.
+     */
+    private var activeReceiveTransport: WifiDirectTransport? = null
+
     private data class PendingTransfer(
         val manifest: TransferManifest,
         val matchResult: TransferMatchResult,
@@ -621,6 +632,7 @@ class ViewModel(
                 )
             )
 
+            activeReceiveTransport = pending.wifiDirectTransport
             pendingTransfer = null
             _state.update { it.copy(importPreview = null) }
         }

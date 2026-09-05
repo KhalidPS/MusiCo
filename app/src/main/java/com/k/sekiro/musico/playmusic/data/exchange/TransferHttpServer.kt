@@ -15,7 +15,11 @@ import io.ktor.server.response.respondOutputStream
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.InputStream
@@ -47,6 +51,12 @@ import java.util.concurrent.atomic.AtomicReference
  * [onDone] fires when the receiver hits `/done`, i.e. it has finished its whole download loop
  * ([TransferHttpClient.ackDone]) - the only way this server learns the session is over, since
  * plain `/song/{index}` GETs carry no notion of "that was the last one".
+ *
+ * [onEngineFailure] reports a failure from inside the engine itself. CIO binds its listening
+ * socket in an internal accept coroutine *after* [start] has already returned, so a bind failure
+ * (e.g. `SocketException: Machine is not on the network`) can never be caught around [start] - and
+ * with no handler in that coroutine's context it reaches the thread's default uncaught handler and
+ * takes the whole process down. The handler installed below turns it into this callback instead.
  */
 class TransferHttpServer(
     private val manifest: TransferManifest,
@@ -55,6 +65,7 @@ class TransferHttpServer(
     private val port: Int = 8988,
     private val onProgress: (index: Int, bytesSent: Long, bytesTotal: Long) -> Unit = { _, _, _ -> },
     private val onDone: () -> Unit = {},
+    private val onEngineFailure: (Throwable) -> Unit = {},
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -64,8 +75,19 @@ class TransferHttpServer(
     private var engine: EmbeddedServer<*, *>? = null
     private val activeClient = AtomicReference<String?>(null)
 
+    /** Parent of the engine's own coroutines - the [CoroutineExceptionHandler] here is what keeps
+     * an engine-internal failure (see [onEngineFailure]) off the thread's default uncaught handler,
+     * and cancelling it in [stop] guarantees those coroutines die with this server. */
+    private val engineScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, cause -> onEngineFailure(cause) }
+    )
+
     fun start() {
-        engine = embeddedServer(CIO, port = port, host = "0.0.0.0") {
+        engine = engineScope.embeddedServer(
+            CIO,
+            port = port,
+            host = "0.0.0.0",
+        ) {
             routing {
                 get("/manifest") {
                     if (!authorize(call)) return@get
@@ -95,6 +117,7 @@ class TransferHttpServer(
     fun stop() {
         engine?.stop(gracePeriodMillis = 200, timeoutMillis = 1_000)
         engine = null
+        engineScope.cancel()
     }
 
     private suspend fun authorize(call: ApplicationCall): Boolean {
