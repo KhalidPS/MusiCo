@@ -540,7 +540,16 @@ class ViewModel(
                 TransferWifiCredentials(ssid = payload.ssid, passphrase = payload.pass, host = payload.host)
             )
             if (!joined) {
-                _events.send(UiEvents.Message("Couldn't connect to the other device's Wi-Fi"))
+                // API 29-30 shows a system "Connect to this network?" dialog before the join can
+                // succeed - missing or declining it is the most common cause of a failed join on
+                // exactly this range (API 31+ handles the same WifiNetworkSpecifier flow without
+                // that extra step, per the design doc's Limitation §5).
+                val hint = if (android.os.Build.VERSION.SDK_INT in
+                    android.os.Build.VERSION_CODES.Q..android.os.Build.VERSION_CODES.R
+                ) {
+                    " - check for a \"Connect to this network?\" prompt from Android, accept it quickly, then try again"
+                } else ""
+                _events.send(UiEvents.Message("Couldn't connect to the other device's Wi-Fi$hint"))
                 return@launch
             }
 

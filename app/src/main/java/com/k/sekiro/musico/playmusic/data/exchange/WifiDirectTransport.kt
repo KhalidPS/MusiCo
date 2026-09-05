@@ -54,6 +54,13 @@ class WifiDirectTransport(private val context: Context) {
     companion object {
         private const val GROUP_INFO_RETRY_ATTEMPTS = 5
         private const val GROUP_INFO_RETRY_DELAY_MS = 200L
+
+        // API 29-30 shows a system "Connect to this network?" dialog before onAvailable() can ever
+        // fire - if it's missed/declined, or an OEM's Wi-Fi stack just never resolves the ephemeral
+        // request, plain requestNetwork(request, callback) (no timeout) can hang forever with
+        // neither callback ever called. The 3-arg overload makes the framework itself call
+        // onUnavailable() past this deadline instead, so joinGroup() always eventually returns.
+        private const val JOIN_NETWORK_TIMEOUT_MS = 20_000
     }
 
     private val wifiP2pManager = context.getSystemService(Context.WIFI_P2P_SERVICE) as? WifiP2pManager
@@ -319,7 +326,7 @@ class WifiDirectTransport(private val context: Context) {
                 }
             }
             networkCallback = callback
-            connectivityManager.requestNetwork(request, callback)
+            connectivityManager.requestNetwork(request, callback, JOIN_NETWORK_TIMEOUT_MS)
         }
     }
 
