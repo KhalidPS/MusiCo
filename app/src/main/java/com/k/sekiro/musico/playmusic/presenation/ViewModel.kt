@@ -546,6 +546,16 @@ class ViewModel(
             }
             clearFinishedTransferState()
 
+            // Same platform requirement the sender hits in createGroup: on API ≤32 an app can hold
+            // ACCESS_FINE_LOCATION and still see no Wi-Fi scan results while the OS location toggle
+            // is off, so the join can never match the sender's SSID.
+            if (WifiDirectTransport.locationServicesRequiredButOff(context)) {
+                _events.send(
+                    UiEvents.Message("Turn on Location - Android 12 and older need it to connect over Wi-Fi Direct")
+                )
+                return@launch
+            }
+
             val transport = WifiDirectTransport(context)
             val joined = transport.joinGroup(
                 TransferWifiCredentials(ssid = payload.ssid, passphrase = payload.pass, host = payload.host)

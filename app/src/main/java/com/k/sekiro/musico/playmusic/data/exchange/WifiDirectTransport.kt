@@ -1,6 +1,7 @@
 package com.k.sekiro.musico.playmusic.data.exchange
 
 import android.content.Context
+import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -11,6 +12,7 @@ import android.net.wifi.WifiNetworkSpecifier
 import android.net.wifi.p2p.WifiP2pGroup
 import android.net.wifi.p2p.WifiP2pManager
 import android.os.Build
+import androidx.core.location.LocationManagerCompat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -66,6 +68,24 @@ class WifiDirectTransport(private val context: Context) {
          * the process fails with `SocketException: Machine is not on the network` - including the
          * `TransferHttpServer` bind when this device later tries to send something itself.
          */
+        /**
+         * True when this device needs the OS-level location toggle for Wi-Fi Direct but it's off.
+         *
+         * On API ≤32 the platform gates Wi-Fi P2P calls and Wi-Fi scan results behind
+         * `ACCESS_FINE_LOCATION` **and** location services actually being enabled - holding the
+         * runtime permission is not enough. With the toggle off, [createGroup] and
+         * [startLocalOnlyHotspot] fail (and a receiver's [joinGroup] can't see the SSID to join),
+         * with nothing in the platform error saying why. API 33+ goes through
+         * `NEARBY_WIFI_DEVICES`/`neverForLocation`, which doesn't need it - which is why the same
+         * transfer works from a newer device and fails from an older one.
+         */
+        fun locationServicesRequiredButOff(context: Context): Boolean {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return false
+            val locationManager =
+                context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return false
+            return !LocationManagerCompat.isLocationEnabled(locationManager)
+        }
+
         fun unbindProcessNetwork(context: Context) {
             try {
                 val connectivityManager =
@@ -105,6 +125,11 @@ class WifiDirectTransport(private val context: Context) {
     suspend fun createGroup(): WifiGroupResult {
         if (!wifiManager.isWifiEnabled) {
             return WifiGroupResult.Failed("Wi-Fi is turned off - turn it on to send songs")
+        }
+        if (locationServicesRequiredButOff(context)) {
+            return WifiGroupResult.Failed(
+                "turn on Location - Android 12 and older need it for Wi-Fi Direct"
+            )
         }
         return try {
             val manager = wifiP2pManager
