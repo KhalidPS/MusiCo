@@ -32,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -174,7 +175,10 @@ class TransferService : Service() {
                 }
             },
         ).also { httpServer = it }
-        server.start()
+        if (!startServerWithRetry(server)) {
+            fail("Couldn't start the local server - try again in a moment")
+            return
+        }
 
         val manifestJson = json.encodeToString(TransferManifest.serializer(), manifest)
         val payload = TransferPairingPayload(
@@ -189,6 +193,29 @@ class TransferService : Service() {
         )
         state.value = TransferState.Advertising(TransferPairingCodec.encode(payload))
         updateNotification("Waiting for the other device…")
+    }
+
+    /**
+     * [TransferHttpServer.start] can throw synchronously ("Machine is not on the network" /
+     * `SocketException` from the underlying `ServerSocketChannel` bind) when the process's network
+     * state hasn't settled yet - e.g. this same device just finished a *receive* session and its
+     * Wi-Fi Direct group/process network binding ([WifiDirectTransport.leaveGroup]/[WifiDirectTransport.stopGroup])
+     * is still tearing down when the user immediately turns around and starts sending. Unlike
+     * [WifiDirectTransport.createGroup] (which never throws), this call had no safety net at all,
+     * so that transient race crashed the whole app instead of just failing this attempt. Retry
+     * briefly before giving up - same shape as [WifiDirectTransport]'s own group-info retry.
+     */
+    private suspend fun startServerWithRetry(server: TransferHttpServer): Boolean {
+        repeat(SERVER_START_RETRY_ATTEMPTS) { attempt ->
+            try {
+                server.start()
+                return true
+            } catch (ex: Exception) {
+                android.util.Log.w("TransferService", "server.start() failed (attempt ${attempt + 1})", ex)
+                if (attempt < SERVER_START_RETRY_ATTEMPTS - 1) delay(SERVER_START_RETRY_DELAY_MS)
+            }
+        }
+        return false
     }
 
     /** Builds the manifest this device offers for [playlistId], hashing every file - the receiver
@@ -486,6 +513,8 @@ class TransferService : Service() {
         private const val CHANNEL_ID = "transfers"
         private const val NOTIFICATION_ID = 8_988
         const val TRANSFER_PORT = 8988
+        private const val SERVER_START_RETRY_ATTEMPTS = 3
+        private const val SERVER_START_RETRY_DELAY_MS = 500L
 
         private const val ACTION_ADVERTISE = "com.k.sekiro.musico.transfer.ADVERTISE"
         private const val ACTION_DOWNLOAD = "com.k.sekiro.musico.transfer.DOWNLOAD"
