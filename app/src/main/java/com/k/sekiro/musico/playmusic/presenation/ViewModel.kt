@@ -34,6 +34,7 @@ import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistImportPreview
 import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistQrCodec
 import com.k.sekiro.musico.playmusic.presenation.exchange.TransferOffer
 import com.k.sekiro.musico.playmusic.presenation.exchange.TransferService
+import com.k.sekiro.musico.playmusic.presenation.exchange.TransferState
 import com.k.sekiro.musico.playmusic.presenation.model.DeletionType
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
 import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
@@ -459,6 +460,7 @@ class ViewModel(
                 _events.send(UiEvents.Message("Couldn't read this playlist code"))
                 return@launch
             }
+            clearFinishedTransferState()
             val library = songsRepository.getSongsFromRoom()
             val result = SongMatcher.matchAll(export, library)
             pendingImport = result
@@ -531,6 +533,7 @@ class ViewModel(
                 _events.send(UiEvents.Message("Couldn't read this transfer code"))
                 return@launch
             }
+            clearFinishedTransferState()
 
             val transport = WifiDirectTransport(context)
             val joined = transport.joinGroup(
@@ -635,6 +638,27 @@ class ViewModel(
      * showing the plain playlist QR - `TransferService.state` isn't touched, so this only affects
      * the local UI until the next real transfer starts. */
     fun dismissTransferState() {
+        _state.update { it.copy(transfer = null) }
+    }
+
+    /**
+     * Clears a *leftover* terminal (`Done`/`Failed`) transfer state from a previous session, in
+     * both the local mirror and the shared [TransferService.state] flow itself - unlike
+     * [dismissTransferState], which only overrides the local copy. Without this, a finished
+     * session's outcome sits in that process-wide flow forever (nothing else resets it until the
+     * *next* transfer starts) and bleeds into whichever unrelated screen reads `state.value.transfer`
+     * next - e.g. opening the QR/share screen for a playlist you just received shows a stray "Sent"
+     * from that receive, or scanning a brand new playlist shows the previous one's "Received N songs".
+     *
+     * Call this right as a *new* session-adjacent screen/action starts (entering the export screen,
+     * decoding a fresh QR) - it no-ops while a transfer is genuinely in progress, so it never
+     * interrupts one that's actually still running.
+     */
+    fun clearFinishedTransferState() {
+        val current = TransferService.state.value
+        if (current is TransferState.Done || current is TransferState.Failed) {
+            TransferService.state.value = TransferState.Idle
+        }
         _state.update { it.copy(transfer = null) }
     }
 

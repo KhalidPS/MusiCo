@@ -72,10 +72,16 @@ fun PlaylistQrExportScreen(
     onSendWithSongsClicked: (playlistId: Long) -> Unit = {},
     onCancelTransferClicked: () -> Unit = {},
     onDismissTransferState: () -> Unit = {},
+    onEnterScreen: () -> Unit = {},
     transferState: TransferState? = null,
 ) {
     val context = LocalContext.current
     var requestingTransferPermissions by remember { mutableStateOf(false) }
+
+    // Drops a leftover Done/Failed from a past, unrelated transfer session so this fresh visit
+    // starts on the plain QR instead of inheriting another session's outcome - see
+    // ViewModel.clearFinishedTransferState. No-ops if a transfer is genuinely in progress.
+    LaunchedEffect(Unit) { onEnterScreen() }
 
     val export = remember(playlistWithSongs) {
         PlaylistExport(

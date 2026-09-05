@@ -447,6 +447,7 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onCancelTransferClicked = { viewModel.cancelTransfer() },
                                         onDismissTransferState = { viewModel.dismissTransferState() },
+                                        onEnterScreen = { viewModel.clearFinishedTransferState() },
                                         transferState = state.value.transfer,
                                     )
                                 }
