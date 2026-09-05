@@ -4,6 +4,13 @@ import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -205,6 +214,15 @@ fun PlaylistQrExportScreen(
                         }
                     }
                 } else {
+                    AnimatedContent(
+                        targetState = transferState,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "transferState",
+                    ) { transferState ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
                     when (transferState) {
                         is TransferState.Advertising -> {
                             val qrBitmap by produceState<Bitmap?>(null, transferState.qrPayload) {
@@ -272,6 +290,19 @@ fun PlaylistQrExportScreen(
                         is TransferState.Verifying -> Text("Verifying…", fontSize = 13.sp)
 
                         is TransferState.Done -> {
+                            var visible by remember { mutableStateOf(false) }
+                            LaunchedEffect(Unit) { visible = true }
+                            AnimatedVisibility(
+                                visible = visible,
+                                enter = scaleIn(spring()) + fadeIn(),
+                            ) {
+                                Icon(
+                                    Icons.Filled.CheckCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(56.dp),
+                                )
+                            }
                             Text(
                                 "Sent",
                                 fontSize = 13.sp,
@@ -293,6 +324,8 @@ fun PlaylistQrExportScreen(
                         }
 
                         is TransferState.Idle -> {}
+                    }
+                    }
                     }
                 }
             }

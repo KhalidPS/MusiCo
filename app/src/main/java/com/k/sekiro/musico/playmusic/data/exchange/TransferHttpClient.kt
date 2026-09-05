@@ -70,6 +70,15 @@ class TransferHttpClient(
         }
     }
 
+    /** Tells the sender this device has finished its whole download loop - see [TransferHttpServer]'s
+     * `onDone`. Best-effort: caller already has its files by the time it calls this. */
+    suspend fun ackDone() {
+        val response: HttpResponse = client.get("$baseUrl/done") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        check(response.status.isSuccess()) { "done ack failed: ${response.status}" }
+    }
+
     fun close() {
         client.close()
     }

@@ -72,6 +72,7 @@ class TransferService : Service() {
     private var notificationTitle = "Transfer"
     private var lastNotifiedProgressIndex = -1
     private var lastNotifiedProgressPercent = -1
+    @Volatile private var senderDoneHandled = false
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -119,6 +120,7 @@ class TransferService : Service() {
         state.value = TransferState.Connecting
         lastNotifiedProgressIndex = -1
         lastNotifiedProgressPercent = -1
+        senderDoneHandled = false
 
         val built = buildOutgoingManifest(playlistId)
         if (built == null) {
@@ -162,6 +164,13 @@ class TransferService : Service() {
                         title = title,
                     )
                     maybeNotifyProgress("Sending", title, index, bytesSent, bytesTotal)
+                }
+            },
+            onDone = {
+                if (!senderDoneHandled) {
+                    senderDoneHandled = true
+                    val sentCount = synchronized(this@TransferService) { sentSongsCount }
+                    scope.launch { senderDone(sentCount) }
                 }
             },
         ).also { httpServer = it }
@@ -284,10 +293,11 @@ class TransferService : Service() {
             if (ok) added++ else skipped++
         }
 
+        runCatching { client.ackDone() }
         state.value = TransferState.Verifying
         teardown()
         state.value = TransferState.Done(added = added, skipped = skipped)
-        updateNotification("Received $added song${if (added == 1) "" else "s"}")
+        updateNotification("Received $added song${if (added == 1) "" else "s"}", ongoing = false)
         stopForeground(STOP_FOREGROUND_DETACH)
         stopSelf()
     }
@@ -347,7 +357,18 @@ class TransferService : Service() {
     private suspend fun fail(reason: String) {
         state.value = TransferState.Failed(reason)
         teardown()
-        updateNotification(reason)
+        updateNotification(reason, ongoing = false)
+        stopForeground(STOP_FOREGROUND_DETACH)
+        stopSelf()
+    }
+
+    /** Reached once the receiver's `/done` ack tells this sender its download loop finished - see
+     * [TransferHttpServer]'s `onDone`. Runs on [scope], not the ktor engine thread that invoked it,
+     * since [teardown] stops that same server and would otherwise block on itself. */
+    private suspend fun senderDone(sentCount: Int) {
+        state.value = TransferState.Done(added = sentCount, skipped = 0)
+        teardown()
+        updateNotification("Sent $sentCount song${if (sentCount == 1) "" else "s"}", ongoing = false)
         stopForeground(STOP_FOREGROUND_DETACH)
         stopSelf()
     }
@@ -421,24 +442,29 @@ class TransferService : Service() {
         }
     }
 
-    private fun buildNotification(text: String): Notification {
-        val cancelIntent = Intent(this, TransferService::class.java).apply { action = ACTION_CANCEL }
-        val cancelPendingIntent = android.app.PendingIntent.getService(
-            this, 0, cancelIntent,
-            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
-        )
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+    /** [ongoing] false marks a terminal (done/failed) notification: no Cancel action, and
+     * auto-cancel so the user can tap or swipe it away instead of it looking stuck mid-transfer. */
+    private fun buildNotification(text: String, ongoing: Boolean = true): Notification {
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(notificationTitle)
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_audio)
-            .setOngoing(true)
-            .addAction(0, "Cancel", cancelPendingIntent)
-            .build()
+        if (ongoing) {
+            val cancelIntent = Intent(this, TransferService::class.java).apply { action = ACTION_CANCEL }
+            val cancelPendingIntent = android.app.PendingIntent.getService(
+                this, 0, cancelIntent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+            )
+            builder.setOngoing(true).addAction(0, "Cancel", cancelPendingIntent)
+        } else {
+            builder.setAutoCancel(true)
+        }
+        return builder.build()
     }
 
-    private fun updateNotification(text: String) {
+    private fun updateNotification(text: String, ongoing: Boolean = true) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ID, buildNotification(text))
+        manager.notify(NOTIFICATION_ID, buildNotification(text, ongoing))
     }
 
     /**

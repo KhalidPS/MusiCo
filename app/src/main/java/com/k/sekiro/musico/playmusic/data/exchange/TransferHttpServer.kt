@@ -43,6 +43,10 @@ import java.util.concurrent.atomic.AtomicReference
  * [onProgress] reports cumulative bytes served for [manifest.songs]\[index\] (including
  * `rangeStart` on a `Range`-resume request) - the sender-side counterpart to
  * [TransferHttpClient.downloadSong]'s `onProgress`, which already reports the receiver's side.
+ *
+ * [onDone] fires when the receiver hits `/done`, i.e. it has finished its whole download loop
+ * ([TransferHttpClient.ackDone]) - the only way this server learns the session is over, since
+ * plain `/song/{index}` GETs carry no notion of "that was the last one".
  */
 class TransferHttpServer(
     private val manifest: TransferManifest,
@@ -50,6 +54,7 @@ class TransferHttpServer(
     private val token: String,
     private val port: Int = 8988,
     private val onProgress: (index: Int, bytesSent: Long, bytesTotal: Long) -> Unit = { _, _, _ -> },
+    private val onDone: () -> Unit = {},
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -77,6 +82,11 @@ class TransferHttpServer(
                         return@get
                     }
                     serveSong(call, index)
+                }
+                get("/done") {
+                    if (!authorize(call)) return@get
+                    onDone()
+                    call.respond(HttpStatusCode.OK)
                 }
             }
         }.start(wait = false)
