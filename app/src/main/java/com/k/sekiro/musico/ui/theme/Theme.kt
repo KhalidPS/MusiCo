@@ -1,8 +1,6 @@
 package com.k.sekiro.musico.ui.theme
 
-import android.app.Activity
 import android.os.Build
-import android.util.Log
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -11,13 +9,11 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -41,6 +37,19 @@ private val LightColorScheme = lightColorScheme(
     */
 )
 
+/**
+ * Responsive dimension tokens for the current window width. Selected once here, at the theme
+ * root, and consumed everywhere else via [appDimens] - screens must not recompute the window
+ * size themselves.
+ */
+val LocalAppDimens = staticCompositionLocalOf { CompactDimens }
+
+/** Shorthand for `LocalAppDimens.current`. */
+val appDimens: AppDimens
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalAppDimens.current
+
 @Composable
 fun MusiCoTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -58,56 +67,16 @@ fun MusiCoTheme(
         else -> LightColorScheme
     }
 
-    val configuration = LocalConfiguration.current
-    val density = LocalDensity.current
-    val windowInfo = LocalWindowInfo.current
-    val width = with(density){ windowInfo.containerSize.width.toDp().value.toInt() }
-    val width2 = configuration.screenWidthDp
+    // screenWidthDp already reflects orientation and foldable posture, and this recomposes
+    // on any configuration change, so the bucket stays current without a window-size library.
+    val widthDp = LocalConfiguration.current.screenWidthDp
+    val dimens = remember(widthDp) { dimensFor(windowWidthSizeOf(widthDp)) }
 
-    val windowSizeWidth = calculateWindowSizeWidth(width)
-    Log.e("ks","WindowSize "+windowSizeWidth.name)
-    Log.e("ks", "width: $width")
-    var appDimens = compactDimens
-    windowSizeWidth.getDimens { dimens -> appDimens = dimens  }
-
-
-
-    //392 pixel 5/ redmi note 10
-    //411 pixel 7
-    //448 pixel 8 pro
-    //360 small phone small compact
-
-    AppTheme(appDimens){
+    CompositionLocalProvider(LocalAppDimens provides dimens) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,
             content = content
         )
     }
-
-
 }
-
-
-@Composable
-fun AppTheme(
-    appDimens: ScreenDimens,
-    content: @Composable () -> Unit
-) {
-
-    val dimens = remember {
-        appDimens
-    }
-
-    CompositionLocalProvider(LocalDimens provides dimens) {
-        content()
-    }
-
-}
-
-
-
-val LocalDimens = compositionLocalOf { compactDimens }
-
-val Dimens
-    @Composable get() = LocalDimens.current

@@ -20,9 +20,13 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Scaffold
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +71,7 @@ import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.ShowcasePlay
 import com.k.sekiro.musico.playmusic.presenation.songs_list.SongsList
 import com.k.sekiro.musico.playmusic.presenation.util.ObserveAsEvent
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
+import com.k.sekiro.musico.ui.theme.appDimens
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import org.koin.android.ext.android.inject
@@ -177,10 +182,21 @@ class MainActivity : ComponentActivity() {
                             }
 
 
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(innerPadding),
+                                contentAlignment = Alignment.TopCenter
+                            ) {
+                            // On wide windows (tablet/foldable/landscape) the content column is
+                            // capped and centered instead of stretching edge-to-edge; on a phone
+                            // contentMaxWidth is effectively unbounded so this is a no-op.
                             NavHost(
                                 navController = navController,
                                 startDestination = Home::class,
-                                modifier = Modifier.padding(innerPadding)
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .widthIn(max = appDimens.common.contentMaxWidth)
                             ) {
 
 
@@ -564,6 +580,7 @@ class MainActivity : ComponentActivity() {
 
                                 }
 
+                            }
                             }
                         }
 

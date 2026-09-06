@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.palette.graphics.Palette
+import com.k.sekiro.musico.ui.theme.appDimens
 import com.k.sekiro.musico.playmusic.presenation.browse.components.BrowseGroupItem
 import com.k.sekiro.musico.playmusic.presenation.browse.model.BrowseGroupUi
 
@@ -67,12 +68,13 @@ fun BrowseShowcaseScreen(
             IconButton(onClick = {}, enabled = false) {}
         }
 
+        val dimens = appDimens
         LazyVerticalGrid(
             modifier = Modifier.fillMaxSize(),
-            columns = GridCells.Fixed(2),
+            columns = GridCells.Adaptive(dimens.browse.tileMinWidth),
             contentPadding = PaddingValues(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(dimens.common.gridSpacing),
+            verticalArrangement = Arrangement.spacedBy(dimens.common.gridSpacing)
         ) {
             items(
                 groups,

@@ -62,6 +62,7 @@ import com.k.sekiro.musico.playmusic.presenation.util.component.DeleteDialog
 import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectionBottomSheet
 import com.k.sekiro.musico.playmusic.presenation.util.component.Song
 import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
+import com.k.sekiro.musico.ui.theme.appDimens
 
 /** Read-only counterpart to PlaylistCollapsingScreen for a derived group (artist/album) -
 same collapsing-header + song-list shell, but with no whole-entity delete concept, since a
@@ -100,7 +101,7 @@ fun SharedTransitionScope.BrowseDetailScreen(
     var isShowDeleteDialog by remember { mutableStateOf(false) }
     var isShowAddPlaylistDialog by remember { mutableStateOf(false) }
 
-    val expandedImageHeight = 250.dp
+    val expandedImageHeight = appDimens.browse.headerHeight
     val collapsedToolbarHeight = 60.dp
 
     val density = LocalDensity.current
