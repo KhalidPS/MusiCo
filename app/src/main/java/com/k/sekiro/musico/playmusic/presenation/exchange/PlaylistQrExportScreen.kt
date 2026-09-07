@@ -23,7 +23,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.CheckCircle
@@ -58,6 +60,9 @@ import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.TransferP
 import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.TransferRole
 import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.unsatisfiedBlocking
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
+import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
+import com.k.sekiro.musico.ui.theme.FormFactorPreviews
+import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -145,7 +150,13 @@ fun PlaylistQrExportScreen(
                 .padding(24.dp),
             contentAlignment = Alignment.TopCenter,
         ) {
-            val qrSizeDp = if (maxWidth < 340.dp) maxWidth else 320.dp
+            // Capped by both available dimensions, not just width - on a height-compact window
+            // (phone landscape) a fixed 320dp QR would crowd out the name/count text and the
+            // buttons below it. maxHeight already accounts for whatever this box actually has;
+            // the 200dp reserve is the title/count/caption/button-row stack around the QR, sized
+            // so the buttons stay in view without scrolling in the common case (verticalScroll
+            // below is still there as a safety net for anything shorter).
+            val qrSizeDp = minOf(maxWidth, (maxHeight - 200.dp).coerceAtLeast(96.dp), 320.dp)
             val qrSizePx = with(LocalDensity.current) { qrSizeDp.roundToPx() }
 
             val render by produceState<QrRender>(QrRender.Loading, export, qrSizePx) {
@@ -165,6 +176,7 @@ fun PlaylistQrExportScreen(
             }
 
             Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -368,4 +380,15 @@ private fun suggestedFileName(playlistName: String): String {
         .replace(Regex("\\s+"), "_")
         .take(40)
     return "$safe.musicoplaylist.json"
+}
+
+@FormFactorPreviews
+@Composable
+private fun PlaylistQrExportScreenPrev() {
+    MusiCoTheme {
+        PlaylistQrExportScreen(
+            playlistWithSongs = mockPlaylists[0],
+            onBack = {},
+        )
+    }
 }
