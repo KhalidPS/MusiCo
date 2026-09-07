@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 data class AppDimens(
     val common: CommonDimens = CommonDimens(),
     val browse: BrowseDimens = BrowseDimens(),
+    val player: PlayerDimens = PlayerDimens(),
 )
 
 data class CommonDimens(
@@ -33,6 +34,34 @@ data class BrowseDimens(
     val tileMinWidth: Dp = 160.dp,
     /** Expanded height of the collapsing cover header on the browse/playlist detail screens. */
     val headerHeight: Dp = 250.dp,
+    /**
+     * Expanded header height used instead of [headerHeight] when the window is height-compact
+     * (a phone in landscape) - independent of the width bucket, since a portrait-sized header
+     * would otherwise eat most of a short viewport before any scrolling happens.
+     */
+    val compactHeightHeaderHeight: Dp = 160.dp,
+)
+
+/** Responsive tokens for the now-playing (`PlayedSongScreen`) pager/controls. */
+data class PlayerDimens(
+    /** Cover art size in the stacked (portrait) layout. */
+    val coverWidth: Dp = 270.dp,
+    val coverHeight: Dp = 350.dp,
+    /** `HorizontalPager` page width; wider than [coverWidth] so neighboring covers peek in. */
+    val pagerPageWidth: Dp = 300.dp,
+    val pagerPeekPadding: Dp = 60.dp,
+    val topIconSize: Dp = 40.dp,
+    val controlIconSize: Dp = 30.dp,
+    val playIconSize: Dp = 70.dp,
+    /**
+     * Cover/pager size used instead of [coverWidth]/[coverHeight]/[pagerPageWidth] when the
+     * window is height-compact (a phone in landscape) - fixed regardless of the width bucket,
+     * sized to fit a short viewport side-by-side with the track info instead of stacked above it.
+     */
+    val compactHeightCoverWidth: Dp = 170.dp,
+    val compactHeightCoverHeight: Dp = 220.dp,
+    val compactHeightPagerPageWidth: Dp = 190.dp,
+    val compactHeightPagerPeekPadding: Dp = 20.dp,
 )
 
 val CompactDimens = AppDimens()
@@ -46,6 +75,11 @@ val MediumDimens = AppDimens(
         tileMinWidth = 190.dp,
         headerHeight = 300.dp,
     ),
+    player = PlayerDimens(
+        coverWidth = 300.dp,
+        coverHeight = 390.dp,
+        pagerPageWidth = 330.dp,
+    ),
 )
 
 val ExpandedDimens = AppDimens(
@@ -56,6 +90,11 @@ val ExpandedDimens = AppDimens(
     browse = BrowseDimens(
         tileMinWidth = 210.dp,
         headerHeight = 340.dp,
+    ),
+    player = PlayerDimens(
+        coverWidth = 320.dp,
+        coverHeight = 410.dp,
+        pagerPageWidth = 350.dp,
     ),
 )
 

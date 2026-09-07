@@ -16,9 +16,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -90,6 +92,11 @@ import com.k.sekiro.musico.playmusic.presenation.played_song.component.InfoDialo
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTimeText
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.SongSlider
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
+import com.k.sekiro.musico.ui.theme.FormFactorPreviews
+import com.k.sekiro.musico.ui.theme.MusiCoTheme
+import com.k.sekiro.musico.ui.theme.WindowHeightSize
+import com.k.sekiro.musico.ui.theme.appDimens
+import com.k.sekiro.musico.ui.theme.windowHeightSize
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -150,8 +157,25 @@ fun SharedTransitionScope.PlayedSongScreen(
         )
     }
 
-    val imgWidthPx = 270.dp.toPx(density = density)
-    val imgHeightPx = 350.dp.toPx(density = density)
+    val playerDimens = appDimens.player
+    // A phone in landscape lands in a height-compact window regardless of its width bucket -
+    // that's the signal to switch from the stacked cover-above-controls layout to a
+    // side-by-side one, since a portrait-sized cover would otherwise crowd out the controls.
+    val isCompactHeight = windowHeightSize == WindowHeightSize.Compact
+
+    val coverFullWidth =
+        if (isCompactHeight) playerDimens.compactHeightCoverWidth else playerDimens.coverWidth
+    val coverFullHeight =
+        if (isCompactHeight) playerDimens.compactHeightCoverHeight else playerDimens.coverHeight
+    val pagerPageWidth =
+        if (isCompactHeight) playerDimens.compactHeightPagerPageWidth else playerDimens.pagerPageWidth
+    val pagerPeekPadding =
+        if (isCompactHeight) playerDimens.compactHeightPagerPeekPadding else playerDimens.pagerPeekPadding
+    // Size a peeking (non-settled) page shrinks to while scrolling past it.
+    val coverOffSize = if (isCompactHeight) 140f else 250f
+
+    val imgWidthPx = coverFullWidth.toPx(density = density)
+    val imgHeightPx = coverFullHeight.toPx(density = density)
 
     val line1X = remember { Animatable(initialValue = 0f) }
     val line2Y = remember { Animatable(initialValue = 0f) }
@@ -325,7 +349,13 @@ fun SharedTransitionScope.PlayedSongScreen(
         }
 
 
-        Column {
+        // Shared pieces of the screen, factored out so the portrait (stacked) and landscape
+        // (side-by-side) layouts below can arrange them differently without duplicating the
+        // pager/shared-element/controls logic. They're plain local lambdas - not extracted to
+        // file scope - specifically so they keep capturing this composable's SharedTransitionScope
+        // receiver and local state (pagerState, the outline Animatables, spotColor, etc).
+
+        val topBar: @Composable ColumnScope.() -> Unit = {
             Row(
                 /** This row is for top icons on screen like (arrow down icon)**/
                 modifier = Modifier
@@ -341,7 +371,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(playerDimens.topIconSize),
                         tint = Color.White
                     )
                 }
@@ -354,327 +384,352 @@ fun SharedTransitionScope.PlayedSongScreen(
                     Icon(
                         imageVector = Icons.TwoTone.Info,
                         contentDescription = null,
-                        modifier = Modifier.size(30.dp),
+                        modifier = Modifier.size(playerDimens.controlIconSize),
                         tint = Color.White
                     )
                 }
             }
+        }
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+        val coverPager: @Composable () -> Unit = {
+            HorizontalPager(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .height(coverFullHeight),
+                state = pagerState,
+                pageSize = PageSize.Fixed(pagerPageWidth),
+                contentPadding = PaddingValues(horizontal = pagerPeekPadding),
+            ) { page ->
+
+                val pageOffset = pagerState.getOffsetDistanceInPages(page).absoluteValue
+                // or you can use pagerState.currentPageOffsetFraction instead of getOffsetDis.....
+
+                // Non-settled (peeking) pages shrink toward a small square as they scroll away.
+                val high = lerp(coverFullHeight.value, coverOffSize, pageOffset)
+                val width = lerp(coverFullWidth.value, coverOffSize, pageOffset)
+
+                AsyncImage(
+                    model = songs[page].cover,
+                    error = painterResource(R.drawable.logo_musico3),
+                    placeholder = painterResource(R.drawable.logo_musico3),
+                    contentDescription = null,
+                    modifier = Modifier
+                        // Only the settled page should participate in the shared-element
+                        // transition - the pager also composes the peeking prev/next pages
+                        // (contentPadding makes them partially visible), and giving every
+                        // composed page a sharedBounds tied to the same
+                        // animatedVisibilityScope pulled all of them into the list->player
+                        // transition at once, which is what caused the lag.
+                        .applyIfComposable(
+                            condition = pagerState.settledPage == page
+                        ) {
+                            sharedBounds(
+                                sharedContentState = rememberSharedContentState("${imageKey}_${songs[page].path}"),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                resizeMode = ResizeMode.RemeasureToBounds,
+                            )
+                        }
+                        .applyIf(
+                            condition = pagerState.currentPage == page && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+                            modifier = {
+                                Modifier.shadow(
+                                    elevation = 20.dp,
+                                    ambientColor = spotColor,
+                                    spotColor = spotColor,
+                                )
+                            }
+                        )
+                        .clip(RoundedCornerShape(12.dp))
+                        .width(Dp(width))
+                        .height(Dp(high))
+                        .applyIf(
+                            condition = pagerState.settledPage == page,
+                            modifier = {
+                                Modifier.drawWithContent {
+                                    drawContent()
+
+                                    drawImageOuterLine(
+                                        line1X = { line1X.value },
+                                        line2Y = { line2Y.value },
+                                        line3X = { line3X.value },
+                                        line4Y = { line4Y.value },
+                                        lineStroke = outerLineStroke,
+                                        outlineColor = outlineColor
+                                    )
+
+
+                                }
+                            }
+                        )
+                        .graphicsLayer {
+                            val scale = lerp(1f, 1.75f, pageOffset)
+                            scaleX *= scale
+                            scaleY *= scale
+                        },
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+
+        val titleText: @Composable () -> Unit = {
+            Text(
+                songs[pagerState.currentPage].title,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Start,
+                modifier = Modifier
+                    .sharedBounds(
+                        sharedContentState = rememberSharedContentState("${titleKey}_${songs[pagerState.currentPage].path}"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 12.dp,
+                        vertical = 8.dp
+                    ),
+                color = Color.White,
+                overflow = TextOverflow.Ellipsis,
+                maxLines = 1
+
+            )
+        }
+
+        val artistText: @Composable () -> Unit = {
+            Text(
+                songs[pagerState.currentPage].artist,
+                fontSize = 20.sp,
+                textAlign = TextAlign.Start,
+                modifier = Modifier
+                    .sharedBounds(
+                        sharedContentState = rememberSharedContentState("${artistKey}_${songs[pagerState.currentPage].path}"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 12.dp,
+                    ),
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+
+            )
+        }
+
+        val slider: @Composable () -> Unit = {
+            SongSlider(
+                sliderProgress = sliderProgress,
+                outlineColor = outlineColor,
+                onAction = onAction
+            )
+        }
+
+        val timeRow: @Composable () -> Unit = {
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+            ) {
+                PassedTimeText(
+                    passedTime = passedTimeDuration,
+                    color = Color.White.copy(alpha = .7f)
+                )
+
+                Text(
+                    text = songs[pagerState.currentPage].displayableDuration.formatted,
+                    color = Color.White.copy(alpha = .7f)
+                )
+            }
+        }
+
+        val controlsRow: @Composable () -> Unit = {
+            Row(
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
             ) {
 
-
-                HorizontalPager(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(350.dp),
-                    state = pagerState,
-                    pageSize = PageSize.Fixed(300.dp),
-                    contentPadding = PaddingValues(horizontal = 60.dp),
-                ) {
-
-                    val pageOffset = pagerState.getOffsetDistanceInPages(it).absoluteValue
-                    // or you can use pagerState.currentPageOffsetFraction instead of getOffsetDis.....
-
-                    /*                   val imgHeight by animateDpAsState(
-                                           targetValue = if (pageOffset in (0.1f..2.0f)) 250.dp else 350.dp
-                                       )
-
-                                       val imgWidth by animateDpAsState(
-                                           targetValue = if (pageOffset in (0.1f..2.0f)) 250.dp else 270.dp
-                                       )*/
-
-                    // or using lerp() instead of animateDpAsState as the code below
-
-                    val high = lerp(350f, 250f, pageOffset)
-                    val width = lerp(270f, 250f, pageOffset)
-
-
-                    /*                    LaunchedEffect(Unit) {
-                                            launch(Dispatchers.Default) {
-                                                val palette =
-                                                    Palette.Builder(convertResToBitmap(context, songs[it].cover))
-                                                        .generate { palette ->
-                                                            outlineColor =
-                                                                if (palette != null && palette.vibrantSwatch != null) Color(
-                                                                    palette.vibrantSwatch!!.rgb
-                                                                ) else Color.Cyan
-                                                        }
-
-                                            }.join()
-                                            snapshotFlow { colorAnimation.value }.collect { value ->
-                                                spotColor = lerp(outlineColor, Color.White, value)
-                                            }
-                                        }*/
-
-
-                    //  val songCover = songs[it].cover?:convertResToBitmap(context,R.drawable.logo_musico3)
-
-
-                    AsyncImage(
-                        model = songs[it].cover,
-                        //bitmap = songs[it].cover.asImageBitmap(),
-                        error = painterResource(R.drawable.logo_musico3),
-                        placeholder = painterResource(R.drawable.logo_musico3),
-                        contentDescription = null,
-                        modifier = Modifier
-                            // Only the settled page should participate in the shared-element
-                            // transition - the pager also composes the peeking prev/next pages
-                            // (contentPadding makes them partially visible), and giving every
-                            // composed page a sharedBounds tied to the same
-                            // animatedVisibilityScope pulled all of them into the list->player
-                            // transition at once, which is what caused the lag.
-                            .applyIfComposable(
-                                condition = pagerState.settledPage == it
-                            ) {
-                                sharedBounds(
-                                    sharedContentState = rememberSharedContentState("${imageKey}_${songs[it].path}"),
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    resizeMode = ResizeMode.RemeasureToBounds,
+                IconButton(
+                    onClick = {
+                        when (playType) {
+                            PlayType.Shuffle -> onAction(
+                                UiAction.ChangePlayType(
+                                    PlayType.RepeatAll
                                 )
-                            }
-                            .applyIf(
-                                condition = pagerState.currentPage == it && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-                                modifier = {
-                                    Modifier.shadow(
-                                        elevation = 20.dp,
-                                        ambientColor = spotColor,
-                                        spotColor = spotColor,
-                                    )
-                                }
                             )
-                            .clip(RoundedCornerShape(12.dp))
-                            .width(Dp(width))
-                            .height(Dp(high))
-                            .applyIf(
-                                condition = pagerState.settledPage == it,
-                                modifier = {
-                                    Modifier.drawWithContent {
-                                        drawContent()
 
-                                        drawImageOuterLine(
-                                            line1X = { line1X.value },
-                                            line2Y = { line2Y.value },
-                                            line3X = { line3X.value },
-                                            line4Y = { line4Y.value },
-                                            lineStroke = outerLineStroke,
-                                            outlineColor = outlineColor
-                                        )
-
-
-                                    }
-                                }
+                            PlayType.RepeatOne -> onAction(
+                                UiAction.ChangePlayType(
+                                    PlayType.Shuffle
+                                )
                             )
-                            .graphicsLayer {
-                                val scale = lerp(1f, 1.75f, pageOffset)
-                                scaleX *= scale
-                                scaleY *= scale
-                            },
-                        contentScale = ContentScale.Crop
-                    )
 
-
-                }
-
-                Spacer(Modifier.weight(1f))
-
-                Text(
-                    songs[pagerState.currentPage].title,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Black,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier
-                        .sharedBounds(
-                            sharedContentState = rememberSharedContentState("${titleKey}_${songs[pagerState.currentPage].path}"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 12.dp,
-                            vertical = 8.dp
-                        ),
-                    color = Color.White,
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1
-
-                )
-
-                Text(
-                    songs[pagerState.currentPage].artist,
-                    fontSize = 20.sp,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier
-                        .sharedBounds(
-                            sharedContentState = rememberSharedContentState("${artistKey}_${songs[pagerState.currentPage].path}"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 12.dp,
-                        ),
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-
-                )
-
-
-
-                SongSlider(
-                    sliderProgress = sliderProgress,
-                    outlineColor = outlineColor,
-                    onAction = onAction
-                )
-
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                ) {
-                    PassedTimeText(
-                        passedTime = passedTimeDuration,
-                        color = Color.White.copy(alpha = .7f)
-                    )
-
-                    Text(
-                        text = songs[pagerState.currentPage].displayableDuration.formatted,
-                        color = Color.White.copy(alpha = .7f)
-                    )
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(2f)
-                ) {
-
-                    IconButton(
-                        onClick = {
-                            when (playType) {
-                                PlayType.Shuffle -> onAction(
-                                    UiAction.ChangePlayType(
-                                        PlayType.RepeatAll
-                                    )
+                            PlayType.RepeatAll -> onAction(
+                                UiAction.ChangePlayType(
+                                    PlayType.RepeatOne
                                 )
-
-                                PlayType.RepeatOne -> onAction(
-                                    UiAction.ChangePlayType(
-                                        PlayType.Shuffle
-                                    )
-                                )
-
-                                PlayType.RepeatAll -> onAction(
-                                    UiAction.ChangePlayType(
-                                        PlayType.RepeatOne
-                                    )
-                                )
-                            }
-                        },
-
-                        ) {
-                        Icon(
-                            imageVector = when (playType) {
-                                PlayType.Shuffle -> Icons.Default.Shuffle
-                                PlayType.RepeatOne -> Icons.Default.RepeatOne
-                                PlayType.RepeatAll -> Icons.Default.Repeat
-                            },
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp),
-                            tint = Color.White
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            onAction(UiAction.SeekToPrevious)
-                            scope.launch {
-                                if (pagerState.settledPage > 0) {
-                                    pagerState.animateScrollToPage(pagerState.settledPage - 1)
-
-                                }
-                            }
-                        },
-
-                        ) {
-                        Icon(
-                            imageVector = if (isRtl) {
-                                Icons.Default.SkipNext
-                            } else {
-                                Icons.Default.SkipPrevious
-                            },
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp),
-                            tint = Color.White
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { /**/ },
-                        modifier = Modifier
-                            .size(70.dp)
+                            )
+                        }
+                    },
 
                     ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(70.dp)
-                                .clickable(
-                                    enabled = true,
-                                    onClick = {
-                                        onAction(UiAction.PlayPause)
-                                    },
-                                ),
-                            tint = Color.White
-                        )
-                    }
+                    Icon(
+                        imageVector = when (playType) {
+                            PlayType.Shuffle -> Icons.Default.Shuffle
+                            PlayType.RepeatOne -> Icons.Default.RepeatOne
+                            PlayType.RepeatAll -> Icons.Default.Repeat
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(playerDimens.controlIconSize),
+                        tint = Color.White
+                    )
+                }
 
-                    IconButton(
-                        onClick = {
-                            onAction(UiAction.SeekToNext)
-                            scope.launch {
-                                if (pagerState.settledPage < songs.lastIndex)
-                                    pagerState.animateScrollToPage(pagerState.settledPage + 1)
+                IconButton(
+                    onClick = {
+                        onAction(UiAction.SeekToPrevious)
+                        scope.launch {
+                            if (pagerState.settledPage > 0) {
+                                pagerState.animateScrollToPage(pagerState.settledPage - 1)
+
                             }
+                        }
+                    },
 
+                    ) {
+                    Icon(
+                        imageVector = if (isRtl) {
+                            Icons.Default.SkipNext
+                        } else {
+                            Icons.Default.SkipPrevious
                         },
+                        contentDescription = null,
+                        modifier = Modifier.size(playerDimens.controlIconSize),
+                        tint = Color.White
+                    )
+                }
 
-                        ) {
-                        Icon(
-                            imageVector = if (isRtl) {
-                                Icons.Default.SkipPrevious
-                            } else {
-                                Icons.Default.SkipNext
-                            },
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp),
-                            tint = Color.White,
-                        )
-                    }
+                IconButton(
+                    onClick = { /**/ },
+                    modifier = Modifier
+                        .size(playerDimens.playIconSize)
 
-                    IconButton(
-                        onClick = {
-                            onAction(UiAction.OnFavoriteClicked(songs[pagerState.settledPage]))
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(playerDimens.playIconSize)
+                            .clickable(
+                                enabled = true,
+                                onClick = {
+                                    onAction(UiAction.PlayPause)
+                                },
+                            ),
+                        tint = Color.White
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        onAction(UiAction.SeekToNext)
+                        scope.launch {
+                            if (pagerState.settledPage < songs.lastIndex)
+                                pagerState.animateScrollToPage(pagerState.settledPage + 1)
+                        }
+
+                    },
+
+                    ) {
+                    Icon(
+                        imageVector = if (isRtl) {
+                            Icons.Default.SkipPrevious
+                        } else {
+                            Icons.Default.SkipNext
                         },
+                        contentDescription = null,
+                        modifier = Modifier.size(playerDimens.controlIconSize),
+                        tint = Color.White,
+                    )
+                }
 
-                        ) {
-                        Icon(
-                            imageVector = Icons.Default.Favorite,
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp),
-                            tint = if (isFavorite) Color.Red else Color.White.copy(
-                                alpha = .5f
-                            )
+                IconButton(
+                    onClick = {
+                        onAction(UiAction.OnFavoriteClicked(songs[pagerState.settledPage]))
+                    },
+
+                    ) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = null,
+                        modifier = Modifier.size(playerDimens.controlIconSize),
+                        tint = if (isFavorite) Color.Red else Color.White.copy(
+                            alpha = .5f
                         )
-                    }
+                    )
+                }
 
+            }
+        }
+
+        if (isCompactHeight) {
+            // Short window (phone landscape): cover and controls side by side instead of
+            // stacked, so the controls aren't squeezed under a portrait-sized cover.
+            Row(Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    topBar()
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        coverPager()
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    titleText()
+                    artistText()
+                    slider()
+                    timeRow()
+                    Spacer(Modifier.height(8.dp))
+                    controlsRow()
+                }
+            }
+        } else {
+            Column {
+                topBar()
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    coverPager()
+
+                    Spacer(Modifier.weight(1f))
+
+                    titleText()
+                    artistText()
+                    slider()
+                    timeRow()
+
+                    Box(Modifier.weight(2f)) {
+                        controlsRow()
+                    }
                 }
             }
         }
@@ -683,23 +738,25 @@ fun SharedTransitionScope.PlayedSongScreen(
 
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Preview
+@FormFactorPreviews
 @Composable
 private fun PlayedSongScreenPrev() {
-    SharedTransitionLayout {
-        AnimatedVisibility(true) {
-            PlayedSongScreen(
-                lurCache = LruCache(4),
-                onAction = { },
-                animatedVisibilityScope = this,
-                passedTimeDuration = { "" },
-                songs = mockSongs.map { it.toSongUi() },
-                favoriteSongs = mockSongs.map { it.toSongUi() },
-                playedSong = mockSongs[0].toSongUi(),
-                playType = PlayType.RepeatAll,
-                isPlaying = true,
-                sliderProgress = { 0f }
-            )
+    MusiCoTheme {
+        SharedTransitionLayout {
+            AnimatedVisibility(true) {
+                PlayedSongScreen(
+                    lurCache = LruCache(4),
+                    onAction = { },
+                    animatedVisibilityScope = this,
+                    passedTimeDuration = { "" },
+                    songs = mockSongs.map { it.toSongUi() },
+                    favoriteSongs = mockSongs.map { it.toSongUi() },
+                    playedSong = mockSongs[0].toSongUi(),
+                    playType = PlayType.RepeatAll,
+                    isPlaying = true,
+                    sliderProgress = { 0f }
+                )
+            }
         }
     }
 
