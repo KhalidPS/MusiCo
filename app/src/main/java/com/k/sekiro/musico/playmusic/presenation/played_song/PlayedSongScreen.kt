@@ -60,6 +60,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -163,12 +164,29 @@ fun SharedTransitionScope.PlayedSongScreen(
     // side-by-side one, since a portrait-sized cover would otherwise crowd out the controls.
     val isCompactHeight = windowHeightSize == WindowHeightSize.Compact
 
-    val coverFullWidth =
-        if (isCompactHeight) playerDimens.compactHeightCoverWidth else playerDimens.coverWidth
-    val coverFullHeight =
-        if (isCompactHeight) playerDimens.compactHeightCoverHeight else playerDimens.coverHeight
-    val pagerPageWidth =
-        if (isCompactHeight) playerDimens.compactHeightPagerPageWidth else playerDimens.pagerPageWidth
+    // The portrait cover token is sized for a "normal" phone height; on a genuinely short one
+    // (e.g. ~590dp total, not short enough to trip isCompactHeight, which is keyed on 480dp) a
+    // fixed 350dp cover leaves too little of what's left for the title/artist/slider/controls,
+    // squeezing the control icons down toward nothing. Capping it against the window's actual
+    // height (scaled proportionally, to keep the cover's own aspect ratio) fixes that while
+    // leaving normal-height phones untouched, since the cap only bites when it's smaller than
+    // the token.
+    val screenHeightDp = LocalConfiguration.current.screenHeightDp
+    val portraitCoverHeight =
+        minOf(playerDimens.coverHeight, (screenHeightDp * 0.5f).dp).coerceAtLeast(180.dp)
+    val portraitCoverScale = portraitCoverHeight / playerDimens.coverHeight
+
+    val coverFullWidth = if (isCompactHeight) {
+        playerDimens.compactHeightCoverWidth
+    } else {
+        playerDimens.coverWidth * portraitCoverScale
+    }
+    val coverFullHeight = if (isCompactHeight) playerDimens.compactHeightCoverHeight else portraitCoverHeight
+    val pagerPageWidth = if (isCompactHeight) {
+        playerDimens.compactHeightPagerPageWidth
+    } else {
+        playerDimens.pagerPageWidth * portraitCoverScale
+    }
     val pagerPeekPadding =
         if (isCompactHeight) playerDimens.compactHeightPagerPeekPadding else playerDimens.pagerPeekPadding
     // Size a peeking (non-settled) page shrinks to while scrolling past it.
