@@ -173,6 +173,11 @@ fun SharedTransitionScope.PlayedSongScreen(
         if (isCompactHeight) playerDimens.compactHeightPagerPeekPadding else playerDimens.pagerPeekPadding
     // Size a peeking (non-settled) page shrinks to while scrolling past it.
     val coverOffSize = if (isCompactHeight) 140f else 250f
+    // Smaller in landscape - the title/artist share a narrow half-column there (not the full
+    // screen width like portrait), so the portrait size truncates more than is comfortable,
+    // especially on a narrow phone.
+    val titleFontSize = if (isCompactHeight) 20.sp else 26.sp
+    val artistFontSize = if (isCompactHeight) 16.sp else 20.sp
 
     val imgWidthPx = coverFullWidth.toPx(density = density)
     val imgHeightPx = coverFullHeight.toPx(density = density)
@@ -492,7 +497,7 @@ fun SharedTransitionScope.PlayedSongScreen(
         val titleText: @Composable () -> Unit = {
             Text(
                 songs[pagerState.currentPage].title,
-                fontSize = 26.sp,
+                fontSize = titleFontSize,
                 fontWeight = FontWeight.Black,
                 textAlign = TextAlign.Start,
                 modifier = Modifier
@@ -515,7 +520,7 @@ fun SharedTransitionScope.PlayedSongScreen(
         val artistText: @Composable () -> Unit = {
             Text(
                 songs[pagerState.currentPage].artist,
-                fontSize = 20.sp,
+                fontSize = artistFontSize,
                 textAlign = TextAlign.Start,
                 modifier = Modifier
                     .sharedBounds(

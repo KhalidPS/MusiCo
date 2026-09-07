@@ -27,6 +27,8 @@ data class CommonDimens(
     val contentMaxWidth: Dp = 10_000.dp,
     /** Gap between items in the showcase grids. */
     val gridSpacing: Dp = 12.dp,
+    /** Width of Home's quick-access shelf cards (Favorite/Playlists/Recent/Artists/Albums). */
+    val shelfCardWidth: Dp = 130.dp,
 )
 
 data class BrowseDimens(
@@ -70,6 +72,7 @@ val MediumDimens = AppDimens(
     common = CommonDimens(
         contentMaxWidth = 720.dp,
         gridSpacing = 16.dp,
+        shelfCardWidth = 150.dp,
     ),
     browse = BrowseDimens(
         tileMinWidth = 190.dp,
@@ -86,6 +89,7 @@ val ExpandedDimens = AppDimens(
     common = CommonDimens(
         contentMaxWidth = 900.dp,
         gridSpacing = 20.dp,
+        shelfCardWidth = 170.dp,
     ),
     browse = BrowseDimens(
         tileMinWidth = 210.dp,

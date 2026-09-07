@@ -66,6 +66,7 @@ import com.k.sekiro.musico.ui.theme.Blue
 import com.k.sekiro.musico.ui.theme.FavoritePlaylistColor
 import com.k.sekiro.musico.ui.theme.RecentPlayListColor
 import com.k.sekiro.musico.ui.theme.WindowHeightSize
+import com.k.sekiro.musico.ui.theme.appDimens
 import com.k.sekiro.musico.ui.theme.windowHeightSize
 
 @SuppressLint("RememberReturnType")
@@ -184,11 +185,15 @@ fun SharedTransitionScope.SongsList(
 
 
             // The shelf row's height is driven by its cards' aspectRatio-derived height, which
-            // (at the portrait-sized 130dp width) leaves almost no room for the song list below
-            // it on a height-compact window (phone landscape, ~360dp tall total) - shrink the
-            // cards there so the list - the actual point of this screen - stays usable.
+            // at the width-bucket's normal card size leaves almost no room for the song list
+            // below it on a height-compact window (phone landscape) - shrink the cards there so
+            // the list - the actual point of this screen - stays usable. Flattening the aspect
+            // ratio (rather than just shrinking width, which shrinks height at the same rate)
+            // keeps the card wide enough for its title/subtitle to stay legible while still
+            // cutting the height a lot more than the width.
             val isCompactHeight = windowHeightSize == WindowHeightSize.Compact
-            val shelfCardWidth = if (isCompactHeight) 92.dp else 130.dp
+            val shelfCardWidth = if (isCompactHeight) 110.dp else appDimens.common.shelfCardWidth
+            val shelfCardAspectRatio = if (isCompactHeight) 1.25f else 0.85f
 
             Spacer(Modifier.height(if (isCompactHeight) 8.dp else 16.dp))
 
@@ -220,6 +225,7 @@ fun SharedTransitionScope.SongsList(
 
                 PlaylistShelfCard(
                     modifier = Modifier.width(shelfCardWidth),
+                    aspectRatio = shelfCardAspectRatio,
                     accentColor = FavoritePlaylistColor,
                     icon = Icons.Default.Favorite,
                     title = "Favorite",
@@ -230,6 +236,7 @@ fun SharedTransitionScope.SongsList(
 
                 PlaylistShelfCard(
                     modifier = Modifier.width(shelfCardWidth),
+                    aspectRatio = shelfCardAspectRatio,
                     accentColor = Blue,
                     icon = Icons.AutoMirrored.Default.List,
                     title = "Playlists",
@@ -240,6 +247,7 @@ fun SharedTransitionScope.SongsList(
 
                 PlaylistShelfCard(
                     modifier = Modifier.width(shelfCardWidth),
+                    aspectRatio = shelfCardAspectRatio,
                     accentColor = RecentPlayListColor,
                     icon = Icons.TwoTone.Refresh,
                     title = "Recent",
@@ -250,6 +258,7 @@ fun SharedTransitionScope.SongsList(
 
                 PlaylistShelfCard(
                     modifier = Modifier.width(shelfCardWidth),
+                    aspectRatio = shelfCardAspectRatio,
                     accentColor = ArtistShelfColor,
                     icon = Icons.Default.Person,
                     title = "Artists",
@@ -260,6 +269,7 @@ fun SharedTransitionScope.SongsList(
 
                 PlaylistShelfCard(
                     modifier = Modifier.width(shelfCardWidth),
+                    aspectRatio = shelfCardAspectRatio,
                     accentColor = AlbumShelfColor,
                     icon = Icons.Default.Album,
                     title = "Albums",

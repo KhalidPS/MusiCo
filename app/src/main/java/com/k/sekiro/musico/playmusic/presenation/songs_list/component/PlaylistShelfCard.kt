@@ -57,6 +57,11 @@ fun PlaylistShelfCard(
     subtitle: String,
     coverUrl: String,
     onClick: () -> Unit,
+    // Flatter (larger) on a height-compact window so the card's height shrinks independently
+    // of its width - shrinking width and height together (by shrinking width alone, at a fixed
+    // ratio) makes the width too narrow for the title/subtitle before the height problem is
+    // actually fixed.
+    aspectRatio: Float = 0.85f,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -72,7 +77,7 @@ fun PlaylistShelfCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .aspectRatio(0.85f)
+            .aspectRatio(aspectRatio)
             .clip(RoundedCornerShape(20.dp))
             .clickable(
                 interactionSource = interactionSource,
