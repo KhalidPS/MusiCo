@@ -14,6 +14,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -63,6 +64,8 @@ import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
 import com.k.sekiro.musico.ui.theme.FormFactorPreviews
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
+import com.k.sekiro.musico.ui.theme.WindowHeightSize
+import com.k.sekiro.musico.ui.theme.windowHeightSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -144,19 +147,25 @@ fun PlaylistQrExportScreen(
             Text("Share playlist", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
 
+        val isCompactHeight = windowHeightSize == WindowHeightSize.Compact
+
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp),
             contentAlignment = Alignment.TopCenter,
         ) {
-            // Capped by both available dimensions, not just width - on a height-compact window
-            // (phone landscape) a fixed 320dp QR would crowd out the name/count text and the
-            // buttons below it. maxHeight already accounts for whatever this box actually has;
-            // the 200dp reserve is the title/count/caption/button-row stack around the QR, sized
-            // so the buttons stay in view without scrolling in the common case (verticalScroll
-            // below is still there as a safety net for anything shorter).
-            val qrSizeDp = minOf(maxWidth, (maxHeight - 200.dp).coerceAtLeast(96.dp), 320.dp)
+            // Capped by both available dimensions, not just width - a fixed 320dp QR would
+            // crowd out the name/count text and buttons below it on a height-compact window
+            // (phone landscape). Landscape gets a different budget than portrait: rather than
+            // shrinking the QR to share vertical space with the text (which on a ~360dp-tall
+            // phone leaves it too small to reliably scan), the layout below splits into a
+            // side-by-side Row there instead, so the QR can use the *full* available height.
+            val qrSizeDp = if (isCompactHeight) {
+                minOf(maxHeight, maxWidth * 0.5f, 320.dp)
+            } else {
+                minOf(maxWidth, (maxHeight - 200.dp).coerceAtLeast(96.dp), 320.dp)
+            }
             val qrSizePx = with(LocalDensity.current) { qrSizeDp.roundToPx() }
 
             val render by produceState<QrRender>(QrRender.Loading, export, qrSizePx) {
@@ -173,6 +182,103 @@ fun PlaylistQrExportScreen(
                         QrRender.TooLarge
                     }
                 }
+            }
+
+            val isIdle = transferState == null || transferState is TransferState.Idle
+
+            // Hoisted out of the Advertising branch below so the split-layout decision can see
+            // it before that branch composes - only actually renders the bitmap when it'll be
+            // used (isCompactHeight), so it's a no-op in portrait where Advertising renders its
+            // own copy further down, unchanged.
+            val advertisingQrBitmap by produceState<Bitmap?>(
+                null,
+                isCompactHeight,
+                (transferState as? TransferState.Advertising)?.qrPayload,
+                qrSizePx,
+            ) {
+                val payload = (transferState as? TransferState.Advertising)?.qrPayload
+                value = if (!isCompactHeight || payload == null) {
+                    null
+                } else {
+                    withContext(Dispatchers.Default) {
+                        runCatching { PlaylistQrCodec.generateQrBitmap(payload, qrSizePx) }.getOrNull()
+                    }
+                }
+            }
+            val splitQrBitmap = if (isIdle) (render as? QrRender.Ready)?.bitmap else advertisingQrBitmap
+
+            if (isCompactHeight && splitQrBitmap != null) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Image(
+                            bitmap = splitQrBitmap.asImageBitmap(),
+                            contentDescription = if (isIdle) "Playlist QR code" else "Send-with-songs QR code",
+                            modifier = Modifier
+                                .size(qrSizeDp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White)
+                                .padding(8.dp),
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = playlistWithSongs.playlist.name,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            text = "${export.songs.size} songs",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (isIdle) {
+                            Text(
+                                text = "Scan this from the other device's playlists screen.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                OutlinedButton(
+                                    onClick = { saveFileLauncher.launch(suggestedFileName(export.name)) },
+                                ) {
+                                    Text("Save as file")
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        if (unsatisfiedBlocking(context, TransferRole.Sender).isEmpty()) {
+                                            onSendWithSongsClicked(playlistWithSongs.playlist.id)
+                                        } else {
+                                            showPreparations = true
+                                        }
+                                    },
+                                ) {
+                                    Text("Send with songs")
+                                }
+                            }
+                        } else {
+                            Text(
+                                "Scan this on the other device to receive the songs.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                "Waiting for the other device…",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedButton(onClick = onCancelTransferClicked) { Text("Cancel") }
+                        }
+                    }
+                }
+                return@BoxWithConstraints
             }
 
             Column(
@@ -195,7 +301,7 @@ fun PlaylistQrExportScreen(
                 // Only one QR is ever shown at a time - stacking the plain playlist QR (fingerprints
                 // only) with the MUSICO-XFER-1 transfer QR left it ambiguous which one to scan, and
                 // scanning the wrong one silently drops every song the receiver doesn't already have.
-                if (transferState == null || transferState is TransferState.Idle) {
+                if (isIdle) {
                     when (val r = render) {
                         QrRender.Loading -> CircularProgressIndicator(
                             modifier = Modifier

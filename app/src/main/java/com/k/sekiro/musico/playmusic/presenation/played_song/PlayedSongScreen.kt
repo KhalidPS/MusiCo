@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -356,12 +355,17 @@ fun SharedTransitionScope.PlayedSongScreen(
         // file scope - specifically so they keep capturing this composable's SharedTransitionScope
         // receiver and local state (pagerState, the outline Animatables, spotColor, etc).
 
-        val topBar: @Composable ColumnScope.() -> Unit = {
+        // Natural (wrap-content) height, not weighted - it's placed inside a much shorter column
+        // in the landscape branch (just the cover-pager side) than in the portrait branch (the
+        // full screen), so a fixed weight fraction would size it very differently in each: too
+        // short in landscape to fit the icons without compressing them. The cover/controls
+        // content below it takes the actual remaining space via its own weight(1f) in both
+        // branches instead.
+        val topBar: @Composable () -> Unit = {
             Row(
                 /** This row is for top icons on screen like (arrow down icon)**/
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(.1f)
                     .padding(8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

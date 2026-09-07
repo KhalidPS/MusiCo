@@ -65,6 +65,8 @@ import com.k.sekiro.musico.ui.theme.ArtistShelfColor
 import com.k.sekiro.musico.ui.theme.Blue
 import com.k.sekiro.musico.ui.theme.FavoritePlaylistColor
 import com.k.sekiro.musico.ui.theme.RecentPlayListColor
+import com.k.sekiro.musico.ui.theme.WindowHeightSize
+import com.k.sekiro.musico.ui.theme.windowHeightSize
 
 @SuppressLint("RememberReturnType")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -181,7 +183,14 @@ fun SharedTransitionScope.SongsList(
 
 
 
-            Spacer(Modifier.height(16.dp))
+            // The shelf row's height is driven by its cards' aspectRatio-derived height, which
+            // (at the portrait-sized 130dp width) leaves almost no room for the song list below
+            // it on a height-compact window (phone landscape, ~360dp tall total) - shrink the
+            // cards there so the list - the actual point of this screen - stays usable.
+            val isCompactHeight = windowHeightSize == WindowHeightSize.Compact
+            val shelfCardWidth = if (isCompactHeight) 92.dp else 130.dp
+
+            Spacer(Modifier.height(if (isCompactHeight) 8.dp else 16.dp))
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -210,7 +219,7 @@ fun SharedTransitionScope.SongsList(
                 val recentPlaylistId = playlistWithSongs.getOrNull(1)?.playlist?.id ?: 2L
 
                 PlaylistShelfCard(
-                    modifier = Modifier.width(130.dp),
+                    modifier = Modifier.width(shelfCardWidth),
                     accentColor = FavoritePlaylistColor,
                     icon = Icons.Default.Favorite,
                     title = "Favorite",
@@ -220,7 +229,7 @@ fun SharedTransitionScope.SongsList(
                 )
 
                 PlaylistShelfCard(
-                    modifier = Modifier.width(130.dp),
+                    modifier = Modifier.width(shelfCardWidth),
                     accentColor = Blue,
                     icon = Icons.AutoMirrored.Default.List,
                     title = "Playlists",
@@ -230,7 +239,7 @@ fun SharedTransitionScope.SongsList(
                 )
 
                 PlaylistShelfCard(
-                    modifier = Modifier.width(130.dp),
+                    modifier = Modifier.width(shelfCardWidth),
                     accentColor = RecentPlayListColor,
                     icon = Icons.TwoTone.Refresh,
                     title = "Recent",
@@ -240,7 +249,7 @@ fun SharedTransitionScope.SongsList(
                 )
 
                 PlaylistShelfCard(
-                    modifier = Modifier.width(130.dp),
+                    modifier = Modifier.width(shelfCardWidth),
                     accentColor = ArtistShelfColor,
                     icon = Icons.Default.Person,
                     title = "Artists",
@@ -250,7 +259,7 @@ fun SharedTransitionScope.SongsList(
                 )
 
                 PlaylistShelfCard(
-                    modifier = Modifier.width(130.dp),
+                    modifier = Modifier.width(shelfCardWidth),
                     accentColor = AlbumShelfColor,
                     icon = Icons.Default.Album,
                     title = "Albums",
@@ -285,7 +294,14 @@ fun SharedTransitionScope.SongsList(
 
             LazyColumn(
                 contentPadding = PaddingValues(vertical = 8.dp),
-                modifier = Modifier.fillMaxSize()
+                // weight(1f), not fillMaxSize() - this is a plain (non-scrolling) Column, and a
+                // fillMaxSize() child doesn't get its constraints reduced by the search bar/shelf
+                // row already placed above it, so on a short window (phone landscape) it could
+                // request more height than was actually left, instead of being correctly capped
+                // to the remainder.
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
             ) {
                 itemsIndexed(
                     songs,
