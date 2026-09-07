@@ -25,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
@@ -34,6 +33,9 @@ import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.components.PlaylistItem
 import com.k.sekiro.musico.playmusic.presenation.util.component.AddPlaylistDialog
+import com.k.sekiro.musico.ui.theme.FormFactorPreviews
+import com.k.sekiro.musico.ui.theme.MusiCoTheme
+import com.k.sekiro.musico.ui.theme.appDimens
 
 @Composable
 fun ShowcasePlaylists(
@@ -108,12 +110,13 @@ fun ShowcasePlaylists(
 
             }
 
+            val dimens = appDimens
             LazyVerticalGrid(
                 modifier = Modifier.fillMaxSize(),
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Adaptive(dimens.browse.tileMinWidth),
                 contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(dimens.common.gridSpacing),
+                verticalArrangement = Arrangement.spacedBy(dimens.common.gridSpacing)
             ) {
                 items(
                     playlists,
@@ -135,12 +138,12 @@ fun ShowcasePlaylists(
 }
 
 
-@Preview(
-    showBackground = true
-)
+@FormFactorPreviews
 @Composable
 private fun ShowcasePlaylistsPrev() {
-    ShowcasePlaylists()
+    MusiCoTheme {
+        ShowcasePlaylists(playlists = mockPlaylists)
+    }
 }
 
 

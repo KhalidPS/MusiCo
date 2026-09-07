@@ -62,6 +62,11 @@ import com.k.sekiro.musico.playmusic.presenation.util.component.DeleteDialog
 import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectionBottomSheet
 import com.k.sekiro.musico.playmusic.presenation.util.component.Song
 import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
+import com.k.sekiro.musico.ui.theme.FormFactorPreviews
+import com.k.sekiro.musico.ui.theme.MusiCoTheme
+import com.k.sekiro.musico.ui.theme.WindowHeightSize
+import com.k.sekiro.musico.ui.theme.appDimens
+import com.k.sekiro.musico.ui.theme.windowHeightSize
 
 /** Read-only counterpart to PlaylistCollapsingScreen for a derived group (artist/album) -
 same collapsing-header + song-list shell, but with no whole-entity delete concept, since a
@@ -100,7 +105,13 @@ fun SharedTransitionScope.BrowseDetailScreen(
     var isShowDeleteDialog by remember { mutableStateOf(false) }
     var isShowAddPlaylistDialog by remember { mutableStateOf(false) }
 
-    val expandedImageHeight = 250.dp
+    // On a height-compact window (phone landscape) the portrait header height would eat most
+    // of the viewport before any scrolling happens, so use the shorter, width-independent token.
+    val expandedImageHeight = if (windowHeightSize == WindowHeightSize.Compact) {
+        appDimens.browse.compactHeightHeaderHeight
+    } else {
+        appDimens.browse.headerHeight
+    }
     val collapsedToolbarHeight = 60.dp
 
     val density = LocalDensity.current
@@ -304,24 +315,26 @@ fun SharedTransitionScope.BrowseDetailScreen(
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Preview
+@FormFactorPreviews
 @Composable
 private fun BrowseDetailScreenPrev() {
-    SharedTransitionLayout {
-        AnimatedVisibility(true) {
-            BrowseDetailScreen(
-                title = "Ajnad Nasheed",
-                coverUrl = "",
-                songs = mockSongs.map { it.toSongUi() },
-                selectedSongs = emptyList(),
-                selectModeEnabled = false,
-                playlists = emptyList(),
-                onCancelClicked = {},
-                onAddToExistPlaylist = {},
-                onAddToNewPlaylist = {},
-                onAddSingleSong = { _, _, _ -> },
-                animatedVisibilityScope = this
-            )
+    MusiCoTheme {
+        SharedTransitionLayout {
+            AnimatedVisibility(true) {
+                BrowseDetailScreen(
+                    title = "Ajnad Nasheed",
+                    coverUrl = "",
+                    songs = mockSongs.map { it.toSongUi() },
+                    selectedSongs = emptyList(),
+                    selectModeEnabled = false,
+                    playlists = emptyList(),
+                    onCancelClicked = {},
+                    onAddToExistPlaylist = {},
+                    onAddToNewPlaylist = {},
+                    onAddSingleSong = { _, _, _ -> },
+                    animatedVisibilityScope = this
+                )
+            }
         }
     }
 }

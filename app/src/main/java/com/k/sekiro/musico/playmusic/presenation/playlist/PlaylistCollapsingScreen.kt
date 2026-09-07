@@ -56,7 +56,12 @@ import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectio
 import com.k.sekiro.musico.playmusic.presenation.util.component.Song
 import com.k.sekiro.musico.playmusic.presenation.util.component.AddPlaylistDialog
 import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
+import com.k.sekiro.musico.ui.theme.FormFactorPreviews
+import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import com.k.sekiro.musico.ui.theme.Red
+import com.k.sekiro.musico.ui.theme.WindowHeightSize
+import com.k.sekiro.musico.ui.theme.appDimens
+import com.k.sekiro.musico.ui.theme.windowHeightSize
 
 // Assuming you have a drawable resource named 'sample_image'
 // For this example, let's use a placeholder.
@@ -101,7 +106,13 @@ fun SharedTransitionScope.PlaylistCollapsingScreen(
 
 
     // --- Define Dimensions ---
-    val expandedImageHeight = 250.dp
+    // On a height-compact window (phone landscape) the portrait header height would eat most
+    // of the viewport before any scrolling happens, so use the shorter, width-independent token.
+    val expandedImageHeight = if (windowHeightSize == WindowHeightSize.Compact) {
+        appDimens.browse.compactHeightHeaderHeight
+    } else {
+        appDimens.browse.headerHeight
+    }
     val collapsedToolbarHeight = 60.dp
 
     // Density provides pixel values for calculations
@@ -448,22 +459,24 @@ fun SharedTransitionScope.PlaylistCollapsingScreen(
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Preview
+@FormFactorPreviews
 @Composable
 private fun CollapsingTitleToolbarPrev() {
-    SharedTransitionLayout {
-        AnimatedVisibility(true) {
-            PlaylistCollapsingScreen(
-                playlistWithSongsUi = mockPlaylists[0],
-                selectedSongs = mockSongs.map { it.toSongUi() },
-                selectModeEnabled = false,
-                playlists = emptyList(),
-                onCancelClicked = {},
-                onAddToExistPlaylist = {},
-                onAddToNewPlaylist = {},
-                onAddSingleSong = { _, _, _ -> },
-                animatedVisibilityScope = this
-            )
+    MusiCoTheme {
+        SharedTransitionLayout {
+            AnimatedVisibility(true) {
+                PlaylistCollapsingScreen(
+                    playlistWithSongsUi = mockPlaylists[0],
+                    selectedSongs = mockSongs.map { it.toSongUi() },
+                    selectModeEnabled = false,
+                    playlists = emptyList(),
+                    onCancelClicked = {},
+                    onAddToExistPlaylist = {},
+                    onAddToNewPlaylist = {},
+                    onAddSingleSong = { _, _, _ -> },
+                    animatedVisibilityScope = this
+                )
+            }
         }
     }
 }
