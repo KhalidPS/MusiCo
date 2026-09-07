@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -392,14 +393,26 @@ fun SharedTransitionScope.PlayedSongScreen(
         }
 
         val coverPager: @Composable () -> Unit = {
-            HorizontalPager(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(coverFullHeight),
-                state = pagerState,
-                pageSize = PageSize.Fixed(pagerPageWidth),
-                contentPadding = PaddingValues(horizontal = pagerPeekPadding),
-            ) { page ->
+            // Bounded to page-width-plus-peek and centered, rather than a bare fillMaxWidth
+            // pager - HorizontalPager positions its settled page starting right after the
+            // leading contentPadding, not centered in its own bounds, so on a tablet/desktop-wide
+            // container a fillMaxWidth pager left the cover hugging the left edge with a dead
+            // zone on the right. Deriving contentPadding from the bounded width (instead of the
+            // fixed pagerPeekPadding token) also keeps it from overflowing a phone narrower than
+            // pageWidth + 2*peek.
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val viewportWidth = minOf(maxWidth, pagerPageWidth + pagerPeekPadding * 2)
+                val peekPadding = ((viewportWidth - pagerPageWidth) / 2).coerceAtLeast(0.dp)
+
+                HorizontalPager(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .width(viewportWidth)
+                        .height(coverFullHeight),
+                    state = pagerState,
+                    pageSize = PageSize.Fixed(pagerPageWidth),
+                    contentPadding = PaddingValues(horizontal = peekPadding),
+                ) { page ->
 
                 val pageOffset = pagerState.getOffsetDistanceInPages(page).absoluteValue
                 // or you can use pagerState.currentPageOffsetFraction instead of getOffsetDis.....
@@ -468,6 +481,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                         },
                     contentScale = ContentScale.Crop
                 )
+                }
             }
         }
 
