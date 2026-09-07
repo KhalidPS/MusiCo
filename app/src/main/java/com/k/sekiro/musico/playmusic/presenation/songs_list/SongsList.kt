@@ -63,11 +63,11 @@ import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
 import com.k.sekiro.musico.ui.theme.AlbumShelfColor
 import com.k.sekiro.musico.ui.theme.ArtistShelfColor
 import com.k.sekiro.musico.ui.theme.Blue
+import com.k.sekiro.musico.ui.theme.DeviceConfiguration
 import com.k.sekiro.musico.ui.theme.FavoritePlaylistColor
 import com.k.sekiro.musico.ui.theme.RecentPlayListColor
-import com.k.sekiro.musico.ui.theme.WindowHeightSize
 import com.k.sekiro.musico.ui.theme.appDimens
-import com.k.sekiro.musico.ui.theme.windowHeightSize
+import com.k.sekiro.musico.ui.theme.deviceConfiguration
 
 @SuppressLint("RememberReturnType")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -191,7 +191,7 @@ fun SharedTransitionScope.SongsList(
             // ratio (rather than just shrinking width, which shrinks height at the same rate)
             // keeps the card wide enough for its title/subtitle to stay legible while still
             // cutting the height a lot more than the width.
-            val isCompactHeight = windowHeightSize == WindowHeightSize.Compact
+            val isCompactHeight = deviceConfiguration == DeviceConfiguration.MOBILE_LANDSCAPE
             val shelfCardWidth = if (isCompactHeight) 110.dp else appDimens.common.shelfCardWidth
             val shelfCardAspectRatio = if (isCompactHeight) 1.25f else 0.85f
 

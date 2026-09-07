@@ -62,11 +62,11 @@ import com.k.sekiro.musico.playmusic.presenation.util.component.DeleteDialog
 import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectionBottomSheet
 import com.k.sekiro.musico.playmusic.presenation.util.component.Song
 import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
+import com.k.sekiro.musico.ui.theme.DeviceConfiguration
 import com.k.sekiro.musico.ui.theme.FormFactorPreviews
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
-import com.k.sekiro.musico.ui.theme.WindowHeightSize
 import com.k.sekiro.musico.ui.theme.appDimens
-import com.k.sekiro.musico.ui.theme.windowHeightSize
+import com.k.sekiro.musico.ui.theme.deviceConfiguration
 
 /** Read-only counterpart to PlaylistCollapsingScreen for a derived group (artist/album) -
 same collapsing-header + song-list shell, but with no whole-entity delete concept, since a
@@ -107,7 +107,7 @@ fun SharedTransitionScope.BrowseDetailScreen(
 
     // On a height-compact window (phone landscape) the portrait header height would eat most
     // of the viewport before any scrolling happens, so use the shorter, width-independent token.
-    val expandedImageHeight = if (windowHeightSize == WindowHeightSize.Compact) {
+    val expandedImageHeight = if (deviceConfiguration == DeviceConfiguration.MOBILE_LANDSCAPE) {
         appDimens.browse.compactHeightHeaderHeight
     } else {
         appDimens.browse.headerHeight

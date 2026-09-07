@@ -86,6 +86,7 @@ dependencies {
     implementation(libs.bundles.ktor.client)
     implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.compose.runtime.tracing)
+    implementation(libs.androidx.compose.adaptive)
     "baselineProfile"(project(":baselineprofile"))
     implementation(libs.kotlinx.datetime)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
@@ -100,5 +101,5 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics.ndk)
-    implementation(libs.google.firebase.analytics)
+
 }

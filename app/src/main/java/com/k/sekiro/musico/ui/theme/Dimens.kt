@@ -4,7 +4,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Responsive dimension tokens, swapped as a whole per [WindowWidthSize] at the theme root
+ * Responsive dimension tokens, swapped as a whole per [DeviceConfiguration] at the theme root
  * (see [MusiCoTheme]) and read through `LocalAppDimens` / `appDimens`.
  *
  * Every field defaults to its Compact (phone-portrait) value, so [CompactDimens] is just
@@ -102,8 +102,19 @@ val ExpandedDimens = AppDimens(
     ),
 )
 
-fun dimensFor(size: WindowWidthSize): AppDimens = when (size) {
-    WindowWidthSize.Compact -> CompactDimens
-    WindowWidthSize.Medium -> MediumDimens
-    WindowWidthSize.Expanded -> ExpandedDimens
+/**
+ * Maps [DeviceConfiguration]'s 5 device/orientation buckets onto the 3 width-driven token sets
+ * above. [DeviceConfiguration.MOBILE_LANDSCAPE] shares [ExpandedDimens] with the tablet/desktop
+ * buckets rather than [CompactDimens] - the tokens that actually vary by *width* here
+ * (`contentMaxWidth`, grid/tile sizing) should scale with the extra width a landscape phone has
+ * over a portrait one; the tokens that are landscape-*specific* (the `compactHeight*` fields, the
+ * shelf card's flattened aspect ratio in `SongsList`) are separate, orientation-gated values read
+ * directly by each screen, not selected by this width bucket at all.
+ */
+fun dimensFor(config: DeviceConfiguration): AppDimens = when (config) {
+    DeviceConfiguration.MOBILE_PORTRAIT -> CompactDimens
+    DeviceConfiguration.MOBILE_LANDSCAPE -> ExpandedDimens
+    DeviceConfiguration.TABLET_PORTRAIT -> MediumDimens
+    DeviceConfiguration.TABLET_LANDSCAPE -> ExpandedDimens
+    DeviceConfiguration.DESKTOP -> ExpandedDimens
 }

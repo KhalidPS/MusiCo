@@ -93,11 +93,11 @@ import com.k.sekiro.musico.playmusic.presenation.played_song.component.InfoDialo
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTimeText
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.SongSlider
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
+import com.k.sekiro.musico.ui.theme.DeviceConfiguration
 import com.k.sekiro.musico.ui.theme.FormFactorPreviews
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
-import com.k.sekiro.musico.ui.theme.WindowHeightSize
 import com.k.sekiro.musico.ui.theme.appDimens
-import com.k.sekiro.musico.ui.theme.windowHeightSize
+import com.k.sekiro.musico.ui.theme.deviceConfiguration
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -159,10 +159,10 @@ fun SharedTransitionScope.PlayedSongScreen(
     }
 
     val playerDimens = appDimens.player
-    // A phone in landscape lands in a height-compact window regardless of its width bucket -
-    // that's the signal to switch from the stacked cover-above-controls layout to a
-    // side-by-side one, since a portrait-sized cover would otherwise crowd out the controls.
-    val isCompactHeight = windowHeightSize == WindowHeightSize.Compact
+    // DeviceConfiguration.MOBILE_LANDSCAPE is the signal to switch from the stacked
+    // cover-above-controls layout to a side-by-side one, since a portrait-sized cover would
+    // otherwise crowd out the controls on a short window.
+    val isCompactHeight = deviceConfiguration == DeviceConfiguration.MOBILE_LANDSCAPE
 
     // The portrait cover token is sized for a "normal" phone height; on a genuinely short one
     // (e.g. ~590dp total, not short enough to trip isCompactHeight, which is keyed on 480dp) a
