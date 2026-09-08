@@ -5,6 +5,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.database.Cursor
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.provider.MediaStore.Audio.AudioColumns.IS_ALARM
 import android.provider.MediaStore.Audio.AudioColumns.IS_NOTIFICATION
@@ -41,15 +42,7 @@ suspend fun getSongsByUri(context: Context,uri: Uri) =
                 MediaStore.Audio.Media.DATE_MODIFIED
             )
 
-            val selection = MediaStore.Audio.AudioColumns.IS_MUSIC + " = ? AND $IS_RINGTONE = ? AND $IS_ALARM = ? AND $IS_NOTIFICATION = ?" +
-                    " AND (${MediaStore.Audio.Media.DATA} LIKE ? " +
-                    "OR ${MediaStore.Audio.Media.DATA} LIKE ? OR ${MediaStore.Audio.Media.DATA} LIKE ? " +
-                    "OR ${MediaStore.Audio.Media.DATA} LIKE ? OR ${MediaStore.Audio.Media.DATA} LIKE ? OR " +
-                    "${MediaStore.Audio.Media.DATA} LIKE ?) AND ${MediaStore.Audio.AudioColumns.DURATION} > 1463"
-            val selectionArgs = arrayOf("1","0","0","0","%.mp3","%.acc","%.wav",".m4a",".ogg","flac")
-            //val selection = MediaStore.Audio.Media.MIME_TYPE + " LIKE 'audio%'"
-            //val selection = MediaStore.Audio.Media.DATA + " LIKE '%.mp3'"
-           // val selection = "((${MediaStore.Audio.Media.DATA} LIKE '%.mp3') AND (${MediaStore.Audio.Media.MIME_TYPE} LIKE 'audio%'))"
+            val (selection, selectionArgs) = buildSongSelection()
 
             val sortOrder = MediaStore.Audio.Media.DATE_ADDED + " DESC"
 
@@ -150,3 +143,66 @@ suspend fun getSongsByUri(context: Context,uri: Uri) =
             array.awaitAll()
 
         }
+
+/**
+ * Shortest clip we treat as a song, in ms. Filters out UI blips and stray sound effects that
+ * MediaStore still reports as music.
+ */
+private const val MIN_SONG_DURATION_MS = 1463L
+
+/**
+ * Paths whose audio is never a song, matched against [MediaStore.Audio.Media.DATA] with `NOT LIKE`.
+ *
+ * `IS_MUSIC` / `IS_RINGTONE` / `IS_ALARM` / `IS_NOTIFICATION` already exclude the standard system
+ * sound folders, but they say nothing about voice recordings dropped into ordinary media folders -
+ * which is why these are matched on the path instead.
+ */
+private val EXCLUDED_PATH_PATTERNS = listOf(
+    // WhatsApp voice notes, both the legacy location and the Android 11+ scoped-storage one
+    // (.../Android/media/com.whatsapp/...). Audio *files* shared over WhatsApp live in
+    // "WhatsApp Audio" instead and are deliberately still included - they are usually real music.
+    "%/WhatsApp Voice Notes/%",
+    // MIUI's recorder, including call recordings (the user's phones are Redmi).
+    "%/MIUI/sound_recorder/%",
+    // The standard recordings directory (Android 11+) and Samsung's equivalent.
+    "%/Recordings/%",
+    // ROM-shipped ringtones/alarms/UI sounds, in case a device fails to flag them.
+    "/system/%",
+)
+
+/**
+ * Builds the MediaStore selection for "everything the user would call a song or a sound".
+ *
+ * Deliberately **not** a file-extension whitelist. The previous version listed six `DATA LIKE`
+ * patterns, of which four could never match: `.m4a`, `.ogg` and `flac` were missing the leading
+ * `%` (so they were compared against the whole path rather than its ending) and `%.acc` was a
+ * typo for `%.aac`. Only `%.mp3` and `%.wav` worked, which is why m4a files never appeared.
+ *
+ * Matching on flags and paths instead means any audio format MediaStore can index shows up -
+ * m4a, aac, opus, flac, ogg, wma and whatever comes next - without a list to keep in sync.
+ */
+private fun buildSongSelection(): Pair<String, Array<String>> {
+    val conditions = mutableListOf<String>()
+    val args = mutableListOf<String>()
+
+    // IFNULL so a row with an unset flag counts as "not a ringtone" rather than dropping out:
+    // in SQL, `NULL = 0` is NULL, which fails the WHERE clause and silently loses the song.
+    conditions += "${MediaStore.Audio.AudioColumns.IS_MUSIC} != 0"
+    conditions += "IFNULL($IS_RINGTONE, 0) = 0"
+    conditions += "IFNULL($IS_ALARM, 0) = 0"
+    conditions += "IFNULL($IS_NOTIFICATION, 0) = 0"
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        // Voice-recorder output, wherever it was saved. Only a documented column from API 30.
+        conditions += "IFNULL(${MediaStore.Audio.AudioColumns.IS_RECORDING}, 0) = 0"
+    }
+
+    EXCLUDED_PATH_PATTERNS.forEach { pattern ->
+        conditions += "${MediaStore.Audio.Media.DATA} NOT LIKE ?"
+        args += pattern
+    }
+
+    conditions += "${MediaStore.Audio.Media.DURATION} > ?"
+    args += MIN_SONG_DURATION_MS.toString()
+
+    return conditions.joinToString(" AND ") to args.toTypedArray()
+}
