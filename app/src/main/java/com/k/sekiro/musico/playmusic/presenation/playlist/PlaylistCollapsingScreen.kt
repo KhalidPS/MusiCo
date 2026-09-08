@@ -8,6 +8,8 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
@@ -269,17 +271,30 @@ fun SharedTransitionScope.PlaylistCollapsingScreen(
                    .align(Alignment.TopEnd)
                    .zIndex(if (scrollProgress < 1f) 5f else 0f)
            ) {
+               // These sit directly on the playlist's cover art, which can be any color at all -
+               // an untinted icon disappeared against a busy or light cover. A translucent dark
+               // disc behind each one guarantees contrast whatever the artwork is, instead of
+               // hoping the tint happens not to clash. They are only ever drawn over the cover:
+               // once the header collapses the Row's zIndex drops below the toolbar's and they
+               // are covered by it, so the disc never appears against a flat toolbar.
+               val overlayIcon = Modifier
+                   .background(Color.Black.copy(alpha = .35f), CircleShape)
+                   .padding(4.dp)
+
                IconButton(onClick = onExportQrClicked) {
                    Icon(
                        imageVector = Icons.Default.QrCode2,
                        contentDescription = "Share playlist as QR code",
+                       tint = Color.White,
+                       modifier = overlayIcon
                    )
                }
                IconButton(onClick = { isShowDeletePlaylistDialog = true }) {
                    Icon(
                        imageVector = Icons.Default.Delete,
                        contentDescription = null,
-                       tint = Red
+                       tint = Red,
+                       modifier = overlayIcon
                    )
                }
            }
