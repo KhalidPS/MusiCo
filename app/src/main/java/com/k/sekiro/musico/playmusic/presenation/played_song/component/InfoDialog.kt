@@ -60,7 +60,14 @@ fun InfoDialog(
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.onSurface,
+            // The M3 dialog container token. This used to be `onSurface` - the color meant for
+            // content *on* a surface, not for the surface itself - and `contentColorFor` has no
+            // mapping for it, so it fell back to LocalContentColor, which is also `onSurface`.
+            // That painted the text the same color as the container in *both* themes: near-black
+            // on near-black in light, near-white on near-white in dark. Using a real container
+            // token lets Surface derive `onSurface` as the content color, so the text follows the
+            // theme without any of the Texts below needing an explicit color.
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier.fillMaxWidth(.97f)
         ) {
             Column (
