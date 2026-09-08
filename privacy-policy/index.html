@@ -1,0 +1,279 @@
+<!doctype html>
+<!--
+  MusiCo privacy policy.
+
+  This is a factual description of what the app does, written from the actual manifest and
+  source, not a generic template. Two things to do before you publish it:
+
+    1. Replace CONTACT_EMAIL_HERE below with a real support address.
+    2. Re-read it whenever you add a permission or an SDK - a policy that no longer matches the
+       app is worse than no policy, and Play checks it against your Data Safety form.
+
+  It is not legal advice. If MusiCo ever gains accounts, payments, or users in the EU/UK at any
+  scale, have someone qualified review it.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MusiCo — Privacy Policy</title>
+<style>
+  :root {
+    --bg: #fbfaff;
+    --surface: #ffffff;
+    --text: #1b1b1f;
+    --muted: #5a5a68;
+    --line: #e3e1ea;
+    --accent: #5b4bb7;
+    --accent-soft: #ede9fb;
+    --ok-bg: #e8f5ec;
+    --ok-line: #b7dcc4;
+    --warn-bg: #fdf1e3;
+    --warn-line: #eccfa6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #131318;
+      --surface: #1c1b22;
+      --text: #e6e1e9;
+      --muted: #a6a1b0;
+      --line: #322f3a;
+      --accent: #cbbeff;
+      --accent-soft: #2a2440;
+      --ok-bg: #17301f;
+      --ok-line: #2f5b3d;
+      --warn-bg: #33260f;
+      --warn-line: #6b5220;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 32px 20px 80px; }
+  header { border-bottom: 2px solid var(--accent); padding-bottom: 20px; margin-bottom: 8px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: .93rem; margin: 0; }
+  .sub code { background: var(--accent-soft); color: var(--accent); padding: 1px 6px; border-radius: 4px; font-size: .88em; }
+  h2 {
+    font-size: 1.18rem; margin: 38px 0 10px; padding-top: 18px;
+    border-top: 1px solid var(--line); letter-spacing: -0.01em;
+  }
+  h2:first-of-type { border-top: none; }
+  h3 { font-size: 1rem; margin: 22px 0 6px; }
+  p, li { color: var(--text); }
+  ul { padding-left: 22px; }
+  li { margin: 5px 0; }
+  a { color: var(--accent); }
+  .callout {
+    background: var(--ok-bg); border: 1px solid var(--ok-line);
+    border-radius: 10px; padding: 16px 18px; margin: 22px 0;
+  }
+  .callout.warn { background: var(--warn-bg); border-color: var(--warn-line); }
+  .callout p:first-child { margin-top: 0; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout strong { display: block; margin-bottom: 4px; }
+  .scroll { overflow-x: auto; margin: 16px 0; border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; background: var(--surface); }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: .93rem; }
+  th { background: var(--accent-soft); color: var(--accent); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  td code { font-size: .84em; word-break: break-word; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+  @media (max-width: 520px) { .wrap { padding: 22px 15px 60px; } h1 { font-size: 1.55rem; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>MusiCo — Privacy Policy</h1>
+  <p class="sub">Last updated: 8 September 2026 · Applies to the Android app <code>com.k.sekiro.musico</code></p>
+</header>
+
+<div class="callout">
+  <strong>The short version</strong>
+  <p>MusiCo is an offline music player. Your music, playlists and listening history stay on your
+  phone — they are never uploaded to us or anyone else, and there is no account to create.</p>
+  <p>The app does send anonymous usage and crash statistics to Google Firebase, which helps fix
+  bugs. That is the only data that leaves your device automatically, and it is described in full
+  below.</p>
+</div>
+
+<h2>Who is responsible</h2>
+<p>MusiCo is an independent app developed by an individual developer. There is no company behind
+it, no analytics broker, no advertising network and no data is sold or shared for marketing.
+Questions about this policy or your data can be sent to the contact address at the bottom.</p>
+
+<h2>What stays on your device</h2>
+<p>The following never leaves your phone. It is stored in a private app database that only MusiCo
+can read, and it is deleted when you uninstall the app:</p>
+<ul>
+  <li><strong>Your music files.</strong> MusiCo reads the audio already on your device to play it.
+  It never uploads, copies or transmits your audio to any server.</li>
+  <li><strong>Music details</strong> read from your files — title, artist, album, duration, date
+  added and file location — used to build the library, search and the artist/album views.</li>
+  <li><strong>Your playlists, favourites and recently played list.</strong></li>
+  <li><strong>Playback state</strong>, such as the current song and position.</li>
+</ul>
+
+<h2>What is sent off your device</h2>
+<p>MusiCo uses two Google Firebase services. Neither receives your music, your file names, your
+playlists or your listening history.</p>
+
+<h3>Firebase Crashlytics — crash reporting</h3>
+<p>When the app crashes, a report is sent so the fault can be found and fixed. It contains the
+technical state of the crash: the error and stack trace, the device model, the Android version,
+the app version, and how long the app had been running.</p>
+
+<h3>Firebase Analytics — anonymous usage statistics</h3>
+<p>Aggregate, non-identifying information about how the app is used — for example how often it is
+opened, and on which device models and Android versions — so effort goes to the things people
+actually use. It includes a randomly generated app instance identifier, your approximate region
+(derived from your IP address by Google, not stored by us), device model, and language.</p>
+
+<div class="callout warn">
+  <strong>Advertising identifier</strong>
+  <p>Firebase Analytics can access your device's Android Advertising ID. MusiCo shows no adverts
+  and does not use this identifier to profile or target you, but it is technically available to
+  the analytics library, so it is disclosed here rather than left unsaid.</p>
+  <p>You can reset or delete this identifier at any time in
+  <em>Settings → Privacy → Ads</em> on your device, which also lets you opt out of
+  personalisation entirely.</p>
+</div>
+
+<p>Data handled by these services is processed by Google under
+<a href="https://policies.google.com/privacy" rel="noopener">Google's Privacy Policy</a>. See also
+<a href="https://firebase.google.com/support/privacy" rel="noopener">Firebase and privacy</a>.</p>
+
+<h2>Permissions, and why each one is needed</h2>
+<p>Android asks your permission for the sensitive ones the first time a feature needs them. You
+can refuse any of them — only music access is required for the app to be useful at all; the rest
+just disable the feature that needs them.</p>
+
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Permission</th><th>Why MusiCo needs it</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>READ_MEDIA_AUDIO</code><br><code>READ_EXTERNAL_STORAGE</code></td>
+      <td>To find and play the music on your device. This is the core function of the app.
+      Without it there is nothing to play. <code>READ_EXTERNAL_STORAGE</code> is only requested on
+      Android 12 and older, where the newer audio-only permission does not exist.</td>
+    </tr>
+    <tr>
+      <td><code>WRITE_EXTERNAL_STORAGE</code></td>
+      <td>To delete a song from your device when you choose to, and to save songs you accept from
+      another phone. Only requested on Android 12 and older.</td>
+    </tr>
+    <tr>
+      <td><code>POST_NOTIFICATIONS</code></td>
+      <td>To show the playback notification with play, pause, next, shuffle and repeat controls,
+      and to show transfer progress. Refusing it only removes those notifications.</td>
+    </tr>
+    <tr>
+      <td><code>FOREGROUND_SERVICE</code><br><code>FOREGROUND_SERVICE_MEDIA_PLAYBACK</code></td>
+      <td>So music keeps playing when you switch apps or turn the screen off. Android requires an
+      app to hold these to run audio in the background.</td>
+    </tr>
+    <tr>
+      <td><code>FOREGROUND_SERVICE_DATA_SYNC</code></td>
+      <td>So a song transfer to or from another phone can finish while the app is in the
+      background, instead of failing when you switch away.</td>
+    </tr>
+    <tr>
+      <td><code>CAMERA</code></td>
+      <td>Only to scan a QR code when someone shares a playlist with you. The camera is used to
+      read the code and nothing else — no photo or video is recorded, saved or transmitted, and
+      the camera is released as soon as you leave the scanner. The app also declares the camera as
+      optional hardware, so it installs on devices without one.</td>
+    </tr>
+    <tr>
+      <td><code>NEARBY_WIFI_DEVICES</code></td>
+      <td>To find the other phone when sending or receiving songs directly. It is declared with
+      Android's <code>neverForLocation</code> flag, which is a formal promise to the system that
+      MusiCo does not use it to work out where you are.</td>
+    </tr>
+    <tr>
+      <td><code>ACCESS_FINE_LOCATION</code></td>
+      <td>Only on Android 12 and older, and only for direct phone-to-phone transfer. On those
+      versions Android required location permission before an app could scan for nearby Wi-Fi
+      devices, whether or not it wanted your location. MusiCo does not read, store or transmit
+      your location. On Android 13 and newer this permission is not requested at all.</td>
+    </tr>
+    <tr>
+      <td><code>INTERNET</code><br><code>ACCESS_WIFI_STATE</code><br><code>CHANGE_WIFI_STATE</code><br><code>CHANGE_NETWORK_STATE</code><br><code>ACCESS_NETWORK_STATE</code></td>
+      <td>To set up the direct Wi-Fi link between two phones for transferring songs, to check
+      whether a connection is available, and to send the crash and analytics reports described
+      above. Your music is never sent over the internet.</td>
+    </tr>
+    <tr>
+      <td><code>AD_ID</code><br><code>ACCESS_ADSERVICES_AD_ID</code><br><code>ACCESS_ADSERVICES_ATTRIBUTION</code><br><code>BIND_GET_INSTALL_REFERRER_SERVICE</code></td>
+      <td>Added automatically by the Firebase Analytics library, not requested by MusiCo's own
+      code. They let that library read the advertising identifier and see how the app was
+      installed. MusiCo contains no adverts and does not use them to profile or target you; they
+      are listed here because they appear in the app's manifest and you are entitled to know why.
+      See the note on the advertising identifier above for how to reset or opt out.</td>
+    </tr>
+    <tr>
+      <td><code>WAKE_LOCK</code><br><code>RECEIVE_BOOT_COMPLETED</code></td>
+      <td>Added automatically by the Android media and background-work libraries so playback is not
+      interrupted and the home screen widget can be restored after a restart.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Sharing playlists and sending songs</h2>
+<p>MusiCo can share a playlist as a QR code, and can send the actual audio files to another phone
+running MusiCo. Both work without any server of ours:</p>
+<ul>
+  <li>A shared <strong>QR code</strong> contains only the playlist's own details — its name and the
+  songs in it. It is displayed on your screen; it is not uploaded anywhere.</li>
+  <li>A <strong>song transfer</strong> runs over a direct Wi-Fi link between the two phones, using
+  a temporary local address on that link. The files go straight from one device to the other. They
+  do not pass through the internet, and we never receive or store them.</li>
+  <li>Each transfer session uses a one-time token, so another device on the network cannot join a
+  transfer it was not invited to.</li>
+  <li>Nothing is sent until the receiving person accepts, and either side can stop at any point.</li>
+</ul>
+
+<h2>Keeping and deleting your data</h2>
+<ul>
+  <li><strong>On your device:</strong> uninstalling MusiCo deletes its database — playlists,
+  favourites and history. Your actual music files are yours and are left untouched. You can also
+  clear everything without uninstalling, in <em>Settings → Apps → MusiCo → Storage → Clear
+  data</em>.</li>
+  <li><strong>Crash and analytics data:</strong> held by Google under their retention schedules.
+  To stop analytics, uninstall the app; to reset the identifier tied to it, use the advertising
+  settings noted above.</li>
+</ul>
+
+<h2>Children</h2>
+<p>MusiCo is not directed at children under 13 and does not knowingly collect personal information
+from them. It has no accounts, no profiles, no messaging and no user-generated public content.</p>
+
+<h2>Changes to this policy</h2>
+<p>If the app changes what it collects or which permissions it needs, this page is updated and the
+date at the top changes with it. Significant changes will also be noted in the app's release notes
+on Google Play.</p>
+
+<h2>Contact</h2>
+<p>For any question about this policy or about your data, write to
+<strong>CONTACT_EMAIL_HERE</strong>.</p>
+
+<footer>
+  MusiCo · Android · package <code>com.k.sekiro.musico</code><br>
+  This policy describes the app as published on Google Play on the date shown above.
+</footer>
+
+</div>
+</body>
+</html>
