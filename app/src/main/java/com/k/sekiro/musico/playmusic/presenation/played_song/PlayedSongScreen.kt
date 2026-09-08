@@ -60,7 +60,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -73,7 +72,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.palette.graphics.Palette
 import com.k.sekiro.musico.R
@@ -93,7 +91,6 @@ import com.k.sekiro.musico.playmusic.presenation.played_song.component.InfoDialo
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTimeText
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.SongSlider
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
-import com.k.sekiro.musico.ui.theme.DeviceConfiguration
 import com.k.sekiro.musico.ui.theme.FormFactorPreviews
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import com.k.sekiro.musico.ui.theme.appDimens
@@ -159,43 +156,24 @@ fun SharedTransitionScope.PlayedSongScreen(
     }
 
     val playerDimens = appDimens.player
-    // DeviceConfiguration.MOBILE_LANDSCAPE is the signal to switch from the stacked
+    // A phone in landscape (either size bucket) is the signal to switch from the stacked
     // cover-above-controls layout to a side-by-side one, since a portrait-sized cover would
     // otherwise crowd out the controls on a short window.
-    val isCompactHeight = deviceConfiguration == DeviceConfiguration.MOBILE_LANDSCAPE
+    val isCompactHeight = deviceConfiguration.isMobileLandscape
 
-    // The portrait cover token is sized for a "normal" phone height; on a genuinely short one
-    // (e.g. ~590dp total, not short enough to trip isCompactHeight, which is keyed on 480dp) a
-    // fixed 350dp cover leaves too little of what's left for the title/artist/slider/controls,
-    // squeezing the control icons down toward nothing. Capping it against the window's actual
-    // height (scaled proportionally, to keep the cover's own aspect ratio) fixes that while
-    // leaving normal-height phones untouched, since the cap only bites when it's smaller than
-    // the token.
-    val screenHeightDp = LocalConfiguration.current.screenHeightDp
-    val portraitCoverHeight =
-        minOf(playerDimens.coverHeight, (screenHeightDp * 0.5f).dp).coerceAtLeast(180.dp)
-    val portraitCoverScale = portraitCoverHeight / playerDimens.coverHeight
-
-    val coverFullWidth = if (isCompactHeight) {
-        playerDimens.compactHeightCoverWidth
-    } else {
-        playerDimens.coverWidth * portraitCoverScale
-    }
-    val coverFullHeight = if (isCompactHeight) playerDimens.compactHeightCoverHeight else portraitCoverHeight
-    val pagerPageWidth = if (isCompactHeight) {
-        playerDimens.compactHeightPagerPageWidth
-    } else {
-        playerDimens.pagerPageWidth * portraitCoverScale
-    }
-    val pagerPeekPadding =
-        if (isCompactHeight) playerDimens.compactHeightPagerPeekPadding else playerDimens.pagerPeekPadding
-    // Size a peeking (non-settled) page shrinks to while scrolling past it.
-    val coverOffSize = if (isCompactHeight) 140f else 250f
-    // Smaller in landscape - the title/artist share a narrow half-column there (not the full
-    // screen width like portrait), so the portrait size truncates more than is comfortable,
-    // especially on a narrow phone.
-    val titleFontSize = if (isCompactHeight) 20.sp else 26.sp
-    val artistFontSize = if (isCompactHeight) 16.sp else 20.sp
+    // Plain token reads - the landscape sets *are* the landscape values, so there is nothing to
+    // choose between here any more.
+    val coverFullWidth = playerDimens.coverWidth
+    val coverFullHeight = playerDimens.coverHeight
+    // The page is the cover's width: the peek comes from the pager's content padding, so a
+    // wider page would only add dead space between covers.
+    val pagerPageWidth = coverFullWidth
+    // Size a peeking (non-settled) page shrinks to while scrolling past it. Derived from the
+    // cover rather than a flat number, so it keeps the artwork's aspect ratio at every size.
+    val peekCoverWidth = coverFullWidth * playerDimens.peekCoverScale
+    val peekCoverHeight = coverFullHeight * playerDimens.peekCoverScale
+    val titleFontSize = playerDimens.titleFontSize
+    val artistFontSize = playerDimens.artistFontSize
 
     val imgWidthPx = coverFullWidth.toPx(density = density)
     val imgHeightPx = coverFullHeight.toPx(density = density)
@@ -424,11 +402,14 @@ fun SharedTransitionScope.PlayedSongScreen(
             // pager - HorizontalPager positions its settled page starting right after the
             // leading contentPadding, not centered in its own bounds, so on a tablet/desktop-wide
             // container a fillMaxWidth pager left the cover hugging the left edge with a dead
-            // zone on the right. Deriving contentPadding from the bounded width (instead of the
-            // fixed pagerPeekPadding token) also keeps it from overflowing a phone narrower than
-            // pageWidth + 2*peek.
+            // zone on the right. Bounding it also keeps it from overflowing a window narrower
+            // than pageWidth + 2*peek.
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val viewportWidth = minOf(maxWidth, pagerPageWidth + pagerPeekPadding * 2)
+                // Use the full width available and centre the settled page in it, so the
+                // neighbouring covers run off the screen edge rather than stopping short of it.
+                // pagerMaxPeek only bites on a window wide enough that this would start showing
+                // several covers at once; on a phone it never does.
+                val viewportWidth = minOf(maxWidth, pagerPageWidth + playerDimens.pagerMaxPeek * 2)
                 val peekPadding = ((viewportWidth - pagerPageWidth) / 2).coerceAtLeast(0.dp)
 
                 HorizontalPager(
@@ -444,10 +425,18 @@ fun SharedTransitionScope.PlayedSongScreen(
                 val pageOffset = pagerState.getOffsetDistanceInPages(page).absoluteValue
                 // or you can use pagerState.currentPageOffsetFraction instead of getOffsetDis.....
 
-                // Non-settled (peeking) pages shrink toward a small square as they scroll away.
-                val high = lerp(coverFullHeight.value, coverOffSize, pageOffset)
-                val width = lerp(coverFullWidth.value, coverOffSize, pageOffset)
+                // Non-settled (peeking) pages shrink toward peekCoverScale as they scroll away,
+                // keeping the cover's aspect ratio the whole way.
+                val high = lerp(coverFullHeight.value, peekCoverHeight.value, pageOffset)
+                val width = lerp(coverFullWidth.value, peekCoverWidth.value, pageOffset)
 
+                // HorizontalPager start-aligns page content, which left the settled cover
+                // (pageWidth - coverWidth)/2 off-centre and made the leading peek show empty
+                // page while the trailing one showed cover. Centring makes both symmetric.
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
                 AsyncImage(
                     model = songs[page].cover,
                     error = painterResource(R.drawable.logo_musico3),
@@ -500,14 +489,10 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                                 }
                             }
-                        )
-                        .graphicsLayer {
-                            val scale = lerp(1f, 1.75f, pageOffset)
-                            scaleX *= scale
-                            scaleY *= scale
-                        },
+                        ),
                     contentScale = ContentScale.Crop
                 )
+                }
                 }
             }
         }

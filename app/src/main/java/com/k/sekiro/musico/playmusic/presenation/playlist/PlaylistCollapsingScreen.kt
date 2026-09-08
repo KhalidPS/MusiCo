@@ -56,12 +56,10 @@ import com.k.sekiro.musico.playmusic.presenation.util.component.PlaylistSelectio
 import com.k.sekiro.musico.playmusic.presenation.util.component.Song
 import com.k.sekiro.musico.playmusic.presenation.util.component.AddPlaylistDialog
 import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
-import com.k.sekiro.musico.ui.theme.DeviceConfiguration
 import com.k.sekiro.musico.ui.theme.FormFactorPreviews
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import com.k.sekiro.musico.ui.theme.Red
 import com.k.sekiro.musico.ui.theme.appDimens
-import com.k.sekiro.musico.ui.theme.deviceConfiguration
 
 // Assuming you have a drawable resource named 'sample_image'
 // For this example, let's use a placeholder.
@@ -106,13 +104,9 @@ fun SharedTransitionScope.PlaylistCollapsingScreen(
 
 
     // --- Define Dimensions ---
-    // On a height-compact window (phone landscape) the portrait header height would eat most
-    // of the viewport before any scrolling happens, so use the shorter, width-independent token.
-    val expandedImageHeight = if (deviceConfiguration == DeviceConfiguration.MOBILE_LANDSCAPE) {
-        appDimens.browse.compactHeightHeaderHeight
-    } else {
-        appDimens.browse.headerHeight
-    }
+    // The landscape token sets already carry a shorter header, so this is a plain token read -
+    // a portrait-sized header would otherwise eat most of a short viewport before any scrolling.
+    val expandedImageHeight = appDimens.browse.headerHeight
     val collapsedToolbarHeight = 60.dp
 
     // Density provides pixel values for calculations

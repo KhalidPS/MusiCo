@@ -63,11 +63,9 @@ import com.k.sekiro.musico.playmusic.presenation.util.shareAudioFile
 import com.k.sekiro.musico.ui.theme.AlbumShelfColor
 import com.k.sekiro.musico.ui.theme.ArtistShelfColor
 import com.k.sekiro.musico.ui.theme.Blue
-import com.k.sekiro.musico.ui.theme.DeviceConfiguration
 import com.k.sekiro.musico.ui.theme.FavoritePlaylistColor
 import com.k.sekiro.musico.ui.theme.RecentPlayListColor
 import com.k.sekiro.musico.ui.theme.appDimens
-import com.k.sekiro.musico.ui.theme.deviceConfiguration
 
 @SuppressLint("RememberReturnType")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -184,18 +182,15 @@ fun SharedTransitionScope.SongsList(
 
 
 
-            // The shelf row's height is driven by its cards' aspectRatio-derived height, which
-            // at the width-bucket's normal card size leaves almost no room for the song list
-            // below it on a height-compact window (phone landscape) - shrink the cards there so
-            // the list - the actual point of this screen - stays usable. Flattening the aspect
-            // ratio (rather than just shrinking width, which shrinks height at the same rate)
-            // keeps the card wide enough for its title/subtitle to stay legible while still
-            // cutting the height a lot more than the width.
-            val isCompactHeight = deviceConfiguration == DeviceConfiguration.MOBILE_LANDSCAPE
-            val shelfCardWidth = if (isCompactHeight) 110.dp else appDimens.common.shelfCardWidth
-            val shelfCardAspectRatio = if (isCompactHeight) 1.25f else 0.85f
+            // The shelf row's height is driven by its cards' aspectRatio-derived height, so on a
+            // short window it can crowd out the song list - the actual point of this screen. The
+            // landscape buckets shrink and flatten the cards to prevent that; see
+            // CommonDimens.shelfCardAspectRatio for why flattening beats narrowing.
+            val commonDimens = appDimens.common
+            val shelfCardWidth = commonDimens.shelfCardWidth
+            val shelfCardAspectRatio = commonDimens.shelfCardAspectRatio
 
-            Spacer(Modifier.height(if (isCompactHeight) 8.dp else 16.dp))
+            Spacer(Modifier.height(commonDimens.shelfRowSpacing))
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),

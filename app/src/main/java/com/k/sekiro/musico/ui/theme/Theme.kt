@@ -14,6 +14,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -85,7 +86,13 @@ fun MusiCoTheme(
     // The window size class already reflects orientation and foldable posture, and this
     // recomposes on any configuration change, so the bucket stays current.
     val windowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
-    val config = remember(windowSizeClass) { DeviceConfiguration.fromWindowSizeClass(windowSizeClass) }
+    // The raw size too: the size class only carries the breakpoint bounds it matched, so it
+    // can't distinguish a small phone from a normal one. Same LocalWindowInfo that
+    // currentWindowAdaptiveInfoV2 derives the size class from, so the two can't disagree.
+    val windowDpSize = LocalWindowInfo.current.containerDpSize
+    val config = remember(windowSizeClass, windowDpSize) {
+        DeviceConfiguration.from(windowSizeClass, windowDpSize)
+    }
     val dimens = remember(config) { dimensFor(config) }
 
     CompositionLocalProvider(

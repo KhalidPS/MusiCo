@@ -62,7 +62,6 @@ import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.TransferR
 import com.k.sekiro.musico.playmusic.presenation.exchange.preparations.unsatisfiedBlocking
 import com.k.sekiro.musico.playmusic.presenation.model.PlaylistWithSongsUi
 import com.k.sekiro.musico.playmusic.presenation.showcase_playlists.mockPlaylists
-import com.k.sekiro.musico.ui.theme.DeviceConfiguration
 import com.k.sekiro.musico.ui.theme.FormFactorPreviews
 import com.k.sekiro.musico.ui.theme.MusiCoTheme
 import com.k.sekiro.musico.ui.theme.deviceConfiguration
@@ -147,7 +146,7 @@ fun PlaylistQrExportScreen(
             Text("Share playlist", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
 
-        val isCompactHeight = deviceConfiguration == DeviceConfiguration.MOBILE_LANDSCAPE
+        val isCompactHeight = deviceConfiguration.isMobileLandscape
 
         BoxWithConstraints(
             modifier = Modifier
