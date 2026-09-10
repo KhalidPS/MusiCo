@@ -24,7 +24,11 @@ local.properties
 /.idea
 img.png
 # Release signing - the upload key and its passwords must never be committed.
-# keystore.properties.template is tracked; keystore.properties (the real one) is not.
 keystore.properties
 *.jks
 *.keystore
+
+# Local-only design docs, QA reports and Play Store listing material - kept on the
+# never-pushed 'notes' branch, not here. See reports/ and play-store/.
+/reports
+/play-store
