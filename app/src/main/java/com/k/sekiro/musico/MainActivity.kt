@@ -51,6 +51,7 @@ import com.k.sekiro.musico.playmusic.presenation.browse.BrowseDetailScreen
 import com.k.sekiro.musico.playmusic.presenation.browse.BrowseShowcaseScreen
 import com.k.sekiro.musico.playmusic.presenation.browse.groupByAlbum
 import com.k.sekiro.musico.playmusic.presenation.browse.groupByArtist
+import com.k.sekiro.musico.playmusic.presenation.loading_screen.EmptyLibrary
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
 import com.k.sekiro.musico.playmusic.presenation.model.AlbumDetail
 import com.k.sekiro.musico.playmusic.presenation.model.AlbumsShowcase
@@ -222,7 +223,7 @@ class MainActivity : ComponentActivity() {
                                     val playlists = state.value.playlists
                                     val playlistWithSongs = state.value.playlistsWithSongs
                                     val recentPlaylistSongs = state.value.recentPlaylistSongs
-                                    if (!songs.isEmpty()) {
+                                    if (songs.isNotEmpty()) {
                                         SongsList(
                                             songs = songs,
                                             onSongClicked = { song, index ->
@@ -295,8 +296,10 @@ class MainActivity : ComponentActivity() {
                                             recentPlaylistSongs = recentPlaylistSongs,
                                             bottomClicked = bottomClicked
                                         )
-                                    } else {
+                                    } else if (state.value.isLibraryLoading) {
                                         LoadingScreen()
+                                    } else {
+                                        EmptyLibrary(onRetry = viewModel::rescanLibrary)
                                     }
                                 }
 

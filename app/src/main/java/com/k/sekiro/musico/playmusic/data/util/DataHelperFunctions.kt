@@ -131,9 +131,6 @@ suspend fun getSongsByUri(context: Context,uri: Uri) =
                         Log.e("ks","song path: $path")
                     }*/
 
-                    Log.e("ks","song: $song")
-
-
                     array.add(song)
                 }
                 //songList.addAll(array.awaitAll())

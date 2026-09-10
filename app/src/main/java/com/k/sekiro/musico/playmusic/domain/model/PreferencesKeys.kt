@@ -9,4 +9,5 @@ const val RecentSongsIds_KEY = "recentSongsIds"
 const val PlayMode_KEY = "playMode"
 const val SleepTimerMode_KEY = "sleepTimerMode"
 const val SleepTimerDeadline_KEY = "sleepTimerDeadline"
+const val SleepTimerTotal_KEY = "sleepTimerTotalMillis"
 

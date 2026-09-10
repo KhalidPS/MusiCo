@@ -281,10 +281,19 @@ class ViewModel(
         viewModelScope.launch { syncLibraryWithStorage() }
     }
 
+    /** User-triggered re-scan from the empty-library screen. */
+    fun rescanLibrary() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLibraryLoading = true) }
+            syncLibraryWithStorage()
+        }
+    }
+
     /** Reconciles Room against MediaStore. Suspends until done so the caller in [init] can keep
      * rescans strictly sequential - see [librarySyncRequests]. */
     private suspend fun syncLibraryWithStorage() {
-        withContext(Dispatchers.IO) {
+        try {
+            withContext(Dispatchers.IO) {
 
 
             val roomSongs = songsRepository.getSongsFromRoom()
@@ -297,7 +306,6 @@ class ViewModel(
             val songsFromLocal = songsRepository.getAllStorageSongs()
             val songsFromLocalIdentifier = songsFromLocal.associate { it.path to it }
 
-            Log.e("ks", "songsFromLocal : $songsFromLocal")
             if (roomSongsIdentifier.isNotEmpty()) {
                 for (song in songsFromLocal) {
                     val songByPath = roomSongsIdentifier[song.path]
@@ -336,6 +344,9 @@ class ViewModel(
                     songs = songsRepository.getSongsFromRoom().map { it.toSongUi() }
                 )
             }
+            }
+        } finally {
+            _state.update { it.copy(isLibraryLoading = false) }
         }
     }
 

@@ -4,7 +4,6 @@ import android.app.RecoverableSecurityException
 import android.content.Context
 import android.database.ContentObserver
 import android.net.Uri
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
@@ -29,21 +28,11 @@ class SongsRepositoryImpl(
     private var contentObserver: ContentObserver? = null
 
     override suspend fun getAllStorageSongs(): List<Song> = withContext(Dispatchers.IO){
-
-
-        //Songs from External storage (device storage either primary or secondary like SDCard)
-        val externalAudioUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.getContentUri(
-                MediaStore.VOLUME_EXTERNAL_PRIMARY
-            )
-        } else {
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        }
-
-       // Log.e("ks","the song list inside fun \n ${songList.filter { it.cover != null }}")
-
-        getSongsByUri(context,externalAudioUri)
-
+        // EXTERNAL_CONTENT_URI is MediaStore's synthetic "external" volume - a merged view over
+        // every mounted shared volume, so one query covers built-in storage AND a removable SD
+        // card. VOLUME_EXTERNAL_PRIMARY, used here before, is built-in storage only: on a device
+        // with its music on an SD card the scan came back empty.
+        getSongsByUri(context, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI)
     }
 
     override fun deleteSongsFromLocal2(songsIds: List<Long>): Boolean {
@@ -123,15 +112,11 @@ class SongsRepositoryImpl(
                 onChange()
             }
         }
-        val externalAudioUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.getContentUri(
-                MediaStore.VOLUME_EXTERNAL_PRIMARY
-            )
-        } else {
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        }
-
-        contentResolver.registerContentObserver(externalAudioUri,true,contentObserver!!)
+        // All shared volumes, SD card included - matches getAllStorageSongs so a change on the
+        // card triggers a rescan too.
+        contentResolver.registerContentObserver(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, true, contentObserver!!
+        )
 
     }
 
