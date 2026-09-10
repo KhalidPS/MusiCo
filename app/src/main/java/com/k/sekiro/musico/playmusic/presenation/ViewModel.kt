@@ -157,11 +157,13 @@ class ViewModel(
             }
         }
         // Plain collect, not collectLatest: rescans run to completion one at a time. See
-        // librarySyncRequests' KDoc for how bursts are coalesced.
+        // librarySyncRequests' KDoc for how bursts are coalesced. ContentObserver-driven syncs
+        // never delete - MediaProvider may still be batch-indexing a mounting volume (see
+        // reconcileLibrary).
         viewModelScope.launch {
             librarySyncRequests
                 .debounce(LIBRARY_RESCAN_DEBOUNCE_MS)
-                .collect { syncLibraryWithStorage() }
+                .collect { syncLibraryWithStorage(allowDeletes = false) }
         }
         viewModelScope.launch {
             // The sleep timer's countdown and pause() call run on the service, not here, so
@@ -279,15 +281,17 @@ class ViewModel(
     }
 
     private fun getAllSongsFromLocal() {
-        viewModelScope.launch { syncLibraryWithStorage() }
+        // Startup sync is add-only: on a cold boot MediaProvider may still be indexing storage.
+        viewModelScope.launch { syncLibraryWithStorage(allowDeletes = false) }
     }
 
-    /** User-triggered re-scan from the empty-library screen. Ignored while a scan is already
-     * running or queued, so repeated Retry taps don't stack overlapping MediaStore scans. */
+    /** User-triggered re-scan from the empty-library screen. This is the one entry point that
+     * removes rows for files that are genuinely gone (its volume must be mounted). Ignored while
+     * a scan is already running so repeated Retry taps don't stack overlapping MediaStore scans. */
     fun rescanLibrary() {
-        if (_state.value.isLibraryLoading) return
+        if (runningSyncCount > 0) return
         _state.update { it.copy(isLibraryLoading = true) }
-        viewModelScope.launch { syncLibraryWithStorage() }
+        viewModelScope.launch { syncLibraryWithStorage(allowDeletes = true) }
     }
 
     /** In-flight [syncLibraryWithStorage] calls. `isLibraryLoading` is cleared only when this
@@ -296,9 +300,20 @@ class ViewModel(
      * dispatcher), so a plain Int needs no synchronisation. */
     private var runningSyncCount = 0
 
+    /** Volume roots that are mounted right now (`/storage/emulated/0`, `/storage/<VOL-ID>`, …).
+     * `getExternalFilesDirs` returns one entry per shared volume and null for unmounted ones. */
+    private fun mountedVolumeRoots(): Set<String> =
+        context.getExternalFilesDirs(null)
+            .filterNotNull()
+            .mapNotNull { dir ->
+                dir.absolutePath.substringBefore("/Android/").takeIf { it.startsWith("/storage/") }
+            }
+            .toHashSet()
+
     /** Reconciles Room against MediaStore. Suspends until done so the caller in [init] can keep
-     * rescans strictly sequential - see [librarySyncRequests]. */
-    private suspend fun syncLibraryWithStorage() {
+     * rescans strictly sequential - see [librarySyncRequests]. [allowDeletes] gates the
+     * cascading delete side - see [reconcileLibrary]. */
+    private suspend fun syncLibraryWithStorage(allowDeletes: Boolean) {
         runningSyncCount++
         try {
             withContext(Dispatchers.IO) {
@@ -307,7 +322,12 @@ class ViewModel(
                     _state.update { it.copy(songs = roomSongs.map { it.toSongUi() }) }
                 }
 
-                val reconcile = reconcileLibrary(roomSongs, songsRepository.getAllStorageSongs())
+                val reconcile = reconcileLibrary(
+                    roomSongs = roomSongs,
+                    scannedSongs = songsRepository.getAllStorageSongs(),
+                    mountedVolumeRoots = mountedVolumeRoots(),
+                    allowDeletes = allowDeletes,
+                )
                 if (reconcile.toDelete.isNotEmpty()) songsRepository.deleteSongs(reconcile.toDelete)
                 if (reconcile.toAdd.isNotEmpty()) songsRepository.addSongs(reconcile.toAdd)
 
@@ -860,6 +880,9 @@ class ViewModel(
 
                 try {
                     songsRepository.deleteSongsFromLocal(uris)
+                    // The files are gone from MediaStore now; purge the matching Room rows (and
+                    // their playlist memberships) instead of waiting on the add-only observer sync.
+                    viewModelScope.launch { syncLibraryWithStorage(allowDeletes = true) }
                     _events.send(UiEvents.Message("Deleted Successfully"))
                     it.copy(selectedSongs = emptyList(), selectModeEnabled = false)
                 } catch (ex: SecurityException) {
@@ -879,6 +902,7 @@ class ViewModel(
         viewModelScope.launch {
             try {
                 songsRepository.deleteSongsFromLocal(uris)
+                viewModelScope.launch { syncLibraryWithStorage(allowDeletes = true) }
                 _events.send(UiEvents.Message("Deleted Successfully"))
             } catch (ex: SecurityException) {
                 _events.send(UiEvents.IntentSender(ex, uris))
