@@ -31,6 +31,7 @@ import com.k.sekiro.musico.playmusic.data.exchange.TransferPairingCodec
 import com.k.sekiro.musico.playmusic.data.exchange.TransferPairingPayload
 import com.k.sekiro.musico.playmusic.data.exchange.TransferWifiCredentials
 import com.k.sekiro.musico.playmusic.data.exchange.WifiDirectTransport
+import com.k.sekiro.musico.playmusic.data.util.reconcileLibrary
 import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistImportPreview
 import com.k.sekiro.musico.playmusic.presenation.exchange.PlaylistQrCodec
 import com.k.sekiro.musico.playmusic.presenation.exchange.TransferOffer
@@ -281,72 +282,45 @@ class ViewModel(
         viewModelScope.launch { syncLibraryWithStorage() }
     }
 
-    /** User-triggered re-scan from the empty-library screen. */
+    /** User-triggered re-scan from the empty-library screen. Ignored while a scan is already
+     * running or queued, so repeated Retry taps don't stack overlapping MediaStore scans. */
     fun rescanLibrary() {
-        viewModelScope.launch {
-            _state.update { it.copy(isLibraryLoading = true) }
-            syncLibraryWithStorage()
-        }
+        if (_state.value.isLibraryLoading) return
+        _state.update { it.copy(isLibraryLoading = true) }
+        viewModelScope.launch { syncLibraryWithStorage() }
     }
+
+    /** In-flight [syncLibraryWithStorage] calls. `isLibraryLoading` is cleared only when this
+     * reaches zero, so a short sync finishing cannot flip the UI to "No audio found" while a
+     * longer one is still populating Room. Every caller is a `viewModelScope.launch` (main
+     * dispatcher), so a plain Int needs no synchronisation. */
+    private var runningSyncCount = 0
 
     /** Reconciles Room against MediaStore. Suspends until done so the caller in [init] can keep
      * rescans strictly sequential - see [librarySyncRequests]. */
     private suspend fun syncLibraryWithStorage() {
+        runningSyncCount++
         try {
             withContext(Dispatchers.IO) {
-
-
-            val roomSongs = songsRepository.getSongsFromRoom()
-
-            if (roomSongs.isNotEmpty()) {
-                _state.update { it.copy(songs = roomSongs.map { it.toSongUi() }) }
-            }
-
-            val roomSongsIdentifier = roomSongs.associate { it.path to it }
-            val songsFromLocal = songsRepository.getAllStorageSongs()
-            val songsFromLocalIdentifier = songsFromLocal.associate { it.path to it }
-
-            if (roomSongsIdentifier.isNotEmpty()) {
-                for (song in songsFromLocal) {
-                    val songByPath = roomSongsIdentifier[song.path]
-
-                    if (songByPath == null) {
-                        songsRepository.addSong(song)
-                    }
+                val roomSongs = songsRepository.getSongsFromRoom()
+                if (roomSongs.isNotEmpty()) {
+                    _state.update { it.copy(songs = roomSongs.map { it.toSongUi() }) }
                 }
 
+                val reconcile = reconcileLibrary(roomSongs, songsRepository.getAllStorageSongs())
+                if (reconcile.toDelete.isNotEmpty()) songsRepository.deleteSongs(reconcile.toDelete)
+                if (reconcile.toAdd.isNotEmpty()) songsRepository.addSongs(reconcile.toAdd)
 
-                for ((path, songByPath) in roomSongsIdentifier) {
-                    if (!songsFromLocalIdentifier.containsKey(path)) {
-                        songsRepository.deleteSong(songByPath)
-                    }
+                // Re-read from Room: playlists and their song relationships key off Room ids, so
+                // downstream state must reflect Room, not the raw scan.
+                _state.update {
+                    it.copy(songs = songsRepository.getSongsFromRoom().map { it.toSongUi() })
                 }
-
-
-                /*                    val songsToBeAdded = async { songsFromLocal.filter { it !in roomSongs } }*/
-                /** which songs are new in local storage
-                and not in room to be added **//*
-
-                    val songsToBeDeleted = async { roomSongs.filter { it !in songsFromLocal } }
-
-                    songsRepository.deleteSongs(songsToBeDeleted.await())
-                    songsRepository.addSongs(songsToBeAdded.await())*/
-            } else {
-                songsRepository.addSongs(songsFromLocal)
-            }
-
-
-            /** At the end update the state with room songs cuz all other operations would be on room
-             * songs not local ones (e.g playlists and their relationships with songs ids) so the dela would
-             * **/
-            _state.update {
-                it.copy(
-                    songs = songsRepository.getSongsFromRoom().map { it.toSongUi() }
-                )
-            }
             }
         } finally {
-            _state.update { it.copy(isLibraryLoading = false) }
+            if (--runningSyncCount == 0) {
+                _state.update { it.copy(isLibraryLoading = false) }
+            }
         }
     }
 
