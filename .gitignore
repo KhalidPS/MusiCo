@@ -32,3 +32,4 @@ keystore.properties
 # never-pushed 'notes' branch, not here. See reports/ and play-store/.
 /reports
 /play-store
+/REFACTORING_SUMMARY.md
