@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import com.k.sekiro.musico.playmusic.domain.SimpleDataSaver
 import com.k.sekiro.musico.playmusic.domain.model.IsSelectedFromPlaylist_KEY
 import com.k.sekiro.musico.playmusic.domain.model.Playlist
@@ -44,7 +45,11 @@ import com.k.sekiro.musico.playmusic.presenation.player.MediaControllerManager
 import com.k.sekiro.musico.playmusic.presenation.player.notification.NotificationPlayerCustomCommand
 import com.k.sekiro.musico.playmusic.presenation.player.onChangPlayType
 import com.k.sekiro.musico.playmusic.presenation.player.playOrPause
+import com.k.sekiro.musico.playmusic.presenation.player.service.CUSTOM_COMMAND_CANCEL_SLEEP_TIMER_ACTION
+import com.k.sekiro.musico.playmusic.presenation.player.service.CUSTOM_COMMAND_START_SLEEP_TIMER_ACTION
+import com.k.sekiro.musico.playmusic.presenation.player.service.CUSTOM_COMMAND_START_SLEEP_TIMER_END_OF_TRACK_ACTION
 import com.k.sekiro.musico.playmusic.presenation.player.service.PlayerSessionService
+import com.k.sekiro.musico.playmusic.presenation.player.service.SLEEP_TIMER_DURATION_ARG
 import com.k.sekiro.musico.playmusic.presenation.player.startProgressUpdate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -156,6 +161,14 @@ class ViewModel(
             librarySyncRequests
                 .debounce(LIBRARY_RESCAN_DEBOUNCE_MS)
                 .collect { syncLibraryWithStorage() }
+        }
+        viewModelScope.launch {
+            // The sleep timer's countdown and pause() call run on the service, not here, so
+            // they keep working while the app is backgrounded and this ViewModel is gone -
+            // this just mirrors that state back for the UI to render.
+            PlayerSessionService.sleepTimerState.collect { timer ->
+                _state.update { it.copy(sleepTimer = timer) }
+            }
         }
 
     }
@@ -897,6 +910,36 @@ class ViewModel(
         }
     }
 
+    /** These just forward to the service via a custom session command - the countdown and the
+    actual pause() call happen there (see [PlayerSessionService]), not here, so the timer keeps
+    working while the app is backgrounded and this ViewModel/Activity is gone. **/
+    private fun startSleepTimer(durationMillis: Long) {
+        viewModelScope.launch {
+            controllerManager.getController()?.sendCustomCommand(
+                SessionCommand(CUSTOM_COMMAND_START_SLEEP_TIMER_ACTION, Bundle()),
+                Bundle().apply { putLong(SLEEP_TIMER_DURATION_ARG, durationMillis) }
+            )
+        }
+    }
+
+    private fun startSleepTimerEndOfTrack() {
+        viewModelScope.launch {
+            controllerManager.getController()?.sendCustomCommand(
+                SessionCommand(CUSTOM_COMMAND_START_SLEEP_TIMER_END_OF_TRACK_ACTION, Bundle()),
+                Bundle.EMPTY
+            )
+        }
+    }
+
+    private fun cancelSleepTimer() {
+        viewModelScope.launch {
+            controllerManager.getController()?.sendCustomCommand(
+                SessionCommand(CUSTOM_COMMAND_CANCEL_SLEEP_TIMER_ACTION, Bundle()),
+                Bundle.EMPTY
+            )
+        }
+    }
+
     @OptIn(UnstableApi::class)
     fun onAction(action: UiAction) {
         val controller = controllerManager.getController() ?: return
@@ -1007,6 +1050,10 @@ class ViewModel(
 
                     onCancelAllSelectedSongs()
                 }
+
+                is UiAction.StartSleepTimer -> startSleepTimer(action.durationMillis)
+                UiAction.StartSleepTimerEndOfTrack -> startSleepTimerEndOfTrack()
+                UiAction.CancelSleepTimer -> cancelSleepTimer()
             }
         }
     }

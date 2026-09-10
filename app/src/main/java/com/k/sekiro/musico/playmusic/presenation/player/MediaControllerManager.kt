@@ -69,7 +69,6 @@ class MediaControllerManager(
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
             viewModel.updatePlayedSong(controller!!.currentMediaItemIndex)
-
         }
 
 

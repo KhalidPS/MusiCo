@@ -7,4 +7,6 @@ const val PROGRESS_KEY = "progress"
 const val INDEX_KEY = "index"
 const val RecentSongsIds_KEY = "recentSongsIds"
 const val PlayMode_KEY = "playMode"
+const val SleepTimerMode_KEY = "sleepTimerMode"
+const val SleepTimerDeadline_KEY = "sleepTimerDeadline"
 
