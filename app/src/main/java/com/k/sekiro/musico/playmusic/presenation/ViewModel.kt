@@ -993,9 +993,13 @@ class ViewModel(
                 UiAction.SeekBackward -> controller.seekBack()
                 UiAction.SeekForward -> controller.seekForward()
                 is UiAction.SeekTo -> {
+                    // getPlayedSong() is genuinely nullable (UiState.playedSong defaults to null
+                    // until controllerAndLastPlayedSongSetup runs) - seeking before that finished
+                    // used to crash here with an NPE instead of just being a no-op.
+                    val playedSong = getPlayedSong() ?: return@launch
 
                     val seekPosition =
-                        ((getPlayedSong()!!.displayableDuration.durationMillis * action.position / 100f)).toLong()
+                        (playedSong.displayableDuration.durationMillis * action.position / 100f).toLong()
 
                     controller.seekTo(seekPosition)
                 }

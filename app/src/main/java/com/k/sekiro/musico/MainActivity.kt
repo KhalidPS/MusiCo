@@ -758,8 +758,13 @@ class MainActivity : ComponentActivity() {
         index: Int,
         navController: NavHostController
     ) {
+        // MediaController.Builder(...).buildAsync() (kicked off in initController()) can still be
+        // connecting - a cold PlayerSessionService start on first install is slow enough that a
+        // fast tap on a song row used to hit this before the future completed, and every call
+        // site here was a bare getController()!!, crashing instead of just ignoring the tap.
+        val controller = viewModel.getController() ?: return
 
-        if (viewModel.getController()!!.currentMediaItemIndex != index && viewModel.getIsNewCreation()) {
+        if (controller.currentMediaItemIndex != index && viewModel.getIsNewCreation()) {
             /** if the creation for activity is new and for first time then
             set new mediaItems then reset the isNewCreation to false cuz if the
             user click the item again there is no need to set mediaItems again since we did that before
@@ -767,12 +772,12 @@ class MainActivity : ComponentActivity() {
             every time the user click the item the playing for item will start again from scratch
             instead of continue playing due to setMediaItems every click**/
 
-            viewModel.getController()!!.setMediaItemsList(songs)
+            controller.setMediaItemsList(songs)
             viewModel.setIsNewCreation(false)
             viewModel.addToRecent(song.id)
         }
 
-        if (!viewModel.isSelectedSongFromPlaylist() && viewModel.getController()!!.currentMediaItemIndex != index) {
+        if (!viewModel.isSelectedSongFromPlaylist() && controller.currentMediaItemIndex != index) {
             viewModel.updateIsSelectedSongFromPlaylist(
                 value = false,
                 songs = songs
@@ -780,7 +785,7 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(index)
             viewModel.addToRecent(song.id)
         } else if (viewModel.isSelectedSongFromPlaylist()) {
-            viewModel.getController()!!
+            controller
                 .setMediaItemsList(
                     songs,
                     startIndex = index,
