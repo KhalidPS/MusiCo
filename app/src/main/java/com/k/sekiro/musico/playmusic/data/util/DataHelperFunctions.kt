@@ -42,19 +42,34 @@ suspend fun getSongsByUri(context: Context,uri: Uri) =
                 MediaStore.Audio.Media.DATE_MODIFIED
             )
 
-            val (selection, selectionArgs) = buildSongSelection()
-
             val sortOrder = MediaStore.Audio.Media.DATE_ADDED + " DESC"
 
-            val cursor: Cursor? = try {
-                context.contentResolver.query(
+            fun runQuery(includeRecordingFilter: Boolean): Cursor? {
+                val (selection, selectionArgs) = buildSongSelection(includeRecordingFilter)
+                return context.contentResolver.query(
                     uri,
                     projection,
                     selection,
                     selectionArgs,
                     sortOrder
                 )
-            }catch (ex: IllegalStateException){
+            }
+
+            val cursor: Cursor? = try {
+                runQuery(includeRecordingFilter = true)
+            } catch (ex: IllegalArgumentException) {
+                // IS_RECORDING is a documented column since API 30, but some OEM MediaProvider
+                // forks (seen on MIUI 12.5 / Android 11) report SDK 30 without actually adding
+                // it, so the query throws "Invalid token is_recording" instead of just omitting
+                // rows. Retry once without that clause rather than losing the whole library.
+                Log.e("ks", "retrying song query without IS_RECORDING filter: ${ex.message}")
+                try {
+                    runQuery(includeRecordingFilter = false)
+                } catch (ex2: Exception) {
+                    Log.e("ks", ex2.message ?: ex2.stackTrace.toString())
+                    null
+                }
+            } catch (ex: IllegalStateException) {
                 Log.e("ks",ex.message?:ex.stackTrace.toString())
                 null
             }catch (ex: Exception){
@@ -178,7 +193,7 @@ private val EXCLUDED_PATH_PATTERNS = listOf(
  * Matching on flags and paths instead means any audio format MediaStore can index shows up -
  * m4a, aac, opus, flac, ogg, wma and whatever comes next - without a list to keep in sync.
  */
-private fun buildSongSelection(): Pair<String, Array<String>> {
+private fun buildSongSelection(includeRecordingFilter: Boolean = true): Pair<String, Array<String>> {
     val conditions = mutableListOf<String>()
     val args = mutableListOf<String>()
 
@@ -188,8 +203,10 @@ private fun buildSongSelection(): Pair<String, Array<String>> {
     conditions += "IFNULL($IS_RINGTONE, 0) = 0"
     conditions += "IFNULL($IS_ALARM, 0) = 0"
     conditions += "IFNULL($IS_NOTIFICATION, 0) = 0"
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        // Voice-recorder output, wherever it was saved. Only a documented column from API 30.
+    if (includeRecordingFilter && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        // Voice-recorder output, wherever it was saved. Documented since API 30, but some OEM
+        // MediaProvider forks report SDK 30 without actually adding it - callers retry with
+        // includeRecordingFilter=false when the query rejects the column.
         conditions += "IFNULL(${MediaStore.Audio.AudioColumns.IS_RECORDING}, 0) = 0"
     }
 
