@@ -11,6 +11,7 @@ import android.provider.MediaStore.Audio.AudioColumns.IS_ALARM
 import android.provider.MediaStore.Audio.AudioColumns.IS_NOTIFICATION
 import android.provider.MediaStore.Audio.AudioColumns.IS_RINGTONE
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.domain.getUriFromDrawable
 import com.k.sekiro.musico.playmusic.domain.isValidUri
@@ -44,8 +45,8 @@ suspend fun getSongsByUri(context: Context,uri: Uri) =
 
             val sortOrder = MediaStore.Audio.Media.DATE_ADDED + " DESC"
 
-            fun runQuery(includeRecordingFilter: Boolean): Cursor? {
-                val (selection, selectionArgs) = buildSongSelection(includeRecordingFilter)
+            fun runQuery(excludeRecordings: Boolean): Cursor? {
+                val (selection, selectionArgs) = buildSongSelection(excludeRecordings)
                 return context.contentResolver.query(
                     uri,
                     projection,
@@ -56,7 +57,7 @@ suspend fun getSongsByUri(context: Context,uri: Uri) =
             }
 
             val cursor: Cursor? = try {
-                runQuery(includeRecordingFilter = true)
+                runQuery(excludeRecordings = RECORDING_COLUMN_AVAILABLE)
             } catch (ex: IllegalArgumentException) {
                 // IS_RECORDING is a documented column since API 30, but some OEM MediaProvider
                 // forks (seen on MIUI 12.5 / Android 11) report SDK 30 without actually adding
@@ -64,7 +65,7 @@ suspend fun getSongsByUri(context: Context,uri: Uri) =
                 // rows. Retry once without that clause rather than losing the whole library.
                 Log.e("ks", "retrying song query without IS_RECORDING filter: ${ex.message}")
                 try {
-                    runQuery(includeRecordingFilter = false)
+                    runQuery(excludeRecordings = false)
                 } catch (ex2: Exception) {
                     Log.e("ks", ex2.message ?: ex2.stackTrace.toString())
                     null
@@ -183,6 +184,14 @@ private val EXCLUDED_PATH_PATTERNS = listOf(
 )
 
 /**
+ * Whether `IS_RECORDING` can be named in a selection at all - it is only a documented column from
+ * API 30. Kept separate from [buildSongSelection] so that function stays a pure, testable mapping
+ * from its flag to a selection string, with no hidden dependency on the device's SDK level.
+ */
+private val RECORDING_COLUMN_AVAILABLE: Boolean
+    get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+
+/**
  * Builds the MediaStore selection for "everything the user would call a song or a sound".
  *
  * Deliberately **not** a file-extension whitelist. The previous version listed six `DATA LIKE`
@@ -193,7 +202,8 @@ private val EXCLUDED_PATH_PATTERNS = listOf(
  * Matching on flags and paths instead means any audio format MediaStore can index shows up -
  * m4a, aac, opus, flac, ogg, wma and whatever comes next - without a list to keep in sync.
  */
-private fun buildSongSelection(includeRecordingFilter: Boolean = true): Pair<String, Array<String>> {
+@VisibleForTesting
+internal fun buildSongSelection(excludeRecordings: Boolean): Pair<String, Array<String>> {
     val conditions = mutableListOf<String>()
     val args = mutableListOf<String>()
 
@@ -203,10 +213,8 @@ private fun buildSongSelection(includeRecordingFilter: Boolean = true): Pair<Str
     conditions += "IFNULL($IS_RINGTONE, 0) = 0"
     conditions += "IFNULL($IS_ALARM, 0) = 0"
     conditions += "IFNULL($IS_NOTIFICATION, 0) = 0"
-    if (includeRecordingFilter && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        // Voice-recorder output, wherever it was saved. Documented since API 30, but some OEM
-        // MediaProvider forks report SDK 30 without actually adding it - callers retry with
-        // includeRecordingFilter=false when the query rejects the column.
+    if (excludeRecordings) {
+        // Voice-recorder output, wherever it was saved.
         conditions += "IFNULL(${MediaStore.Audio.AudioColumns.IS_RECORDING}, 0) = 0"
     }
 

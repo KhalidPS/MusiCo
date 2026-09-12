@@ -10,48 +10,47 @@ data class LibraryReconcile(
 
 /**
  * Pure diff of the Room library against a fresh MediaStore scan. No Android types, no repository,
- * so it is unit-testable - the reconcile is the one piece of real business logic in this flow and
- * its delete side makes *cascading* writes (`PlaylistSong` has `ON DELETE CASCADE` on `songId`, so
- * deleting a `Song` also deletes its playlist / Favorite / Recent rows).
+ * so it is unit-testable.
  *
- * The delete side is deliberately narrow:
+ * The library mirrors device storage: a song MediaStore no longer reports is removed from Room,
+ * on every sync. Only two things are ever exempt, and neither is a policy choice - both are cases
+ * where the *scan itself* is not trustworthy evidence that a file is gone:
  *
- * - **[allowDeletes] must be `false` for automatic (ContentObserver-triggered) syncs.** MediaProvider
- *   indexes a mounting volume in batches and fires the observer once per batch, so a reconcile that
- *   ran then would see a *partial* scan and delete every not-yet-indexed row. Automatic syncs
- *   therefore only ever add; deletes happen on an explicit user rescan (or right after an in-app
- *   delete, where the caller knows the songs really are gone).
- * - A row is deleted only when its storage volume is in [mountedVolumeRoots] (from
- *   `Context.getExternalFilesDirs`). An ejected / not-yet-mounted card's rows are left alone rather
- *   than wiped; a mounted-but-now-empty volume's stale rows still get purged.
- * - A Room row whose `id` still appears in the scan is a move/rename - MediaStore keeps the `_ID`
- *   and only changes `DATA` - so it is never deleted. [toAdd] carries the new-path row and the
- *   repository's `@Upsert` updates it in place, so the cascade never fires for a moved file.
- * - A completely empty scan is treated as a failed query, never as "the library is now empty" -
- *   `getSongsByUri` swallows a thrown `ContentResolver` query into an empty list.
+ * - **An empty scan is a failed query, not an empty device.** `getSongsByUri` swallows a thrown
+ *   `ContentResolver.query` into an empty list, so "no rows at all" means the query blew up far
+ *   more often than it means the user deleted every song they own.
+ * - **A row on an unmounted volume is unreadable, not deleted.** [mountedVolumeRoots] comes from
+ *   `Context.getExternalFilesDirs`, which omits an ejected SD card entirely. Its songs are still on
+ *   the card, so they keep their rows (and their playlist membership) until it is back.
+ *
+ * A Room row whose `id` still appears in the scan is a move/rename - MediaStore keeps the `_ID` and
+ * only changes `DATA` - so it is never deleted. [toAdd] carries the new-path row and the
+ * repository's `@Upsert` updates it in place.
+ *
+ * That `id` check matters because deletes here cascade: `PlaylistSong` references `Song(id)` with
+ * `ON DELETE CASCADE`, so removing a `Song` also removes its playlist / Favorite / Recent rows. A
+ * re-scan brings the song back, but never the memberships - which is why a moved file must not go
+ * out through [toDelete] and back in through [toAdd].
  */
 fun reconcileLibrary(
     roomSongs: List<Song>,
     scannedSongs: List<Song>,
     mountedVolumeRoots: Set<String>,
-    allowDeletes: Boolean,
 ): LibraryReconcile {
     if (scannedSongs.isEmpty()) return LibraryReconcile(emptyList(), emptyList())
 
-    val roomByPath = roomSongs.associateBy { it.path }
+    val roomPaths = roomSongs.mapTo(HashSet()) { it.path }
     val scannedPaths = scannedSongs.mapTo(HashSet()) { it.path }
     val scannedIds = scannedSongs.mapTo(HashSet()) { it.id }
 
-    val toAdd = scannedSongs.filter { it.path !in roomByPath }
+    val toAdd = scannedSongs.filter { it.path !in roomPaths }
 
-    val toDelete = if (!allowDeletes) {
-        emptyList()
-    } else {
-        roomSongs.filter { room ->
-            room.path !in scannedPaths &&
-                room.id !in scannedIds &&
-                volumeRootOf(room.path).let { it != null && it in mountedVolumeRoots }
-        }
+    val toDelete = roomSongs.filter { room ->
+        val volume = volumeRootOf(room.path)
+        room.path !in scannedPaths &&
+            room.id !in scannedIds &&
+            volume != null &&
+            volume in mountedVolumeRoots
     }
 
     return LibraryReconcile(toAdd, toDelete)

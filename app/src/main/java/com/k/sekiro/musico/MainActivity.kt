@@ -94,13 +94,13 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 Log.e("ks", "granted permission")
-                viewModel.onCancelAllSelectedSongs()
+                // The system has already deleted the files by the time we get here. This purges
+                // the matching Room rows - without it they'd survive forever, since the
+                // ContentObserver-driven library sync is add-only by design.
+                viewModel.onDeletePermissionGranted()
                 Toast.makeText(
                     this, "Deleted Successfully", Toast.LENGTH_SHORT
                 ).show()
-                // 2. User granted permission!
-                // Tell the ViewModel to retry the delete operation.
-                //viewModel.retryDelete()
             } else {
                 Log.e("ks", "denied permission")
 

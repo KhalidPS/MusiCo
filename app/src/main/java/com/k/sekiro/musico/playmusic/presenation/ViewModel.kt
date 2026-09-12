@@ -1,6 +1,6 @@
 package com.k.sekiro.musico.playmusic.presenation
 
-import android.content.Context
+import android.app.Application
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -57,6 +57,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -78,7 +80,10 @@ class ViewModel(
     private val dataSaver: SimpleDataSaver,
     private val controllerManager: MediaControllerManager,
     private val savedStateHandle: SavedStateHandle,
-    private val context: Context,
+    /** The **Application**, not an Activity. Typed concretely on purpose: a ViewModel outlives
+     * the Activity that first created it, so holding an Activity Context here would leak the whole
+     * view hierarchy on every rotation. Koin binds this to `androidContext(this@MusicoApp)`. */
+    private val application: Application,
 ) : ViewModel() {
 
 
@@ -157,13 +162,11 @@ class ViewModel(
             }
         }
         // Plain collect, not collectLatest: rescans run to completion one at a time. See
-        // librarySyncRequests' KDoc for how bursts are coalesced. ContentObserver-driven syncs
-        // never delete - MediaProvider may still be batch-indexing a mounting volume (see
-        // reconcileLibrary).
+        // librarySyncRequests' KDoc for how bursts are coalesced.
         viewModelScope.launch {
             librarySyncRequests
                 .debounce(LIBRARY_RESCAN_DEBOUNCE_MS)
-                .collect { syncLibraryWithStorage(allowDeletes = false) }
+                .collect { syncLibraryWithStorage() }
         }
         viewModelScope.launch {
             // The sleep timer's countdown and pause() call run on the service, not here, so
@@ -281,64 +284,62 @@ class ViewModel(
     }
 
     private fun getAllSongsFromLocal() {
-        // Startup sync is add-only: on a cold boot MediaProvider may still be indexing storage.
-        viewModelScope.launch { syncLibraryWithStorage(allowDeletes = false) }
+        viewModelScope.launch { syncLibraryWithStorage() }
     }
 
-    /** User-triggered re-scan from the empty-library screen. This is the one entry point that
-     * removes rows for files that are genuinely gone (its volume must be mounted). Ignored while
-     * a scan is already running so repeated Retry taps don't stack overlapping MediaStore scans. */
+    /** User-triggered re-scan from the empty-library screen.
+     *
+     * Sets `isLibraryLoading` before anything else, so the screen swaps to the loading state
+     * immediately and the tap is never a silent no-op. If a sync is already running this one waits
+     * its turn on [librarySyncMutex] rather than being dropped. */
     fun rescanLibrary() {
-        if (runningSyncCount > 0) return
         _state.update { it.copy(isLibraryLoading = true) }
-        viewModelScope.launch { syncLibraryWithStorage(allowDeletes = true) }
+        viewModelScope.launch { syncLibraryWithStorage() }
     }
 
-    /** In-flight [syncLibraryWithStorage] calls. `isLibraryLoading` is cleared only when this
-     * reaches zero, so a short sync finishing cannot flip the UI to "No audio found" while a
-     * longer one is still populating Room. Every caller is a `viewModelScope.launch` (main
-     * dispatcher), so a plain Int needs no synchronisation. */
-    private var runningSyncCount = 0
+    /** Serializes library syncs. Two scans running at once would race on the same Room rows, and
+     * a short one finishing could flip the UI to "No audio found" while a longer one is still
+     * populating Room. Queuing rather than dropping keeps every caller's intent. */
+    private val librarySyncMutex = Mutex()
 
-    /** Volume roots that are mounted right now (`/storage/emulated/0`, `/storage/<VOL-ID>`, …).
+    /** Volume roots that are mounted right now (`/storage/emulated/0`, `/storage/<VOL-ID>`, ...).
      * `getExternalFilesDirs` returns one entry per shared volume and null for unmounted ones. */
     private fun mountedVolumeRoots(): Set<String> =
-        context.getExternalFilesDirs(null)
+        application.getExternalFilesDirs(null)
             .filterNotNull()
             .mapNotNull { dir ->
                 dir.absolutePath.substringBefore("/Android/").takeIf { it.startsWith("/storage/") }
             }
             .toHashSet()
 
-    /** Reconciles Room against MediaStore. Suspends until done so the caller in [init] can keep
-     * rescans strictly sequential - see [librarySyncRequests]. [allowDeletes] gates the
-     * cascading delete side - see [reconcileLibrary]. */
-    private suspend fun syncLibraryWithStorage(allowDeletes: Boolean) {
-        runningSyncCount++
-        try {
-            withContext(Dispatchers.IO) {
-                val roomSongs = songsRepository.getSongsFromRoom()
-                if (roomSongs.isNotEmpty()) {
-                    _state.update { it.copy(songs = roomSongs.map { it.toSongUi() }) }
-                }
+    /** Brings Room in line with MediaStore in both directions: new files are added, files no longer
+     * on the device are removed. The single library-sync path - every trigger (startup, the
+     * MediaStore observer, a delete, the Retry button) runs exactly this. Suspends until done so
+     * the collector in [init] keeps rescans strictly sequential - see [librarySyncRequests]. */
+    private suspend fun syncLibraryWithStorage() {
+        librarySyncMutex.withLock {
+            try {
+                withContext(Dispatchers.IO) {
+                    val roomSongs = songsRepository.getSongsFromRoom()
+                    if (roomSongs.isNotEmpty()) {
+                        _state.update { it.copy(songs = roomSongs.map { it.toSongUi() }) }
+                    }
 
-                val reconcile = reconcileLibrary(
-                    roomSongs = roomSongs,
-                    scannedSongs = songsRepository.getAllStorageSongs(),
-                    mountedVolumeRoots = mountedVolumeRoots(),
-                    allowDeletes = allowDeletes,
-                )
-                if (reconcile.toDelete.isNotEmpty()) songsRepository.deleteSongs(reconcile.toDelete)
-                if (reconcile.toAdd.isNotEmpty()) songsRepository.addSongs(reconcile.toAdd)
+                    val reconcile = reconcileLibrary(
+                        roomSongs = roomSongs,
+                        scannedSongs = songsRepository.getAllStorageSongs(),
+                        mountedVolumeRoots = mountedVolumeRoots(),
+                    )
+                    if (reconcile.toDelete.isNotEmpty()) songsRepository.deleteSongs(reconcile.toDelete)
+                    if (reconcile.toAdd.isNotEmpty()) songsRepository.addSongs(reconcile.toAdd)
 
-                // Re-read from Room: playlists and their song relationships key off Room ids, so
-                // downstream state must reflect Room, not the raw scan.
-                _state.update {
-                    it.copy(songs = songsRepository.getSongsFromRoom().map { it.toSongUi() })
+                    // Re-read from Room: playlists and their song relationships key off Room ids, so
+                    // downstream state must reflect Room, not the raw scan.
+                    _state.update {
+                        it.copy(songs = songsRepository.getSongsFromRoom().map { it.toSongUi() })
+                    }
                 }
-            }
-        } finally {
-            if (--runningSyncCount == 0) {
+            } finally {
                 _state.update { it.copy(isLibraryLoading = false) }
             }
         }
@@ -567,14 +568,14 @@ class ViewModel(
             // Same platform requirement the sender hits in createGroup: on API ≤32 an app can hold
             // ACCESS_FINE_LOCATION and still see no Wi-Fi scan results while the OS location toggle
             // is off, so the join can never match the sender's SSID.
-            if (WifiDirectTransport.locationServicesRequiredButOff(context)) {
+            if (WifiDirectTransport.locationServicesRequiredButOff(application)) {
                 _events.send(
                     UiEvents.Message("Turn on Location - Android 12 and older need it to connect over Wi-Fi Direct")
                 )
                 return@launch
             }
 
-            val transport = WifiDirectTransport(context)
+            val transport = WifiDirectTransport(application)
             val joined = transport.joinGroup(
                 TransferWifiCredentials(ssid = payload.ssid, passphrase = payload.pass, host = payload.host)
             )
@@ -647,9 +648,9 @@ class ViewModel(
             val matchedIds = pending.matchResult.matched.map { it.id }.toLongArray()
 
             ContextCompat.startForegroundService(
-                context,
+                application,
                 TransferService.downloadIntent(
-                    context = context,
+                    context = application,
                     playlistId = playlistId,
                     manifestJson = transferJson.encodeToString(TransferManifest.serializer(), pending.manifest),
                     wantedIndices = wantedIndices,
@@ -673,14 +674,14 @@ class ViewModel(
     }
 
     fun cancelTransfer() {
-        context.startService(TransferService.cancelIntent(context))
+        application.startService(TransferService.cancelIntent(application))
         pendingTransfer?.wifiDirectTransport?.leaveGroup()
         pendingTransfer = null
     }
 
     /** Sender: starts advertising [playlistId] for another device to connect and pull songs from. */
     fun startTransferAdvertise(playlistId: Long) {
-        ContextCompat.startForegroundService(context, TransferService.advertiseIntent(context, playlistId))
+        ContextCompat.startForegroundService(application, TransferService.advertiseIntent(application, playlistId))
     }
 
     /** Clears a terminal `Done`/`Failed` transfer state so the sender's export screen goes back to
@@ -873,43 +874,38 @@ class ViewModel(
 
     fun setIsNewCreation(value: Boolean) = controllerManager.setIsNewCreation(value)
 
-    private fun deleteSelectedSongsFromStorage(uris: List<Uri>) {
+    /**
+     * Deletes [songs] from storage, then re-syncs so their Room rows go with them.
+     *
+     * Nothing here runs inside a `_state.update` lambda. `update` re-invokes its lambda whenever
+     * its CAS loses, so a delete or an event send placed in there can fire twice.
+     */
+    private fun deleteSongsFromStorage(songs: List<SongUi>) {
+        if (songs.isEmpty()) return
+        val uris = songs.map { it.dataUri.toUri() }
         viewModelScope.launch {
-            _state.update {
-                Log.e("ks", "the ids are : ${it.selectedSongs.map { it.id }}")
-
-                try {
-                    songsRepository.deleteSongsFromLocal(uris)
-                    // The files are gone from MediaStore now; purge the matching Room rows (and
-                    // their playlist memberships) instead of waiting on the add-only observer sync.
-                    viewModelScope.launch { syncLibraryWithStorage(allowDeletes = true) }
-                    _events.send(UiEvents.Message("Deleted Successfully"))
-                    it.copy(selectedSongs = emptyList(), selectModeEnabled = false)
-                } catch (ex: SecurityException) {
-                    _events.send(UiEvents.IntentSender(ex, uris))
-                    it
-                } catch (ex: Exception) {
-                    _events.send(UiEvents.Message("Deletion Failed"))
-                    it
-                }
-
-
+            try {
+                songsRepository.deleteSongsFromLocal(uris)
+                _state.update { it.copy(selectedSongs = emptyList(), selectModeEnabled = false) }
+                _events.send(UiEvents.Message("Deleted Successfully"))
+                syncLibraryWithStorage()
+            } catch (ex: SecurityException) {
+                // API 30+: the app does not own this media, so the system asks the user itself.
+                // MainActivity re-enters through onDeletePermissionGranted once they approve.
+                _events.send(UiEvents.IntentSender(ex, uris))
+            } catch (ex: Exception) {
+                _events.send(UiEvents.Message("Deletion Failed"))
             }
         }
     }
 
-    private fun deleteSingleSongFromStorage(uris: List<Uri>) {
+    /** Called by the Activity when the user approves the system's delete dialog. MediaStore has
+     * already removed the files by then, so a sync is all that is left - without it the rows would
+     * linger until the next ContentObserver fire. */
+    fun onDeletePermissionGranted() {
         viewModelScope.launch {
-            try {
-                songsRepository.deleteSongsFromLocal(uris)
-                viewModelScope.launch { syncLibraryWithStorage(allowDeletes = true) }
-                _events.send(UiEvents.Message("Deleted Successfully"))
-            } catch (ex: SecurityException) {
-                _events.send(UiEvents.IntentSender(ex, uris))
-            } catch (ex: Exception) {
-                _events.send(UiEvents.Message("Deletion Failed"))
-
-            }
+            _state.update { it.copy(selectedSongs = emptyList(), selectModeEnabled = false) }
+            syncLibraryWithStorage()
         }
     }
 
@@ -1034,10 +1030,10 @@ class ViewModel(
                 is UiAction.DeletionConfirmClicked -> {
                     when (action.deletionType) {
                         is DeletionType.StorageDeletion -> {
-                            if (action.deletionType.songUi == null) deleteSelectedSongsFromStorage(
-                                _state.value.selectedSongs.map { it.dataUri.toUri() }
+                            val songUi = action.deletionType.songUi
+                            deleteSongsFromStorage(
+                                if (songUi == null) _state.value.selectedSongs else listOf(songUi)
                             )
-                            else deleteSingleSongFromStorage(listOf(action.deletionType.songUi.dataUri.toUri()))
                         }
 
                         is DeletionType.PlaylistDeletion -> {

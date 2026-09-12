@@ -28,69 +28,66 @@ class LibraryReconcileTest {
             roomSongs = emptyList(),
             scannedSongs = listOf(internalA, sdC),
             mountedVolumeRoots = bothMounted,
-            allowDeletes = true,
         )
         assertEquals(listOf(internalA, sdC), r.toAdd)
         assertTrue(r.toDelete.isEmpty())
     }
 
     @Test
-    fun `allowDeletes false - a genuinely gone song is NOT deleted (add-only automatic sync)`() {
+    fun `a song no longer on the device is deleted`() {
         val r = reconcileLibrary(
             roomSongs = listOf(internalA, internalB),
             scannedSongs = listOf(internalA),
             mountedVolumeRoots = setOf(internalRoot),
-            allowDeletes = false,
-        )
-        assertTrue(r.toDelete.isEmpty())
-    }
-
-    @Test
-    fun `allowDeletes true - a song gone from a mounted volume IS deleted`() {
-        val r = reconcileLibrary(
-            roomSongs = listOf(internalA, internalB),
-            scannedSongs = listOf(internalA),
-            mountedVolumeRoots = setOf(internalRoot),
-            allowDeletes = true,
         )
         assertEquals(listOf(internalB), r.toDelete)
         assertTrue(r.toAdd.isEmpty())
     }
 
     @Test
-    fun `SD card not mounted - its rows are NOT deleted even on an explicit rescan`() {
-        // card ejected: only internal is mounted, scan returns only internal songs
-        val r = reconcileLibrary(
-            roomSongs = listOf(internalA, sdC, sdD),
-            scannedSongs = listOf(internalA),
-            mountedVolumeRoots = setOf(internalRoot),
-            allowDeletes = true,
-        )
-        assertTrue("SD rows must survive while the card is unmounted", r.toDelete.isEmpty())
-    }
-
-    @Test
-    fun `mounted volume emptied of audio - its stale rows ARE purged on rescan`() {
-        // user deleted every song on the SD card; the card is still mounted
+    fun `a mounted volume emptied of audio has its stale rows purged`() {
         val r = reconcileLibrary(
             roomSongs = listOf(internalA, sdC, sdD),
             scannedSongs = listOf(internalA),
             mountedVolumeRoots = bothMounted,
-            allowDeletes = true,
         )
         assertEquals(setOf(sdC, sdD), r.toDelete.toSet())
     }
 
     @Test
-    fun `partial index of a mounted volume does NOT delete the not-yet-scanned rows on an automatic sync`() {
-        // MediaProvider has indexed only sdC so far; sdD not yet seen
+    fun `new song on a mounted volume is added`() {
+        val sdNew = song("/storage/1A2B-3C4D/Music/new.mp3", 9)
+        val r = reconcileLibrary(
+            roomSongs = listOf(internalA, sdC),
+            scannedSongs = listOf(internalA, sdC, sdNew),
+            mountedVolumeRoots = bothMounted,
+        )
+        assertEquals(listOf(sdNew), r.toAdd)
+        assertTrue(r.toDelete.isEmpty())
+    }
+
+    @Test
+    fun `adds and deletes happen in the same pass`() {
+        val sdNew = song("/storage/1A2B-3C4D/Music/new.mp3", 9)
+        val r = reconcileLibrary(
+            roomSongs = listOf(internalA, internalB),
+            scannedSongs = listOf(internalA, sdNew),
+            mountedVolumeRoots = bothMounted,
+        )
+        assertEquals(listOf(sdNew), r.toAdd)
+        assertEquals(listOf(internalB), r.toDelete)
+    }
+
+    @Test
+    fun `SD card not mounted - its rows are NOT deleted`() {
+        // Card ejected: getExternalFilesDirs stops reporting it and the scan can't see its files.
+        // They are unreadable, not deleted - wiping them would cascade their playlist rows away.
         val r = reconcileLibrary(
             roomSongs = listOf(internalA, sdC, sdD),
-            scannedSongs = listOf(internalA, sdC),
-            mountedVolumeRoots = bothMounted,
-            allowDeletes = false,
+            scannedSongs = listOf(internalA),
+            mountedVolumeRoots = setOf(internalRoot),
         )
-        assertTrue(r.toDelete.isEmpty())
+        assertTrue("SD rows must survive while the card is unmounted", r.toDelete.isEmpty())
     }
 
     @Test
@@ -100,7 +97,6 @@ class LibraryReconcileTest {
             roomSongs = listOf(internalA, sdC),
             scannedSongs = listOf(internalA, sdCMoved),
             mountedVolumeRoots = bothMounted,
-            allowDeletes = true,
         )
         assertTrue("moved file must not be reconcile-deleted (cascade guard)", r.toDelete.isEmpty())
         assertEquals(listOf(sdCMoved), r.toAdd) // upsert handles the path change in place
@@ -112,22 +108,19 @@ class LibraryReconcileTest {
             roomSongs = listOf(internalA, sdC),
             scannedSongs = emptyList(),
             mountedVolumeRoots = bothMounted,
-            allowDeletes = true,
         )
         assertTrue(r.toDelete.isEmpty())
         assertTrue(r.toAdd.isEmpty())
     }
 
     @Test
-    fun `new song on a mounted volume is added`() {
-        val sdNew = song("/storage/1A2B-3C4D/Music/new.mp3", 9)
+    fun `a row outside slash-storage is never reconcile-deleted`() {
+        val legacy = song("/data/media/0/x.mp3", 11)
         val r = reconcileLibrary(
-            roomSongs = listOf(internalA, sdC),
-            scannedSongs = listOf(internalA, sdC, sdNew),
+            roomSongs = listOf(internalA, legacy),
+            scannedSongs = listOf(internalA),
             mountedVolumeRoots = bothMounted,
-            allowDeletes = false,
         )
-        assertEquals(listOf(sdNew), r.toAdd)
         assertTrue(r.toDelete.isEmpty())
     }
 
