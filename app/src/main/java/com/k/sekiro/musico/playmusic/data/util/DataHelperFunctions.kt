@@ -11,6 +11,7 @@ import android.provider.MediaStore.Audio.AudioColumns.IS_ALARM
 import android.provider.MediaStore.Audio.AudioColumns.IS_NOTIFICATION
 import android.provider.MediaStore.Audio.AudioColumns.IS_RINGTONE
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.k.sekiro.musico.R
 import com.k.sekiro.musico.playmusic.domain.getUriFromDrawable
 import com.k.sekiro.musico.playmusic.domain.isValidUri
@@ -42,19 +43,34 @@ suspend fun getSongsByUri(context: Context,uri: Uri) =
                 MediaStore.Audio.Media.DATE_MODIFIED
             )
 
-            val (selection, selectionArgs) = buildSongSelection()
-
             val sortOrder = MediaStore.Audio.Media.DATE_ADDED + " DESC"
 
-            val cursor: Cursor? = try {
-                context.contentResolver.query(
+            fun runQuery(excludeRecordings: Boolean): Cursor? {
+                val (selection, selectionArgs) = buildSongSelection(excludeRecordings)
+                return context.contentResolver.query(
                     uri,
                     projection,
                     selection,
                     selectionArgs,
                     sortOrder
                 )
-            }catch (ex: IllegalStateException){
+            }
+
+            val cursor: Cursor? = try {
+                runQuery(excludeRecordings = RECORDING_COLUMN_AVAILABLE)
+            } catch (ex: IllegalArgumentException) {
+                // IS_RECORDING is a documented column since API 30, but some OEM MediaProvider
+                // forks (seen on MIUI 12.5 / Android 11) report SDK 30 without actually adding
+                // it, so the query throws "Invalid token is_recording" instead of just omitting
+                // rows. Retry once without that clause rather than losing the whole library.
+                Log.e("ks", "retrying song query without IS_RECORDING filter: ${ex.message}")
+                try {
+                    runQuery(excludeRecordings = false)
+                } catch (ex2: Exception) {
+                    Log.e("ks", ex2.message ?: ex2.stackTrace.toString())
+                    null
+                }
+            } catch (ex: IllegalStateException) {
                 Log.e("ks",ex.message?:ex.stackTrace.toString())
                 null
             }catch (ex: Exception){
@@ -131,9 +147,6 @@ suspend fun getSongsByUri(context: Context,uri: Uri) =
                         Log.e("ks","song path: $path")
                     }*/
 
-                    Log.e("ks","song: $song")
-
-
                     array.add(song)
                 }
                 //songList.addAll(array.awaitAll())
@@ -171,6 +184,14 @@ private val EXCLUDED_PATH_PATTERNS = listOf(
 )
 
 /**
+ * Whether `IS_RECORDING` can be named in a selection at all - it is only a documented column from
+ * API 30. Kept separate from [buildSongSelection] so that function stays a pure, testable mapping
+ * from its flag to a selection string, with no hidden dependency on the device's SDK level.
+ */
+private val RECORDING_COLUMN_AVAILABLE: Boolean
+    get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+
+/**
  * Builds the MediaStore selection for "everything the user would call a song or a sound".
  *
  * Deliberately **not** a file-extension whitelist. The previous version listed six `DATA LIKE`
@@ -181,7 +202,8 @@ private val EXCLUDED_PATH_PATTERNS = listOf(
  * Matching on flags and paths instead means any audio format MediaStore can index shows up -
  * m4a, aac, opus, flac, ogg, wma and whatever comes next - without a list to keep in sync.
  */
-private fun buildSongSelection(): Pair<String, Array<String>> {
+@VisibleForTesting
+internal fun buildSongSelection(excludeRecordings: Boolean): Pair<String, Array<String>> {
     val conditions = mutableListOf<String>()
     val args = mutableListOf<String>()
 
@@ -191,8 +213,8 @@ private fun buildSongSelection(): Pair<String, Array<String>> {
     conditions += "IFNULL($IS_RINGTONE, 0) = 0"
     conditions += "IFNULL($IS_ALARM, 0) = 0"
     conditions += "IFNULL($IS_NOTIFICATION, 0) = 0"
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        // Voice-recorder output, wherever it was saved. Only a documented column from API 30.
+    if (excludeRecordings) {
+        // Voice-recorder output, wherever it was saved.
         conditions += "IFNULL(${MediaStore.Audio.AudioColumns.IS_RECORDING}, 0) = 0"
     }
 

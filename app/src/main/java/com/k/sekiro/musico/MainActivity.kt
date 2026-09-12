@@ -51,6 +51,7 @@ import com.k.sekiro.musico.playmusic.presenation.browse.BrowseDetailScreen
 import com.k.sekiro.musico.playmusic.presenation.browse.BrowseShowcaseScreen
 import com.k.sekiro.musico.playmusic.presenation.browse.groupByAlbum
 import com.k.sekiro.musico.playmusic.presenation.browse.groupByArtist
+import com.k.sekiro.musico.playmusic.presenation.loading_screen.EmptyLibrary
 import com.k.sekiro.musico.playmusic.presenation.loading_screen.LoadingScreen
 import com.k.sekiro.musico.playmusic.presenation.model.AlbumDetail
 import com.k.sekiro.musico.playmusic.presenation.model.AlbumsShowcase
@@ -93,13 +94,13 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 Log.e("ks", "granted permission")
-                viewModel.onCancelAllSelectedSongs()
+                // The system has already deleted the files by the time we get here. This purges
+                // the matching Room rows - without it they'd survive forever, since the
+                // ContentObserver-driven library sync is add-only by design.
+                viewModel.onDeletePermissionGranted()
                 Toast.makeText(
                     this, "Deleted Successfully", Toast.LENGTH_SHORT
                 ).show()
-                // 2. User granted permission!
-                // Tell the ViewModel to retry the delete operation.
-                //viewModel.retryDelete()
             } else {
                 Log.e("ks", "denied permission")
 
@@ -222,7 +223,7 @@ class MainActivity : ComponentActivity() {
                                     val playlists = state.value.playlists
                                     val playlistWithSongs = state.value.playlistsWithSongs
                                     val recentPlaylistSongs = state.value.recentPlaylistSongs
-                                    if (!songs.isEmpty()) {
+                                    if (songs.isNotEmpty()) {
                                         SongsList(
                                             songs = songs,
                                             onSongClicked = { song, index ->
@@ -295,8 +296,10 @@ class MainActivity : ComponentActivity() {
                                             recentPlaylistSongs = recentPlaylistSongs,
                                             bottomClicked = bottomClicked
                                         )
-                                    } else {
+                                    } else if (state.value.isLibraryLoading) {
                                         LoadingScreen()
+                                    } else {
+                                        EmptyLibrary(onRetry = viewModel::rescanLibrary)
                                     }
                                 }
 
@@ -755,8 +758,13 @@ class MainActivity : ComponentActivity() {
         index: Int,
         navController: NavHostController
     ) {
+        // MediaController.Builder(...).buildAsync() (kicked off in initController()) can still be
+        // connecting - a cold PlayerSessionService start on first install is slow enough that a
+        // fast tap on a song row used to hit this before the future completed, and every call
+        // site here was a bare getController()!!, crashing instead of just ignoring the tap.
+        val controller = viewModel.getController() ?: return
 
-        if (viewModel.getController()!!.currentMediaItemIndex != index && viewModel.getIsNewCreation()) {
+        if (controller.currentMediaItemIndex != index && viewModel.getIsNewCreation()) {
             /** if the creation for activity is new and for first time then
             set new mediaItems then reset the isNewCreation to false cuz if the
             user click the item again there is no need to set mediaItems again since we did that before
@@ -764,12 +772,12 @@ class MainActivity : ComponentActivity() {
             every time the user click the item the playing for item will start again from scratch
             instead of continue playing due to setMediaItems every click**/
 
-            viewModel.getController()!!.setMediaItemsList(songs)
+            controller.setMediaItemsList(songs)
             viewModel.setIsNewCreation(false)
             viewModel.addToRecent(song.id)
         }
 
-        if (!viewModel.isSelectedSongFromPlaylist() && viewModel.getController()!!.currentMediaItemIndex != index) {
+        if (!viewModel.isSelectedSongFromPlaylist() && controller.currentMediaItemIndex != index) {
             viewModel.updateIsSelectedSongFromPlaylist(
                 value = false,
                 songs = songs
@@ -777,7 +785,7 @@ class MainActivity : ComponentActivity() {
             viewModel.updatePlayedSong(index)
             viewModel.addToRecent(song.id)
         } else if (viewModel.isSelectedSongFromPlaylist()) {
-            viewModel.getController()!!
+            controller
                 .setMediaItemsList(
                     songs,
                     startIndex = index,

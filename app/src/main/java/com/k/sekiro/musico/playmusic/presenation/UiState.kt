@@ -26,6 +26,9 @@ data class UiState(
     /** Mirrors `TransferService.state` - non-null only during an audio-transfer session. */
     val transfer: TransferState? = null,
     val sleepTimer: SleepTimerState = SleepTimerState.Off,
+    /** True until the first MediaStore reconcile finishes. Lets the UI tell "still scanning"
+     * apart from "scan done, library is genuinely empty" instead of spinning forever. */
+    val isLibraryLoading: Boolean = true,
 )
 
 

@@ -78,8 +78,7 @@ fun LoadingScreen() {
 
             if (isShowMsg){
                 Text(
-                    text = "There is no audio files in your device,\n this loading will continue loading until find \naudio files",
-                    color = Color.Red,
+                    text = "Still scanning your library… a large collection can take a moment.",
                     modifier = Modifier.background(Color.LightGray)
                 )
 

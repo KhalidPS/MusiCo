@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 class MediaControllerManager(
     private val context: Context,
@@ -113,9 +114,35 @@ class MediaControllerManager(
     }
 
 
+    /** Suspends until [controller] is connected instead of relying on whatever [initialize]'s
+     * own listener has set by the time this is called. [controllerFuture] resolves once, on a
+     * cold app start binding to [PlayerSessionService] for the first time - so a caller that
+     * checked the bare field instead of awaiting this could easily run before that completed and
+     * silently skip setup (see [controllerAndLastPlayedSongSetup]'s former bug). */
+    private suspend fun awaitController(): MediaController? {
+        controller?.let { return it }
+        return suspendCancellableCoroutine { cont ->
+            controllerFuture.addListener(
+                {
+                    val result = runCatching { controllerFuture.get() }.getOrNull()
+                    if (result != null) controller = result
+                    if (cont.isActive) cont.resume(result, onCancellation = null)
+                },
+                MoreExecutors.directExecutor()
+            )
+        }
+    }
+
     suspend fun controllerAndLastPlayedSongSetup(allSongs: List<SongUi>) {
         Log.e("ks","enter controllerManager controllerAndLastPlayedSongSetup block")
-        val controller = this.controller ?: return
+        // Was `this.controller ?: return`: on a fresh install PlayerSessionService starts cold,
+        // so MediaController.Builder(...).buildAsync() can still be pending by the time the first
+        // non-empty song list arrives. That silently skipped the whole setup - no media items on
+        // the controller, playedSong left null forever (this call site's caller never re-fires
+        // for the same song-list content) - which is what let UiAction.SeekTo's
+        // getPlayedSong()!! crash on first launch. Now waits for the connection instead of
+        // giving up on it.
+        val controller = awaitController() ?: return
         Log.e("ks","after controller check")
 
         val songs = getRelevantSongsList(allSongs)

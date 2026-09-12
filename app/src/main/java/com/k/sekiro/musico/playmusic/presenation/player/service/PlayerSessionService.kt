@@ -33,6 +33,7 @@ import com.k.sekiro.musico.playmusic.domain.model.PlaylistSong
 import com.k.sekiro.musico.playmusic.domain.model.RecentSongsIds_KEY
 import com.k.sekiro.musico.playmusic.domain.model.SleepTimerDeadline_KEY
 import com.k.sekiro.musico.playmusic.domain.model.SleepTimerMode_KEY
+import com.k.sekiro.musico.playmusic.domain.model.SleepTimerTotal_KEY
 import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.model.SleepTimerMode
@@ -560,7 +561,8 @@ class PlayerSessionService : MediaSessionService() {
         sleepTimerJob = scope.launch {
             dataSaver.suspendSave(
                 SleepTimerMode_KEY to SLEEP_TIMER_MODE_DURATION,
-                SleepTimerDeadline_KEY to deadline
+                SleepTimerDeadline_KEY to deadline,
+                SleepTimerTotal_KEY to durationMillis
             )
             runDurationCountdown(deadline, durationMillis)
         }
@@ -610,9 +612,11 @@ class PlayerSessionService : MediaSessionService() {
             when (dataSaver.suspendGet(SleepTimerMode_KEY, SLEEP_TIMER_MODE_OFF)) {
                 SLEEP_TIMER_MODE_DURATION -> {
                     val deadline = dataSaver.suspendGet(SleepTimerDeadline_KEY, 0L)
+                    val total = dataSaver.suspendGet(SleepTimerTotal_KEY, 0L)
                     val remaining = deadline - System.currentTimeMillis()
                     if (remaining > 0) {
-                        runDurationCountdown(deadline, remaining)
+                        // keep the original total so the dialog's progress ring is accurate
+                        runDurationCountdown(deadline, if (total > 0L) total else remaining)
                     } else {
                         withContext(Dispatchers.Main) { mediaSession?.player?.pause() }
                         clearSleepTimer()

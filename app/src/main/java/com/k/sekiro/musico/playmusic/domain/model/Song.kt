@@ -19,9 +19,9 @@ data class Song(
     @PrimaryKey(autoGenerate = false) val id: Long = 0,
 ){
     override fun equals(other: Any?): Boolean {
-        return if (this === other) true
-        else if (javaClass != other?.javaClass) false
-        else this.path == (other as SongUi).path
+        if (this === other) return true
+        if (other !is Song) return false
+        return path == other.path
     }
 
     override fun hashCode(): Int {
