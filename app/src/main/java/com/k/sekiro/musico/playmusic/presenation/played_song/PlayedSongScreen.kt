@@ -92,6 +92,7 @@ import com.k.sekiro.musico.playmusic.presenation.model.toSongUi
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.InfoDialog
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.PassedTimeText
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.SleepTimerDialog
+import com.k.sekiro.musico.playmusic.presenation.model.fromMillis
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.SongSlider
 import com.k.sekiro.musico.playmusic.presenation.played_song.component.drawImageOuterLine
 import com.k.sekiro.musico.ui.theme.FormFactorPreviews
@@ -573,11 +574,20 @@ fun SharedTransitionScope.PlayedSongScreen(
             )
         }
 
+        /** The position the user is dragging the slider to (0..100), or null when not dragging.
+         *
+         * Kept here rather than in UiState because the player keeps pushing its own position
+         * every 500ms while scrubbing (see `startProgressUpdate`), which would overwrite a
+         * ViewModel-held scrub value and make the label flicker between the two twice a second.
+         * Local state simply wins for as long as the finger is down. */
+        var scrubPercent by remember { mutableStateOf<Float?>(null) }
+
         val slider: @Composable () -> Unit = {
             SongSlider(
                 sliderProgress = sliderProgress,
                 outlineColor = outlineColor,
-                onAction = onAction
+                onAction = onAction,
+                onScrub = { scrubPercent = it }
             )
         }
 
@@ -588,8 +598,18 @@ fun SharedTransitionScope.PlayedSongScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
             ) {
+                val songDurationMillis =
+                    songs[pagerState.currentPage].displayableDuration.durationMillis
+
                 PassedTimeText(
-                    passedTime = passedTimeDuration,
+                    // While dragging, show where the thumb is rather than where playback still
+                    // is - the seek only lands on release, so without this the label sits frozen
+                    // at the old position for the whole gesture.
+                    passedTime = {
+                        scrubPercent
+                            ?.let { fromMillis((songDurationMillis * it / 100f).toLong()) }
+                            ?: passedTimeDuration()
+                    },
                     color = Color.White.copy(alpha = .7f)
                 )
 
