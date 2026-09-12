@@ -49,3 +49,27 @@
     public static boolean isLoggable(...);
     public static java.lang.String getStackTraceString(...);
 }
+
+# Glance app widget + R8 full mode.
+#
+# glance-appwidget ships exactly one consumer rule:
+#     -keep public class * extends androidx.glance.appwidget.action.ActionCallback
+# That keeps the class but names no members, and under R8 full mode (the AGP 8 default, and
+# android.enableR8.fullMode is not overridden in gradle.properties) a member-less -keep does not
+# retain the default constructor. Glance instantiates every ActionCallback reflectively by class
+# name, so R8 stripped `<init>()` from PlayPauseAction / NextAction / PreviousAction /
+# FavoriteAction and each widget button tap failed to construct its callback and silently did
+# nothing. It also stripped MusiCoWidget.<init>() and MusiCoWidgetReceiver.getGlanceAppWidget(),
+# both of which the framework reaches only through the manifest-declared receiver.
+#
+# Debug never showed this because debug does not minify. Verified against
+# app/build/outputs/mapping/release/usage.txt before and after this rule.
+-keep class * implements androidx.glance.appwidget.action.ActionCallback {
+    <init>();
+}
+-keep class * extends androidx.glance.appwidget.GlanceAppWidget {
+    <init>();
+}
+-keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver {
+    *;
+}
