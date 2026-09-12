@@ -14,11 +14,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.k.sekiro.musico.playmusic.presenation.UiAction
 
+/**
+ * @param onScrub reports the position the user is currently dragging to, as a 0..100 percent,
+ * and `null` the moment the drag ends. Lets the caller preview that position (the passed-time
+ * label) while the thumb moves, instead of waiting for the seek to land.
+ */
 @Composable
 fun SongSlider(
     sliderProgress:() -> Float,
     onAction:(UiAction) -> Unit,
     outlineColor: Color,
+    onScrub:(Float?) -> Unit = {},
 ) {
 
     var sliderValue by remember { mutableFloatStateOf(0f) }
@@ -28,10 +34,12 @@ fun SongSlider(
         onValueChange = {
             isSliderDragging = true
             sliderValue = it
+            onScrub(it)
             onAction(UiAction.UpdateProgress(it))
         },
         onValueChangeFinished = {
             isSliderDragging = false
+            onScrub(null)
             onAction(UiAction.SeekTo(sliderValue))
 
         },
