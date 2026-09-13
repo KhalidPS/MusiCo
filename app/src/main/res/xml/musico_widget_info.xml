@@ -7,5 +7,6 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:previewImage="@drawable/logo_musico"
+    android:initialLayout="@layout/glance_default_loading_layout"
     android:description="@string/widget_description"
     android:updatePeriodMillis="0" />
