@@ -959,7 +959,15 @@ class ViewModel(
 
                 is UiAction.ChangeToOtherSong -> {
 
-                    when (action.index) {
+                    // The pager's page index and the controller's queue can disagree for a frame
+                    // after songs are deleted - the screen still holds the old list while the
+                    // controller has already been rebuilt from the shorter one. Seeking to an
+                    // index the queue no longer has throws IllegalSeekPositionException.
+                    val count = controller.mediaItemCount
+                    if (count == 0) return@launch
+                    val index = action.index.coerceIn(0, count - 1)
+
+                    when (index) {
                         controller.currentMediaItemIndex -> {
                             controller.playOrPause(
                                 ::calculateProgressValue,
@@ -968,7 +976,7 @@ class ViewModel(
                         }
 
                         else -> {
-                            controller.seekToDefaultPosition(action.index)
+                            controller.seekToDefaultPosition(index)
                             updateIsPlaying(true)
                             controller.playWhenReady = true
                             controller
@@ -1001,6 +1009,9 @@ class ViewModel(
                 }
 
                 UiAction.SeekToNext -> {
+                    // An empty queue (every song deleted) has no index to wrap to: seekTo(-1, 0)
+                    // would throw IllegalSeekPositionException.
+                    if (controller.mediaItemCount == 0) return@launch
                     if (controller.repeatMode == Player.REPEAT_MODE_ONE && controller.currentMediaItemIndex == controller.mediaItemCount - 1) {
                         controller.seekTo(0, 0L)
                     } else {
@@ -1010,6 +1021,7 @@ class ViewModel(
                 }
 
                 UiAction.SeekToPrevious -> {
+                    if (controller.mediaItemCount == 0) return@launch
                     if (controller.repeatMode == Player.REPEAT_MODE_ONE && controller.currentMediaItemIndex == 0) {
                         controller
                             .seekTo(controller.mediaItemCount - 1, 0L)

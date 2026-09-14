@@ -130,13 +130,25 @@ fun SharedTransitionScope.PlayedSongScreen(
     val context = LocalContext.current
     val resources = LocalResources.current
     val density = LocalDensity.current.density
+
+    // The library can shrink while this screen is open - the user deletes the song that is
+    // playing, or a whole selection of them - and both [index] (a nav argument captured when the
+    // screen was opened) and the pager's own page can then point past the end of [songs]. Every
+    // indexed read below goes through [songAt] so a page that no longer exists resolves to the
+    // nearest one that does instead of throwing IndexOutOfBounds.
+    if (songs.isEmpty()) {
+        LaunchedEffect(Unit) { onDownArrowClicked() }
+        return
+    }
+    val songAt: (Int) -> SongUi = { page -> songs[page.coerceIn(0, songs.lastIndex)] }
+
     val pagerState = rememberPagerState(
         pageCount = { songs.size },
-        initialPage = index
+        initialPage = index.coerceIn(0, songs.lastIndex)
     )
     // var indexState = index
     val scope = rememberCoroutineScope()
-    val isFavorite by remember(favoriteSongs){ derivedStateOf { favoriteSongs.contains(songs[pagerState.settledPage]) } }
+    val isFavorite by remember(favoriteSongs, songs){ derivedStateOf { favoriteSongs.contains(songAt(pagerState.settledPage)) } }
 
 
     var spotColor by remember { mutableStateOf(Color.Cyan) }
@@ -155,7 +167,7 @@ fun SharedTransitionScope.PlayedSongScreen(
 
     if (isShowDialog){
         InfoDialog(
-            song = songs[pagerState.settledPage],
+            song = songAt(pagerState.settledPage),
             onDismissRequest = { isShowDialog = false },
             onCloseClicked = { isShowDialog = false },
         )
@@ -165,7 +177,7 @@ fun SharedTransitionScope.PlayedSongScreen(
         SleepTimerDialog(
             sleepTimer = sleepTimer,
             accentColor = spotColor,
-            coverUrl = songs[pagerState.settledPage].cover,
+            coverUrl = songAt(pagerState.settledPage).cover,
             onDismissRequest = { isShowSleepTimerDialog = false },
             onDurationSelected = { onAction(UiAction.StartSleepTimer(it)) },
             onEndOfTrackSelected = { onAction(UiAction.StartSleepTimerEndOfTrack) },
@@ -224,7 +236,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     LaunchedEffect(Unit) {
         Log.e("ks", "index state 1: $index")
 
-        if (songs[index] != playedSong) {
+        if (songAt(index) != playedSong) {
             launch {
                 onAction(UiAction.PlayPause)
 
@@ -242,12 +254,15 @@ fun SharedTransitionScope.PlayedSongScreen(
         we make the check  if the current song match the settled one after 200 millis second this will
         ensure that the selected song is settled then we can check for current playing song that match the
         pager if we change song from notification**/
-        if (playedSong != null && playedSong != songs[pagerState.settledPage]) {
-            pagerState.animateScrollToPage(songs.indexOf(playedSong))
+        // indexOf is -1 when the playing song was just deleted from the library; there is no
+        // page to scroll to in that case, the pager is about to be rebuilt from the new list.
+        val playedSongPage = songs.indexOf(playedSong)
+        if (playedSong != null && playedSongPage != -1 && playedSong != songAt(pagerState.settledPage)) {
+            pagerState.animateScrollToPage(playedSongPage)
         }
         Log.e("ks", "the played one : $playedSong")
         Log.e("ks", "the index one :${songs.indexOf(playedSong)}")
-        Log.e("ks", "the settled one ${songs[pagerState.settledPage]}")
+        Log.e("ks", "the settled one ${songAt(pagerState.settledPage)}")
     }
 
 
@@ -260,7 +275,7 @@ fun SharedTransitionScope.PlayedSongScreen(
             // if (songs[indexState] != state.playedSong){
             onAction(UiAction.ChangeToOtherSong(it))
             //onStart()
-            onSettledPageChanged(songs[it].id)
+            onSettledPageChanged(songAt(it).id)
             onAction(UiAction.PlayPause)
             //}
            // isFavorite = isFavorite(songs[it])
@@ -302,7 +317,7 @@ fun SharedTransitionScope.PlayedSongScreen(
             }
 
 
-            val song = songs[it]
+            val song = songAt(it)
             outlineColor = getColorFromCover(
                 lurCache = lurCache,
                 context = context,
@@ -327,7 +342,7 @@ fun SharedTransitionScope.PlayedSongScreen(
             /** background for screen if the system is less than 12 then make the background
              * the image itself with alpha for it else the image with blur*/
             AsyncImage(
-                model = songs[pagerState.currentPage].cover,
+                model = songAt(pagerState.currentPage).cover,
                 error = painterResource(R.drawable.logo_musico3),
                 placeholder = painterResource(R.drawable.logo_musico3),
                 //bitmap = songs[pagerState.currentPage].cover.asImageBitmap(),
@@ -353,7 +368,7 @@ fun SharedTransitionScope.PlayedSongScreen(
         } else {
 
             AsyncImage(
-                model = songs[pagerState.currentPage].cover,
+                model = songAt(pagerState.currentPage).cover,
                 //bitmap = songs[pagerState.currentPage].cover.asImageBitmap(),
                 error = painterResource(R.drawable.logo_musico3),
                 placeholder = painterResource(R.drawable.logo_musico3),
@@ -471,7 +486,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                 AsyncImage(
-                    model = songs[page].cover,
+                    model = songAt(page).cover,
                     error = painterResource(R.drawable.logo_musico3),
                     placeholder = painterResource(R.drawable.logo_musico3),
                     contentDescription = null,
@@ -486,7 +501,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                             condition = pagerState.settledPage == page
                         ) {
                             sharedBounds(
-                                sharedContentState = rememberSharedContentState("${imageKey}_${songs[page].path}"),
+                                sharedContentState = rememberSharedContentState("${imageKey}_${songAt(page).path}"),
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 resizeMode = ResizeMode.RemeasureToBounds,
                             )
@@ -532,13 +547,13 @@ fun SharedTransitionScope.PlayedSongScreen(
 
         val titleText: @Composable () -> Unit = {
             Text(
-                songs[pagerState.currentPage].title,
+                songAt(pagerState.currentPage).title,
                 fontSize = titleFontSize,
                 fontWeight = FontWeight.Black,
                 textAlign = TextAlign.Start,
                 modifier = Modifier
                     .sharedBounds(
-                        sharedContentState = rememberSharedContentState("${titleKey}_${songs[pagerState.currentPage].path}"),
+                        sharedContentState = rememberSharedContentState("${titleKey}_${songAt(pagerState.currentPage).path}"),
                         animatedVisibilityScope = animatedVisibilityScope
                     )
                     .fillMaxWidth()
@@ -555,12 +570,12 @@ fun SharedTransitionScope.PlayedSongScreen(
 
         val artistText: @Composable () -> Unit = {
             Text(
-                songs[pagerState.currentPage].artist,
+                songAt(pagerState.currentPage).artist,
                 fontSize = artistFontSize,
                 textAlign = TextAlign.Start,
                 modifier = Modifier
                     .sharedBounds(
-                        sharedContentState = rememberSharedContentState("${artistKey}_${songs[pagerState.currentPage].path}"),
+                        sharedContentState = rememberSharedContentState("${artistKey}_${songAt(pagerState.currentPage).path}"),
                         animatedVisibilityScope = animatedVisibilityScope
                     )
                     .fillMaxWidth()
@@ -599,7 +614,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                     .padding(horizontal = 20.dp)
             ) {
                 val songDurationMillis =
-                    songs[pagerState.currentPage].displayableDuration.durationMillis
+                    songAt(pagerState.currentPage).displayableDuration.durationMillis
 
                 PassedTimeText(
                     // While dragging, show where the thumb is rather than where playback still
@@ -614,7 +629,7 @@ fun SharedTransitionScope.PlayedSongScreen(
                 )
 
                 Text(
-                    text = songs[pagerState.currentPage].displayableDuration.formatted,
+                    text = songAt(pagerState.currentPage).displayableDuration.formatted,
                     color = Color.White.copy(alpha = .7f)
                 )
             }
@@ -733,7 +748,7 @@ fun SharedTransitionScope.PlayedSongScreen(
 
                 IconButton(
                     onClick = {
-                        onAction(UiAction.OnFavoriteClicked(songs[pagerState.settledPage]))
+                        onAction(UiAction.OnFavoriteClicked(songAt(pagerState.settledPage)))
                     },
 
                     ) {

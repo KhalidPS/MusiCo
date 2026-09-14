@@ -724,6 +724,8 @@ class MainActivity : ComponentActivity() {
         songs: List<SongUi>,
         navController: NavHostController
     ) {
+        // indexOf answers -1 once the song shown in the mini player has been deleted from the
+        // library; opening the player at page -1 crashes it, so stay where we are instead.
         val index =
             if (playedSong != null && !viewModel.isSelectedSongFromPlaylist()) {
                 songs.indexOf(playedSong)
@@ -731,6 +733,7 @@ class MainActivity : ComponentActivity() {
                 viewModel.currentPlaylistSongs()
                     .indexOf(playedSong)
             } else return
+        if (index == -1) return
 
         navController.navigate(
             PlayedSong(

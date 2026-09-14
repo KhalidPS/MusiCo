@@ -243,8 +243,10 @@ class MediaControllerManager(
     ) {
 
         val currentPath = controller.currentMediaItem?.mediaId ?: return
+        // coerced: the fallback is an index into the *controller's* list, which can be longer than
+        // the songs list the library just shrank to.
         val index = songs.indexOfFirst { it.path == currentPath }.takeIf { it != -1 }
-            ?: controller.currentMediaItemIndex
+            ?: controller.currentMediaItemIndex.coerceIn(0, songs.lastIndex)
 
         viewModel.updatePlayedSong(index)
 
@@ -290,15 +292,25 @@ class MediaControllerManager(
                 controller.mediaItemCount != songs.size
     }
 
+    /** Runs whenever the library's song count changed under a live player - songs downloaded or
+     * transferred in, and equally songs the user just deleted, possibly the one that is playing.
+     * See [resolveQueueAnchor] for why `songs.indexOf(playedSong)` can't be used directly. */
     private fun handleNewSongsAdded(controller: MediaController, songs: List<SongUi>) {
-        val currentSong = viewModel.getPlayedSong()
-        val index = songs.indexOf(currentSong)
+        val anchor = resolveQueueAnchor(
+            paths = songs.map { it.path },
+            playingPath = controller.currentMediaItem?.mediaId,
+            uiPath = viewModel.getPlayedSong()?.path,
+            previousIndex = controller.currentMediaItemIndex,
+        ) ?: return
 
         controller.setMediaItemsList(
             songs = songs,
-            startIndex = index,
-            startProgress = controller.currentPosition,
+            startIndex = anchor.index,
+            // The song that was playing is gone - the one that took its place starts from the
+            // top, rather than resuming at the dead song's position part-way through.
+            startProgress = if (anchor.keepPosition) controller.currentPosition else 0L,
         )
+        if (!anchor.keepPosition) viewModel.updatePlayedSong(anchor.index)
     }
 
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
