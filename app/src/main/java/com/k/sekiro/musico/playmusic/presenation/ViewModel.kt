@@ -62,6 +62,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.onStart
@@ -335,9 +337,12 @@ class ViewModel(
 
                     // Re-read from Room: playlists and their song relationships key off Room ids, so
                     // downstream state must reflect Room, not the raw scan.
-                    _state.update {
-                        it.copy(songs = songsRepository.getSongsFromRoom().map { it.toSongUi() })
-                    }
+                    val survivors = songsRepository.getSongsFromRoom().map { it.toSongUi() }
+                    // Before the state update, not after: publishing `songs` is what wakes the
+                    // controller-sync collector in MainActivity, and it reads the playlist snapshot
+                    // through getRelevantSongsList - it has to see the pruned one.
+                    prunePlayingPlaylistSnapshot(survivors)
+                    _state.update { it.copy(songs = survivors) }
                 }
             } finally {
                 _state.update { it.copy(isLibraryLoading = false) }
@@ -749,11 +754,42 @@ class ViewModel(
         PlayerSessionService.syncRecentPlaylist(songs, value)
     }
 
+    /**
+     * Drops songs that are no longer in the library from the playlist the player is working
+     * through.
+     *
+     * That list is a *snapshot*, taken when the playlist started playing, deliberately frozen
+     * against the live Room data so that bumping a song up the Recent playlist mid-playback can't
+     * reorder the queue under the pager (see `handelPlaylistSongClicked`). Room's own rows do heal
+     * themselves - `PlaylistSong` cascade-deletes with the song - but nothing was touching this
+     * snapshot, so a deleted song stayed in the player's queue and playing it only failed once
+     * ExoPlayer tried to open the missing file.
+     *
+     * Removals only, order preserved - the freeze this snapshot exists for still holds. Nothing is
+     * published when nothing was deleted: a fresh list instance would re-trigger the controller
+     * rebuild in [MediaControllerManager] for no reason.
+     */
+    private fun prunePlayingPlaylistSnapshot(survivingSongs: List<SongUi>) {
+        val snapshot = currentPlayedPlaylistSong.value
+        if (snapshot.isEmpty()) return
+
+        val survivingPaths = survivingSongs.mapTo(HashSet()) { it.path }
+        val pruned = snapshot.filter { it.path in survivingPaths }
+        if (pruned.size == snapshot.size) return
+
+        currentPlayedPlaylistSong.update { pruned }
+        PlayerSessionService.syncRecentPlaylist(pruned, isSelectedSongFromPlaylist.value)
+    }
+
     fun isSelectedSongFromPlaylist(): Boolean = isSelectedSongFromPlaylist.value
 
     fun currentPlaylistId() = currentPlayedPlaylistId.value
 
     fun currentPlaylistSongs() = currentPlayedPlaylistSong.value
+
+    /** Observable form of [currentPlaylistSongs], for screens that have to notice songs being
+     * pruned out of the playing playlist - see [prunePlayingPlaylistSnapshot]. */
+    val playingPlaylistSongs: StateFlow<List<SongUi>> = currentPlayedPlaylistSong.asStateFlow()
 
     fun updateCurrentPlaylist(song: List<SongUi>) {
         currentPlayedPlaylistSong.update { song }

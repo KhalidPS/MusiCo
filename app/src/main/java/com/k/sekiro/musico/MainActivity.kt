@@ -332,14 +332,19 @@ class MainActivity : ComponentActivity() {
 
                                     val progress by rememberUpdatedState(state.value.sliderProgress)
                                     val passedTime by rememberUpdatedState(state.value.passedTimeDuration)
-                                    val songs = remember(isFromPlaylist) {
-                                        if (isFromPlaylist) {
-                                            /*if (playlistId == 2L) state.value.recentPlaylistSongs
-                                            else state.value.playlistsWithSongs.find { it.playlist.id == playlistId }!!.songs*/
-                                            viewModel.currentPlaylistSongs()
-                                        } else {
-                                            state.value.songs
-                                        }
+                                    // Collected, not remembered: the playlist snapshot is frozen
+                                    // against reordering on purpose, but it does get pruned when
+                                    // songs in it are deleted from the library, and this screen
+                                    // has to follow that or it keeps showing songs whose files
+                                    // are gone.
+                                    val playingPlaylistSongs by viewModel.playingPlaylistSongs
+                                        .collectAsStateWithLifecycle()
+                                    val songs = if (isFromPlaylist) {
+                                        /*if (playlistId == 2L) state.value.recentPlaylistSongs
+                                        else state.value.playlistsWithSongs.find { it.playlist.id == playlistId }!!.songs*/
+                                        playingPlaylistSongs
+                                    } else {
+                                        state.value.songs
                                     }
 
 
