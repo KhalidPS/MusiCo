@@ -15,8 +15,11 @@
 .cxx
 .lock
 .bin
+# Ignore stray XML (build output, logs, tool files), but keep the app's source XML:
+# resources, manifests, widget/backup configs, etc.
 *.xml
 !AndroidManifest.xml
+!/app/src/**/*.xml
 local.properties
 /.kotlin
 /app/google-services.json
