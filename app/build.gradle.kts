@@ -115,7 +115,8 @@ dependencies {
     implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.compose.runtime.tracing)
     implementation(libs.androidx.compose.adaptive)
-    "baselineProfile"(project(":baselineprofile"))
+    // Only present locally; see settings.gradle.kts.
+    findProject(":baselineprofile")?.let { "baselineProfile"(it) }
     implementation(libs.kotlinx.datetime)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     ksp(libs.androidx.room.compiler)
