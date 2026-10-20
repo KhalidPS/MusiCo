@@ -24,4 +24,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "MusiCo"
 include(":app")
-include(":baselineprofile")
+if (java.io.File(rootDir, "baselineprofile").exists()) {
+    include(":baselineprofile")
+}
