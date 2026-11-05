@@ -389,7 +389,6 @@ class MainActivity : ComponentActivity() {
                                             )
                                         },
                                         onSettledPageChanged = viewModel::addToRecent,
-                                        isFromPlaylist = isFromPlaylist,
                                         isEqualizerEnabled = equalizerState.enabled &&
                                             equalizerState.availability == EqualizerAvailability.Ready,
                                         onEqualizerClicked = { accent ->
@@ -886,7 +885,7 @@ class MainActivity : ComponentActivity() {
         The controller's actual media items must also be resynced whenever the playlist's
         order changed (`previousPlaylistSongs != playlist.songs`), not just when the song or
         playlistId changed - otherwise the controller keeps the song at its OLD index, and the
-        pager's settle effect (ChangeToOtherSong) ends up seeking the controller to `index`
+        pager's settle effect (PlayTappedSong) ends up seeking the controller to `index`
         within that stale, un-reordered list: the UI shows the right song (it's built from the
         freshly-synced snapshot) but playback comes from whatever used to sit at that index.**/
         val previousPlaylistSongs = viewModel.currentPlaylistSongs()

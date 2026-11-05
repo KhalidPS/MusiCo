@@ -982,6 +982,22 @@ class ViewModel(
     }
 
     @OptIn(UnstableApi::class)
+    /** The pager's page index and the controller's queue can disagree for a frame after songs are
+     * deleted - the screen still holds the old list while the controller has already been rebuilt
+     * from the shorter one, and seeking past the end throws IllegalSeekPositionException. Null
+     * when the queue is empty. */
+    private fun queueIndexOrNull(controller: MediaController, index: Int): Int? {
+        val count = controller.mediaItemCount
+        return if (count == 0) null else index.coerceIn(0, count - 1)
+    }
+
+    /** Suspends for as long as playback runs - startProgressUpdate loops until cancelled. */
+    private suspend fun playFromHere(controller: MediaController) {
+        controller.playWhenReady = true
+        updateIsPlaying(true)
+        controller.startProgressUpdate(::calculateProgressValue)
+    }
+
     fun onAction(action: UiAction) {
         val controller = controllerManager.getController() ?: return
         viewModelScope.launch {
@@ -993,50 +1009,24 @@ class ViewModel(
 
                 }
 
-                is UiAction.ChangeToOtherSong -> {
-
-                    // The pager's page index and the controller's queue can disagree for a frame
-                    // after songs are deleted - the screen still holds the old list while the
-                    // controller has already been rebuilt from the shorter one. Seeking to an
-                    // index the queue no longer has throws IllegalSeekPositionException.
-                    val count = controller.mediaItemCount
-                    if (count == 0) return@launch
-                    val index = action.index.coerceIn(0, count - 1)
-
-                    when (index) {
-                        controller.currentMediaItemIndex -> {
-                            controller.playOrPause(
-                                ::calculateProgressValue,
-                                ::updateIsPlaying
-                            )
-                        }
-
-                        else -> {
-                            controller.seekToDefaultPosition(index)
-                            updateIsPlaying(true)
-                            controller.playWhenReady = true
-                            controller
-                                .startProgressUpdate(::calculateProgressValue)
-                        }
-                    }
-
-
-                }
-
-                is UiAction.PlayFromList -> {
-                    // Same index guard as ChangeToOtherSong above.
-                    val count = controller.mediaItemCount
-                    if (count == 0) return@launch
-                    val index = action.index.coerceIn(0, count - 1)
-
+                // These two replace ChangeToOtherSong, which toggled play/pause when the page was
+                // already the current song - the now-playing screen then sent PlayPause straight
+                // after it, so a "same song" emission was two toggles: a flicker.
+                is UiAction.PlayTappedSong -> {
+                    val index = queueIndexOrNull(controller, action.index) ?: return@launch
                     if (index != controller.currentMediaItemIndex) {
                         controller.seekToDefaultPosition(index)
                     } else if (controller.isPlaying) {
                         return@launch
                     }
-                    controller.playWhenReady = true
-                    updateIsPlaying(true)
-                    controller.startProgressUpdate(::calculateProgressValue)
+                    playFromHere(controller)
+                }
+
+                is UiAction.SettleOnPage -> {
+                    val index = queueIndexOrNull(controller, action.index) ?: return@launch
+                    if (index == controller.currentMediaItemIndex) return@launch
+                    controller.seekToDefaultPosition(index)
+                    playFromHere(controller)
                 }
 
                 UiAction.OnDownArrowClicked -> TODO()
