@@ -52,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -237,10 +238,21 @@ fun SharedTransitionScope.PlayedSongScreen(
             }
         }*/
 
+    // The entry logic below (the PlayPause here and the first settledPage emission further down)
+    // is meant to run once per navigation *to* this screen. LaunchedEffects restart every time
+    // the screen re-enters composition, though - coming back from the equalizer, rotation,
+    // activity recreation - and both of them are toggles, so a re-entry re-sent them: two
+    // toggles (a pause/resume blip) or, once the playing song no longer matched the `index` this
+    // screen was opened with (after a swipe, auto-advance or a notification skip), three - and
+    // playback ended paused. Saved with the back-stack entry, so a real new navigation (list,
+    // bottom bar, playlist) starts at false and behaves exactly as before.
+    var entryHandled by rememberSaveable { mutableStateOf(false) }
+    val isReEntry = remember { entryHandled }
+
     LaunchedEffect(Unit) {
         Log.e("ks", "index state 1: $index")
 
-        if (songAt(index) != playedSong) {
+        if (!isReEntry && songAt(index) != playedSong) {
             launch {
                 onAction(UiAction.PlayPause)
 
@@ -274,14 +286,25 @@ fun SharedTransitionScope.PlayedSongScreen(
 
         Log.e("ks", "index state 3: $index")
 
+        var isFirstEmission = true
         snapshotFlow { pagerState.settledPage }.collect {
 
-            // if (songs[indexState] != state.playedSong){
-            onAction(UiAction.ChangeToOtherSong(it))
-            //onStart()
-            onSettledPageChanged(songAt(it).id)
-            onAction(UiAction.PlayPause)
-            //}
+            // On a re-entry the first emission is just the restored page being reported again,
+            // not the user settling on a song - skip the playback side, keep the visuals below.
+            // Later emissions (swipes, and LaunchedEffect(playedSong) following a notification
+            // skip) are untouched.
+            val restoredPageReport = isFirstEmission && isReEntry
+            isFirstEmission = false
+            entryHandled = true
+
+            if (!restoredPageReport) {
+                // if (songs[indexState] != state.playedSong){
+                onAction(UiAction.ChangeToOtherSong(it))
+                //onStart()
+                onSettledPageChanged(songAt(it).id)
+                onAction(UiAction.PlayPause)
+                //}
+            }
            // isFavorite = isFavorite(songs[it])
 
             val job1 = launch { line1X.snapTo(0f) }
