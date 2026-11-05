@@ -1023,6 +1023,22 @@ class ViewModel(
 
                 }
 
+                is UiAction.PlayFromList -> {
+                    // Same index guard as ChangeToOtherSong above.
+                    val count = controller.mediaItemCount
+                    if (count == 0) return@launch
+                    val index = action.index.coerceIn(0, count - 1)
+
+                    if (index != controller.currentMediaItemIndex) {
+                        controller.seekToDefaultPosition(index)
+                    } else if (controller.isPlaying) {
+                        return@launch
+                    }
+                    controller.playWhenReady = true
+                    updateIsPlaying(true)
+                    controller.startProgressUpdate(::calculateProgressValue)
+                }
+
                 UiAction.OnDownArrowClicked -> TODO()
                 UiAction.OnMoreActionClicked -> TODO()
                 UiAction.PlayPause -> controller.playOrPause(

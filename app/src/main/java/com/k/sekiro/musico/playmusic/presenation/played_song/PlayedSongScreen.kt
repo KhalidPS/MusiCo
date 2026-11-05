@@ -127,6 +127,8 @@ fun SharedTransitionScope.PlayedSongScreen(
     onDownArrowClicked: () -> Unit = {},
     onSettledPageChanged: (Long) -> Unit = {},
     isEqualizerEnabled: Boolean = false,
+    /** From the PlayedSong route. With launchedFromBottomBar false too, the user tapped a song in Home's list. */
+    isFromPlaylist: Boolean = false,
     /** Receives the current cover accent, so the equalizer screen can match it. */
     onEqualizerClicked: (Color) -> Unit = {},
 ) {
@@ -248,6 +250,7 @@ fun SharedTransitionScope.PlayedSongScreen(
     // bottom bar, playlist) starts at false and behaves exactly as before.
     var entryHandled by rememberSaveable { mutableStateOf(false) }
     val isReEntry = remember { entryHandled }
+    val openedFromHomeList = !isFromPlaylist && !launchedFromBottomBar
 
     LaunchedEffect(Unit) {
         Log.e("ks", "index state 1: $index")
@@ -294,10 +297,19 @@ fun SharedTransitionScope.PlayedSongScreen(
             // Later emissions (swipes, and LaunchedEffect(playedSong) following a notification
             // skip) are untouched.
             val restoredPageReport = isFirstEmission && isReEntry
+            // The song the user just tapped in Home's list. ChangeToOtherSong + PlayPause below are
+            // two toggles when that song is already the current one, so tapping it while paused
+            // resumed and immediately paused again. PlayFromList states the intent instead.
+            // Playlist and bottom-bar entries, swipes and the notification follow keep the
+            // original pair.
+            val tappedInHomeList = isFirstEmission && !isReEntry && openedFromHomeList
             isFirstEmission = false
             entryHandled = true
 
-            if (!restoredPageReport) {
+            if (tappedInHomeList) {
+                onAction(UiAction.PlayFromList(it))
+                onSettledPageChanged(songAt(it).id)
+            } else if (!restoredPageReport) {
                 // if (songs[indexState] != state.playedSong){
                 onAction(UiAction.ChangeToOtherSong(it))
                 //onStart()

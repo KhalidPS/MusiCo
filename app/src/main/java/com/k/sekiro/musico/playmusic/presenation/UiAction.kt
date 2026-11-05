@@ -14,6 +14,9 @@ sealed interface UiAction {
 
     data class OnFavoriteClicked(val songUi: SongUi): UiAction
     data class ChangeToOtherSong(val index: Int): UiAction
+    /** A song tapped in Home's list: play it - seek if it isn't the current one, resume if it is
+     * but paused, leave it alone if it's already playing. Never toggles. */
+    data class PlayFromList(val index: Int): UiAction
     data class UpdateProgress(val newProgress: Float): UiAction
     object OnMoreActionClicked: UiAction
     object OnDownArrowClicked: UiAction

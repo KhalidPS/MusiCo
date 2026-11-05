@@ -389,6 +389,7 @@ class MainActivity : ComponentActivity() {
                                             )
                                         },
                                         onSettledPageChanged = viewModel::addToRecent,
+                                        isFromPlaylist = isFromPlaylist,
                                         isEqualizerEnabled = equalizerState.enabled &&
                                             equalizerState.availability == EqualizerAvailability.Ready,
                                         onEqualizerClicked = { accent ->
