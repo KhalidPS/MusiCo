@@ -13,7 +13,12 @@ sealed interface UiAction {
     data class SeekTo(val position: Float): UiAction
 
     data class OnFavoriteClicked(val songUi: SongUi): UiAction
-    data class ChangeToOtherSong(val index: Int): UiAction
+    /** A tapped song (Home list, playlist, artist/album) opened the player: play it - seek if it
+     * isn't the current one, resume if it is but paused, leave it alone if it's playing. */
+    data class PlayTappedSong(val index: Int): UiAction
+    /** The now-playing pager settled on [index]: if that's another song, play it; if it's already
+     * the current one (the pager catching up with a notification skip), do nothing. */
+    data class SettleOnPage(val index: Int): UiAction
     data class UpdateProgress(val newProgress: Float): UiAction
     object OnMoreActionClicked: UiAction
     object OnDownArrowClicked: UiAction

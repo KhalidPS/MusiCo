@@ -33,6 +33,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -51,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -123,7 +125,10 @@ fun SharedTransitionScope.PlayedSongScreen(
     animatedVisibilityScope: AnimatedVisibilityScope,
     onAction: (UiAction) -> Unit,
     onDownArrowClicked: () -> Unit = {},
-    onSettledPageChanged: (Long) -> Unit = {}
+    onSettledPageChanged: (Long) -> Unit = {},
+    isEqualizerEnabled: Boolean = false,
+    /** Receives the current cover accent, so the equalizer screen can match it. */
+    onEqualizerClicked: (Color) -> Unit = {},
 ) {
 
 
@@ -233,17 +238,18 @@ fun SharedTransitionScope.PlayedSongScreen(
             }
         }*/
 
-    LaunchedEffect(Unit) {
-        Log.e("ks", "index state 1: $index")
+    // The first settledPage emission (see the pager collector below) is this screen's entry, and
+    // it must be handled once per navigation *to* the screen. LaunchedEffects restart every time
+    // the screen re-enters composition, though - coming back from the equalizer, rotation,
+    // activity recreation. Saved with the back-stack entry, so a real new navigation (list,
+    // bottom bar, playlist) starts at false.
+    var entryHandled by rememberSaveable { mutableStateOf(false) }
+    val isReEntry = remember { entryHandled }
 
-        if (songAt(index) != playedSong) {
-            launch {
-                onAction(UiAction.PlayPause)
-
-            }
-        }
-
-    }
+    // There used to be a LaunchedEffect(Unit) here sending PlayPause when songAt(index) !=
+    // playedSong. It was a toggle guessing at intent - one of the sources of the resume-then-pause
+    // and pause-then-resume flickers - and PlayTappedSong below now covers the case it was for
+    // (a tapped song whose playback hadn't started yet).
 
 
     LaunchedEffect(playedSong) {//this code to sync the pager with notification when seek to
@@ -270,14 +276,39 @@ fun SharedTransitionScope.PlayedSongScreen(
 
         Log.e("ks", "index state 3: $index")
 
+        var isFirstEmission = true
         snapshotFlow { pagerState.settledPage }.collect {
 
-            // if (songs[indexState] != state.playedSong){
-            onAction(UiAction.ChangeToOtherSong(it))
-            //onStart()
-            onSettledPageChanged(songAt(it).id)
-            onAction(UiAction.PlayPause)
-            //}
+            // Each emission sends one explicit intent. This used to be ChangeToOtherSong +
+            // PlayPause for every emission - two toggles whenever the page was already the
+            // current song, which flickered (resume-then-pause when paused, pause-then-resume
+            // when playing) on a re-tap, on opening from the bottom bar and on the pager
+            // following a notification skip.
+            val firstEmission = isFirstEmission
+            isFirstEmission = false
+            entryHandled = true
+
+            when {
+                // Re-entry: just the restored page being reported again - no playback change,
+                // the visuals below still run.
+                firstEmission && isReEntry -> Unit
+
+                // Opened from the mini player: the user only wants to see the player.
+                firstEmission && launchedFromBottomBar -> onSettledPageChanged(songAt(it).id)
+
+                // Opened by tapping a song (Home list, playlist, artist/album): play it.
+                firstEmission -> {
+                    onAction(UiAction.PlayTappedSong(it))
+                    onSettledPageChanged(songAt(it).id)
+                }
+
+                // A swipe (a different song: play it) or the pager catching up with a
+                // notification skip (already the current song: nothing to do).
+                else -> {
+                    onAction(UiAction.SettleOnPage(it))
+                    onSettledPageChanged(songAt(it).id)
+                }
+            }
            // isFavorite = isFavorite(songs[it])
 
             val job1 = launch { line1X.snapTo(0f) }
@@ -416,6 +447,19 @@ fun SharedTransitionScope.PlayedSongScreen(
                 }
 
                 Row {
+                    IconButton(
+                        onClick = { onEqualizerClicked(spotColor) }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.GraphicEq,
+                            contentDescription = "Equalizer",
+                            modifier = Modifier.size(26.dp),
+                            // Same convention as the sleep timer icon: full white while it's
+                            // actually doing something, dimmed otherwise.
+                            tint = if (isEqualizerEnabled) Color.White else Color.White.copy(alpha = .7f)
+                        )
+                    }
+
                     IconButton(
                         onClick = {
                             isShowSleepTimerDialog = true
