@@ -20,6 +20,16 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import com.k.sekiro.musico.playmusic.presenation.equalizer.EqualizerScreen
+import com.k.sekiro.musico.playmusic.presenation.model.EqualizerRoute
+import com.k.sekiro.musico.playmusic.presenation.player.equalizer.EqualizerAvailability
+import com.k.sekiro.musico.playmusic.presenation.player.equalizer.EqualizerController
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -89,6 +99,7 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
     val lruCache: LruCache<String, Palette> by inject()
+    private val equalizerController: EqualizerController by inject()
     private val viewModel: ViewModel by viewModel()
     private val deletePermissionLauncher =
         registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
@@ -354,6 +365,9 @@ class MainActivity : ComponentActivity() {
                                         state.value.playlistsWithSongs.find { it.playlist.id == 1L }
                                             ?: return@composable
 
+                                    val equalizerState by equalizerController.state
+                                        .collectAsStateWithLifecycle()
+
                                     PlayedSongScreen(
                                         lurCache = lruCache,
                                         sliderProgress = { progress },
@@ -374,9 +388,43 @@ class MainActivity : ComponentActivity() {
                                                 inclusive = false
                                             )
                                         },
-                                        onSettledPageChanged = viewModel::addToRecent
+                                        onSettledPageChanged = viewModel::addToRecent,
+                                        isEqualizerEnabled = equalizerState.enabled &&
+                                            equalizerState.availability == EqualizerAvailability.Ready,
+                                        onEqualizerClicked = { accent ->
+                                            navController.navigate(EqualizerRoute(accent.toArgb())) {
+                                                launchSingleTop = true
+                                            }
+                                        }
                                     )
 
+                                }
+
+                                composable<EqualizerRoute>(
+                                    // Forward slides in decelerating; back leaves faster and
+                                    // accelerating, so dismissal gets out of the way.
+                                    enterTransition = {
+                                        slideInHorizontally(tween(350, easing = FastOutSlowInEasing)) { it / 4 } +
+                                            fadeIn(tween(350, easing = LinearEasing))
+                                    },
+                                    popExitTransition = {
+                                        slideOutHorizontally(tween(200, easing = FastOutLinearInEasing)) { it / 4 } +
+                                            fadeOut(tween(200, easing = LinearEasing))
+                                    }
+                                ) {
+                                    val accent = Color(it.toRoute<EqualizerRoute>().accentArgb)
+                                    val equalizerState by equalizerController.state
+                                        .collectAsStateWithLifecycle()
+                                    EqualizerScreen(
+                                        state = equalizerState,
+                                        accent = accent,
+                                        onBack = { navController.popBackStack() },
+                                        onEnabledChange = equalizerController::setEnabled,
+                                        onPresetSelected = equalizerController::selectPreset,
+                                        onBandChange = equalizerController::setBandLevel,
+                                        onBassBoostChange = equalizerController::setBassBoostStrength,
+                                        onReset = equalizerController::reset,
+                                    )
                                 }
 
                                 composable<PlaylistShowcase> {

@@ -18,6 +18,7 @@ data class AppDimens(
     val common: CommonDimens = CommonDimens(),
     val browse: BrowseDimens = BrowseDimens(),
     val player: PlayerDimens = PlayerDimens(),
+    val equalizer: EqualizerDimens = EqualizerDimens(),
 )
 
 data class CommonDimens(
@@ -93,6 +94,16 @@ data class PlayerDimens(
     val artistFontSize: TextUnit = 20.sp,
 )
 
+/** Responsive tokens for the equalizer screen. */
+data class EqualizerDimens(
+    /**
+     * Height of the band panel (the sliders and the response curve drawn through them, not
+     * counting the dB/Hz labels). Taller gives finer control per pixel. The landscape sets size
+     * it to fit the short window, beside the presets column instead of above it.
+     */
+    val bandsPanelHeight: Dp = 260.dp,
+)
+
 val CompactDimens = AppDimens()
 
 val MediumDimens = AppDimens(
@@ -109,6 +120,7 @@ val MediumDimens = AppDimens(
         coverWidth = 300.dp,
         coverHeight = 390.dp,
     ),
+    equalizer = EqualizerDimens(bandsPanelHeight = 320.dp),
 )
 
 val ExpandedDimens = AppDimens(
@@ -125,6 +137,7 @@ val ExpandedDimens = AppDimens(
         coverWidth = 320.dp,
         coverHeight = 410.dp,
     ),
+    equalizer = EqualizerDimens(bandsPanelHeight = 340.dp),
 )
 
 /**
@@ -145,6 +158,7 @@ val SmallCompactDimens = AppDimens(
         coverWidth = 225.dp,
         coverHeight = 290.dp,
     ),
+    equalizer = EqualizerDimens(bandsPanelHeight = 210.dp),
 )
 
 /**
@@ -174,6 +188,7 @@ val MobileLandscapeDimens = ExpandedDimens.copy(
         titleFontSize = 20.sp,
         artistFontSize = 16.sp,
     ),
+    equalizer = EqualizerDimens(bandsPanelHeight = 220.dp),
 )
 
 /**
@@ -188,6 +203,8 @@ val SmallMobileLandscapeDimens = MobileLandscapeDimens.copy(
         shelfCardWidth = 110.dp,
         shelfCardAspectRatio = 1.25f,
     ),
+    // ~312dp-tall window: what's left under the top bar once the dB/Hz label rows are counted.
+    equalizer = EqualizerDimens(bandsPanelHeight = 170.dp),
 )
 
 /**

@@ -10,4 +10,8 @@ const val PlayMode_KEY = "playMode"
 const val SleepTimerMode_KEY = "sleepTimerMode"
 const val SleepTimerDeadline_KEY = "sleepTimerDeadline"
 const val SleepTimerTotal_KEY = "sleepTimerTotalMillis"
+const val EqualizerEnabled_KEY = "equalizerEnabled"
+const val EqualizerPreset_KEY = "equalizerPreset"
+const val EqualizerBandLevels_KEY = "equalizerBandLevels"
+const val BassBoostStrength_KEY = "bassBoostStrength"
 

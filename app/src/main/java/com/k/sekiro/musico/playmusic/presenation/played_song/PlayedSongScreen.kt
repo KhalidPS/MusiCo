@@ -33,6 +33,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -123,7 +124,10 @@ fun SharedTransitionScope.PlayedSongScreen(
     animatedVisibilityScope: AnimatedVisibilityScope,
     onAction: (UiAction) -> Unit,
     onDownArrowClicked: () -> Unit = {},
-    onSettledPageChanged: (Long) -> Unit = {}
+    onSettledPageChanged: (Long) -> Unit = {},
+    isEqualizerEnabled: Boolean = false,
+    /** Receives the current cover accent, so the equalizer screen can match it. */
+    onEqualizerClicked: (Color) -> Unit = {},
 ) {
 
 
@@ -416,6 +420,19 @@ fun SharedTransitionScope.PlayedSongScreen(
                 }
 
                 Row {
+                    IconButton(
+                        onClick = { onEqualizerClicked(spotColor) }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.GraphicEq,
+                            contentDescription = "Equalizer",
+                            modifier = Modifier.size(26.dp),
+                            // Same convention as the sleep timer icon: full white while it's
+                            // actually doing something, dimmed otherwise.
+                            tint = if (isEqualizerEnabled) Color.White else Color.White.copy(alpha = .7f)
+                        )
+                    }
+
                     IconButton(
                         onClick = {
                             isShowSleepTimerDialog = true

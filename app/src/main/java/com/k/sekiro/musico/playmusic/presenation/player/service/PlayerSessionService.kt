@@ -39,6 +39,7 @@ import com.k.sekiro.musico.playmusic.presenation.PlayType
 import com.k.sekiro.musico.playmusic.presenation.model.SleepTimerMode
 import com.k.sekiro.musico.playmusic.presenation.model.SleepTimerState
 import com.k.sekiro.musico.playmusic.presenation.model.SongUi
+import com.k.sekiro.musico.playmusic.presenation.player.equalizer.EqualizerController
 import com.k.sekiro.musico.playmusic.presenation.player.notification.CUSTOM_COMMAND_REPEAT_ALL_ACTION
 import com.k.sekiro.musico.playmusic.presenation.player.notification.MusiCoNotificationManager
 import com.k.sekiro.musico.playmusic.presenation.player.notification.NotificationPlayerCustomCommand
@@ -68,6 +69,8 @@ class PlayerSessionService : MediaSessionService() {
     private val dataSaver: SimpleDataSaver by inject()
 
     private val playlistSongRepo: PlaylistSongRepository by inject()
+
+    private val equalizerController: EqualizerController by inject()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -164,6 +167,14 @@ class PlayerSessionService : MediaSessionService() {
                    dataSaver.suspendSave(PlayMode_KEY, PlayType.Shuffle.name)
                }
             }
+        }
+
+        // ExoPlayer generates its audio session id asynchronously after construction (and can
+        // replace it later), so this - not a read right after build() - is where the equalizer
+        // learns which session to bind to.
+        @OptIn(UnstableApi::class)
+        override fun onAudioSessionIdChanged(audioSessionId: Int) {
+            equalizerController.attach(audioSessionId)
         }
     }
 
@@ -351,6 +362,9 @@ class PlayerSessionService : MediaSessionService() {
             .build()
 
         player.addListener(listener)
+        // Normally still 0 (unset) here and a no-op - the real id arrives through
+        // onAudioSessionIdChanged - but covers a player that already has one.
+        equalizerController.attach(player.audioSessionId)
 
         val forwardingPlayer = object : ForwardingSimpleBasePlayer(player){
             override fun handleSeek(
@@ -460,6 +474,8 @@ class PlayerSessionService : MediaSessionService() {
 
             release()
             player.removeListener(listener)
+            // Effects are bound to the player's audio session - drop them before it goes away.
+            equalizerController.release()
             player.release()
             Log.e("ks", "Service Destroyed ^_^")
 

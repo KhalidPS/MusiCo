@@ -24,6 +24,7 @@ import com.k.sekiro.musico.playmusic.domain.repositroy.PlaylistSongRepository
 import com.k.sekiro.musico.playmusic.domain.repositroy.SongsRepository
 import com.k.sekiro.musico.playmusic.presenation.ViewModel
 import com.k.sekiro.musico.playmusic.presenation.player.MediaControllerManager
+import com.k.sekiro.musico.playmusic.presenation.player.equalizer.EqualizerController
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
@@ -143,6 +144,10 @@ val appModule = module{
     singleOf(::PreferencesDataStoreSaver) bind SimpleDataSaver::class
 
     singleOf(::MediaImporter)
+
+    // Singleton so PlayerSessionService (attaches it to the audio session) and the equalizer
+    // screen (reads/edits it) share one instance - both live in the app's single process.
+    singleOf(::EqualizerController)
 
 }
 
